@@ -3850,6 +3850,27 @@ F9-05).
   → Después de la 1.0.0 se sigue mejorando (diseño, rendimiento, lo que se vea en el uso): correcciones como 1.0.x y
   mejoras como 1.x.0, cada una con su PR y su CI; en producción las pone administración desde Ajustes → Sistema
   («al cierre»), no solas.
+  → **El plan (acordado con el usuario el 2026-10-14; no se borra nada, se corta por fecha).** Fecha por confirmar:
+  propuesta, el corte al cierre de un día flojo después del fin de semana, no antes de él (viernes, sábado y domingo
+  son los más movidos), y el fin de semana como última prueba con las correcciones del día 4.
+  *Días antes:* (1) B8-1, con el internet principal desconectado la caja cobra y la sala se actualiza por el 4G
+  (usuario); (2) decidir «Linux Home andruwXOX» y «T an lwt» (usuario); (3) revisar las deudas pendientes y anular con
+  su motivo lo que haya sido de ensayo (administración); (4) elegir el día.
+  *El día del corte, al cierre y sin clientes:* (5) sin niños en la sala, todo cobrado y cada caja con su Z (personal);
+  (6) conteo físico con la hoja a ciegas (Inventario → Salidas y conteo), las diferencias ajustadas y el informe
+  impreso (personal y supervisión); (7) en PDF, Reportes → Ventas e Inventario al momento del periodo de prueba
+  (administración); (8) respaldo en Ajustes → Sistema → Respaldos, fijado, bajado a la PC del local y copiado a un disco
+  externo o a la nube con la integridad en verde, y la Semilla del local descargada (usuario; Claude comprueba la huella
+  en el VPS); (9) etiqueta v1.0.0 y su salud (Claude); (10) D-ENT: `L2_ENTORNO=produccion` y reinicio de un minuto;
+  comprobar que no se actualiza solo y que la cuenta de soporte no cobra (Claude).
+  *Primer día:* (11) apertura contada por billete y la tasa del día confirmada; (12) el agente de impresión en línea y
+  el primer ticket; (13) Claude vigila el día solo leyendo (cobros, impresiones, errores); (14) la primera semana,
+  cambios congelados: solo correcciones urgentes, puestas al cierre.
+  *Si algo falla:* lo menor se corrige como 1.0.1 al cierre; si no cobra o no imprime, al papel (la hoja de la caja) y
+  después Caja → Papel; si se dañan los datos, el respaldo fijado; si la versión no arranca, el VPS vuelve solo a la
+  anterior.
+  *Queda hecho cuando:* respaldo fijado y probado, inventario contado, cajas cuadradas, la 1.0.0 en producción y el plan
+  de reversión impreso junto a la caja.
 
 ---
 
