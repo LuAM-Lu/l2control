@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.133.0] — 2026-10-13 · Hacia la puesta en marcha
+
+M-39, X-3: la mesa que pidió la cuenta y vuelve a pedir.
+
+### Añadido
+- **Volver a pedir trae la cuenta de vuelta de la caja:** un pedido nuevo a una cuenta que estaba en la cola la devuelve
+  a la mesa (sale de la cola). La tablet lo dice al enviar, y la cuenta en la cola dice «Si piden algo más, el pedido la
+  trae de vuelta».
+- **La caja que la estaba cobrando lo ve:** «Mesa 4 volvió a pedir: salió de la cola», y lo tecleado sin cobrar se
+  descarta. Con la versión de antes, el cobro no pasa.
+- **Lo cobrado en partes sigue cobrado:** una cuenta dividida en partes iguales sin cobrar ninguna vuelve entera; si ya
+  se cobró una parte, lo nuevo va en otra cuenta de la mesa (la caja está cobrando: cambiaría lo que vale cada parte).
+
 ## [0.132.0] — 2026-10-13 · Hacia la puesta en marcha
 
 M-39, X-2: anular según lo que ya pasó con el plato.
