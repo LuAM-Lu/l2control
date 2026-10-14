@@ -201,12 +201,12 @@ export type AccountChangeProblem =
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
 /**
- * Una línea que la pantalla puede quitar: sin pagar y de mostrador (un producto del catálogo). Lo
- * consumido en el parque o servido en la mesa no se quita: se regala (cortesía) o se anula.
+ * Una línea que la pantalla puede quitar: sin pagar y un producto del catálogo que no salió en ninguna comanda. Lo que
+ * salió (el pedido del mesero, B6-2, o la comanda de la caja, B6-16) se preparó: no se quita, se anula. Lo consumido en
+ * el parque (sin producto) tampoco: se regala o se anula. En una mesa vale lo mismo (v0.131.1, M-39 X-1): lo que la caja
+ * le añadió y todavía no salió a cocina se quita, como en el mostrador.
  */
-const quitable = (l: AccountLineDoc, kind: AccountKind) =>
-  // Lo que ya salió en una comanda (B6-16) se preparó: no se quita, se anula.
-  !l.paid && !l.movedTo && l.productId !== undefined && kind !== "MESA" && l.orderId === undefined;
+const quitable = (l: AccountLineDoc) => !l.paid && !l.movedTo && l.productId !== undefined && l.orderId === undefined;
 
 const mismoContenido = (a: AccountLineDoc, b: AccountLineDoc) =>
   a.concept === b.concept &&
@@ -267,7 +267,7 @@ export function accountChangeProblem(
 
   const ahora = new Set(after.lines.map((l) => l.id));
   for (const antes of previas.values()) {
-    if (!ahora.has(antes.id) && !quitable(antes, after.kind)) return { problem: "LINEA_QUITADA", lineId: antes.id };
+    if (!ahora.has(antes.id) && !quitable(antes)) return { problem: "LINEA_QUITADA", lineId: antes.id };
   }
 
   for (const l of after.lines) {
@@ -375,9 +375,9 @@ export function registerExit<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_
  * del niño ya se cobró: eso se deshace primero en la caja, anulando el cobro.
  */
 export function annulEntry<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_ABIERTA" }>(c: A, sessionId: string, anulacion: unknown): A | null {
-  const suyas = c.lines.filter((l) => l.sessionId === sessionId);
-  if (suyas.some((l) => l.paid)) return null;
-  const lines = c.lines.map((l) => (l.sessionId === sessionId && seDebe(l) ? { ...l, anulacion } : l));
+  const suyas = c.lines.filter((l) => sesionDeLinea(l) === sessionId);
+  if (suyas.some((l) => l.paid && esDeTiempo(l))) return null;
+  const lines = c.lines.map((l) => (sesionDeLinea(l) === sessionId && seDebe(l) ? { ...l, anulacion } : l));
   const cerradas = [...new Set([...c.closedSessionIds, sessionId])];
   const todos = cerradas.length === c.sessionIds.length;
   const hayPendiente = chargeableLines({ lines }).length > 0;
@@ -386,6 +386,21 @@ export function annulEntry<A extends AccountDoc & { mode: "PREPAGO" | "CUENTA_AB
     ? hayPendiente ? "POR_COBRAR" : algoCobrado ? "COBRADA" : "SIN_CONSUMO"
     : c.mode === "PREPAGO" && hayPendiente ? "POR_COBRAR" : c.status === "POR_COBRAR" && !hayPendiente ? "ABIERTA" : c.status;
   return { ...c, closedSessionIds: cerradas, lines, status };
+}
+
+/**
+ * Anular la entrada de un niño vinculado (v0.131.1, M-39 X-14): lo que se debe de él en su mesa queda anulado (con su
+ * anulación, nada se borra) y la mesa deja de esperar su salida. `null` si lo de su tiempo ya se cobró en la mesa (se
+ * anula ese cobro primero), o si la mesa no lo tiene. La mesa sigue: la libera su mesero.
+ */
+export function annulEntryAtTable<A extends AccountDoc>(c: A, sessionId: string, anulacion: unknown): A | null {
+  if (!c.sessionIds.includes(sessionId)) return null;
+  const suyas = c.lines.filter((l) => sesionDeLinea(l) === sessionId);
+  if (suyas.some((l) => l.paid && esDeTiempo(l))) return null;
+  const lines = c.lines.map((l) => (sesionDeLinea(l) === sessionId && seDebe(l) ? { ...l, anulacion } : l));
+  const closedSessionIds = [...new Set([...c.closedSessionIds, sessionId])];
+  const status: AccountStatus = c.status === "POR_COBRAR" && chargeableLines({ lines }).length === 0 ? "ABIERTA" : c.status;
+  return { ...c, lines, closedSessionIds, status };
 }
 
 /**
@@ -405,9 +420,23 @@ export function registerRecharge<A extends AccountDoc & { mode: "PREPAGO" | "CUE
     paid: false,
     sessionId: line.sessionId,
   };
+  // El niño vinculado a una mesa (v0.131.1, M-39 X-14): su «Más tiempo» va a la cuenta de la mesa y se cobra con ella.
+  if (c.kind === "MESA") return { ...c, lines: [...c.lines, nueva] };
   const status: AccountStatus = c.mode === "PREPAGO" || c.status === "POR_COBRAR" ? "POR_COBRAR" : "ABIERTA";
   return { ...c, lines: [...c.lines, nueva], status };
 }
+
+/**
+ * De qué estancia es una línea (v0.131.1, M-39 X-5): la que dice su `sessionId` y, en las medias que la entrada puso
+ * antes de llevarlo (B4-9), la de su id `med-<estancia>`. Así el par va con su niño a la mesa, vuelve con él y se anula
+ * con su entrada.
+ */
+export function sesionDeLinea(l: Pick<AccountLineDoc, "id" | "sessionId">): string | undefined {
+  return l.sessionId ?? (l.id.startsWith("med-") ? l.id.slice(4) : undefined);
+}
+
+/** Lo que una estancia paga de tiempo (no las medias, que son una venta del inventario). */
+const esDeTiempo = (l: Pick<AccountLineDoc, "kind">) => l.kind !== "RESTAURANTE";
 
 /* ──────────────────────────────────── vincular pulseras a una mesa (F6-05) */
 
@@ -427,8 +456,9 @@ export function moveSessionLines<A extends AccountDoc>(
   const ids = new Set(sessionIds);
   const lineasNuevas: AccountLineDoc[] = [];
   const lines = familia.lines.map((l) => {
-    if (!seDebe(l) || !l.sessionId || !ids.has(l.sessionId)) return l;
-    lineasNuevas.push({ ...l, id: idDeLaNueva(l) });
+    const sesion = sesionDeLinea(l);
+    if (!seDebe(l) || !sesion || !ids.has(sesion)) return l;
+    lineasNuevas.push({ ...l, id: idDeLaNueva(l), sessionId: sesion });
     return { ...l, movedTo: targetAccountId };
   });
   // Si lo que la ponía en la cola se acaba de mover, la cuenta sale de la cola: a abierta mientras
@@ -453,7 +483,7 @@ export type UnlinkProblem = "NO_VINCULADO" | "COBRO_EN_CURSO" | "YA_COBRADO";
 export function unlinkProblem(desde: Pick<AccountDoc, "sessionIds" | "split" | "lines">, sessionId: string): UnlinkProblem | null {
   if (!desde.sessionIds.includes(sessionId)) return "NO_VINCULADO";
   if (desde.split && desde.split.paid > 0) return "COBRO_EN_CURSO";
-  if (desde.lines.some((l) => l.sessionId === sessionId && l.paid)) return "YA_COBRADO";
+  if (desde.lines.some((l) => sesionDeLinea(l) === sessionId && l.paid && esDeTiempo(l))) return "YA_COBRADO";
   return null;
 }
 
@@ -471,8 +501,8 @@ export function unlinkSession<A extends AccountDoc>(
 ): Readonly<{ desde: A; lineasNuevas: AccountLineDoc[] }> {
   const lineasNuevas: AccountLineDoc[] = [];
   const lines = desde.lines.map((l) => {
-    if (!seDebe(l) || l.sessionId !== sessionId) return l;
-    lineasNuevas.push({ ...l, id: idDeLaNueva(l) });
+    if (!seDebe(l) || sesionDeLinea(l) !== sessionId) return l;
+    lineasNuevas.push({ ...l, id: idDeLaNueva(l), sessionId });
     return { ...l, movedTo: destinoId };
   });
   const status: AccountStatus = desde.status === "POR_COBRAR" && chargeableLines({ lines }).length === 0 ? "ABIERTA" : desde.status;

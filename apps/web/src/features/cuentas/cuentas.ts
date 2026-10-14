@@ -220,49 +220,6 @@ export function anadirPedido(
 }
 
 /**
- * Vincular niños a una mesa mueve lo suyo del parque a la cuenta de la mesa — D2.
- *
- * Así la familia paga UNA vez. Nada se borra (regla 5): la línea se queda en la
- * cuenta de la familia diciendo adónde fue, y deja de contar como pendiente.
- * Devuelve las dos cuentas ya validadas, o `null` si no había nada que mover.
- */
-export function moverParqueALaMesa(
-  familia: FamilyAccountDto,
-  mesa: FamilyAccountDto,
-  sessionIds: readonly string[],
-): { familia: FamilyAccountDto; mesa: FamilyAccountDto } | null {
-  const ids = new Set(sessionIds);
-  const mueven = familia.lines.filter(
-    // Lo regalado no se mueve: no se debe, y su cortesía se quedó en esta cuenta.
-    (l) => !l.paid && !l.movedTo && !l.cortesia && l.sessionId && ids.has(l.sessionId),
-  );
-  if (mueven.length === 0) return null;
-
-  // Una línea nueva en la mesa, con su propio id: juntar los dos se cortaba a 64 y chocaba.
-  const enLaMesa = mueven.map((l) => ({
-    ...l,
-    id: globalThis.crypto.randomUUID(),
-  }));
-  return {
-    familia: FamilyAccountSchema.parse({
-      ...familia,
-      lines: familia.lines.map((l) =>
-        mueven.includes(l) ? { ...l, movedTo: mesa.id } : l,
-      ),
-      // Si ya no le queda nada propio, deja de estar en la cola de la caja.
-      status: familia.lines.some((l) => !l.paid && !mueven.includes(l))
-        ? familia.status
-        : "ABIERTA",
-    }),
-    mesa: FamilyAccountSchema.parse({
-      ...mesa,
-      sessionIds: [...new Set([...mesa.sessionIds, ...sessionIds])],
-      lines: [...mesa.lines, ...enLaMesa],
-    }),
-  };
-}
-
-/**
  * La mesa pidió la cuenta: pasa a la cola de la caja si hay algo que cobrar. Lo anulado y lo regalado no
  * cuentan: una mesa en $ 0 no va a la caja, se libera (B6-5).
  */

@@ -46,6 +46,8 @@ import {
   type AccountLineDoc,
   type ProductAtNow,
   annulEntry,
+  annulEntryAtTable,
+  sesionDeLinea,
 } from "./cuenta.ts";
 
 const usd = (minor: string) => ({ minor, currency: "USD" });
@@ -214,8 +216,17 @@ describe("qué cambio acepta el servidor", () => {
   });
 
   test("lo pedido en una mesa tampoco se quita con un «guardar» (B6-3): se anula, con su mando", () => {
-    const mesa: AccountDoc = { kind: "MESA", status: "ABIERTA", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [agua("x")] };
+    const mesa: AccountDoc = { kind: "MESA", status: "ABIERTA", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [agua("x", { orderId: "o-1" })] };
     assert.equal(accountChangeProblem(mesa, { ...mesa, lines: [] }, productAt)?.problem, "LINEA_QUITADA");
+  });
+
+  test("lo que la caja añadió a una mesa y no salió a cocina se quita (v0.131.1, el reporte n.º 2)", () => {
+    const mesa: AccountDoc = { kind: "MESA", status: "POR_COBRAR", tableId: "m1", sessionIds: [], closedSessionIds: [], lines: [agua("pedida", { orderId: "o-1" }), agua("x"), agua("y")] };
+    assert.equal(accountChangeProblem(mesa, { ...mesa, lines: mesa.lines.slice(0, 2) }, productAt), null);
+    assert.equal(accountChangeProblem(mesa, { ...mesa, lines: mesa.lines.slice(1) }, productAt)?.problem, "LINEA_QUITADA");
+    // El tiempo de un niño vinculado (sin producto) tampoco se quita: se regala o se anula.
+    const conNino = { ...mesa, sessionIds: ["s1"], lines: [linea("p", { sessionId: "s1" })] };
+    assert.equal(accountChangeProblem(conNino, { ...conNino, lines: [] }, productAt)?.problem, "LINEA_QUITADA");
   });
 
   test("una línea no cambia de importe ni de concepto", () => {
@@ -371,6 +382,12 @@ describe("la recarga de tiempo (B4-3, F5-11)", () => {
     assert.equal(c.status, "ABIERTA");
     assert.equal(registerRecharge(c, linea).lines.length, 3);
   });
+  test("la de un niño vinculado va a su mesa y se cobra con ella: la mesa no cambia de estado (v0.131.1)", () => {
+    const mesa = { kind: "MESA" as const, status: "ABIERTA" as const, tableId: "m1", sessionIds: ["s1"], closedSessionIds: [] as string[], lines: [] as AccountLineDoc[], mode: "PREPAGO" as const };
+    const c = registerRecharge(mesa, linea);
+    assert.equal(c.status, "ABIERTA");
+    assert.equal(c.lines.at(-1)!.sessionId, "s1");
+  });
 });
 
 describe("cobrar el parque por uso (B4-6, M-18)", () => {
@@ -416,6 +433,21 @@ describe("vincular pulseras a una mesa (F6-05, B6-3)", () => {
     assert.equal(lineasNuevas[0]!.id, "mov-l1-1");
     assert.equal(lineasNuevas[0]!.movedTo, undefined);
     assert.equal(lineasNuevas[0]!.sessionId, "s1");
+  });
+
+  test("las medias van con su niño, también las de antes que no decían su estancia (v0.131.1)", () => {
+    const f = familia({
+      status: "POR_COBRAR",
+      lines: [linea("paq-s1", { sessionId: "s1" }), agua("med-s1", { concept: "Par de medias · AK-1" }), agua("med-s2", { sessionId: "s2" }), linea("paq-s2", { sessionId: "s2" })],
+    });
+    assert.equal(sesionDeLinea(f.lines[1]!), "s1");
+    const { familia: fQueda, lineasNuevas } = moveSessionLines(f, ["s1"], "mesa-1", idsNuevos("mov"));
+    assert.deepEqual(lineasNuevas.map((l) => [l.id, l.sessionId]), [["mov-paq-s1-1", "s1"], ["mov-med-s1-2", "s1"]]);
+    assert.deepEqual(chargeableLines(fQueda).map((l) => l.id), ["med-s2", "paq-s2"], "lo del hermano sigue en la familia");
+    // Con toda la familia en la mesa, la cuenta de la familia sale de la cola: ya no hay dos cuentas.
+    const todo = moveSessionLines(f, ["s1", "s2"], "mesa-1", idsNuevos("mov"));
+    assert.equal(todo.familia.status, "ABIERTA");
+    assert.equal(chargeableLines(todo.familia).length, 0);
   });
 
   test("lo ya pagado, lo ya movido y lo regalado no se mueven otra vez", () => {
@@ -812,6 +844,32 @@ describe("anular una entrada registrada por error (B4-10)", () => {
     assert.equal(c.lines.find((l) => l.id === "l1")?.amount.minor, "1000");
     assert.deepEqual(chargeableLines(c).map((l) => l.id), ["l2"]);
     assert.equal(c.status, "ABIERTA", "el hermano sigue dentro");
+  });
+
+  test("anular la entrada anula también sus medias, aunque ya se hayan cobrado otras cosas (v0.131.1)", () => {
+    const c = annulEntry(abierta({ lines: [linea("l1", { sessionId: "s1" }), agua("med-s1"), linea("l2", { sessionId: "s2" })] }), "s1", anulacion)!;
+    assert.deepEqual(c.lines.find((l) => l.id === "med-s1")?.anulacion, anulacion);
+    // Unas medias ya cobradas no frenan la anulación de su tiempo: se quedan cobradas.
+    const conMediasPagadas = annulEntry(abierta({ lines: [linea("l1", { sessionId: "s1" }), agua("med-s1", { paid: true }), linea("l2", { sessionId: "s2" })] }), "s1", anulacion)!;
+    assert.deepEqual(conMediasPagadas.lines.find((l) => l.id === "l1")?.anulacion, anulacion);
+    assert.equal(conMediasPagadas.lines.find((l) => l.id === "med-s1")?.anulacion, undefined);
+  });
+
+  test("la entrada de un niño vinculado se anula también en su mesa (v0.131.1)", () => {
+    const mesa: AccountDoc = {
+      kind: "MESA",
+      status: "POR_COBRAR",
+      tableId: "m1",
+      sessionIds: ["s1"],
+      closedSessionIds: [],
+      lines: [linea("m-paq", { sessionId: "s1" }), agua("m-med", { sessionId: "s1" })],
+    };
+    const c = annulEntryAtTable(mesa, "s1", anulacion)!;
+    assert.deepEqual(c.lines.map((l) => l.anulacion !== undefined), [true, true]);
+    assert.deepEqual(c.closedSessionIds, ["s1"]);
+    assert.equal(c.status, "ABIERTA", "sin nada que cobrar sale de la cola; la libera su mesero");
+    assert.equal(annulEntryAtTable({ ...mesa, lines: [linea("m-paq", { sessionId: "s1", paid: true })] }, "s1", anulacion), null, "lo cobrado: primero se anula el cobro");
+    assert.equal(annulEntryAtTable(mesa, "s9", anulacion), null);
   });
 
   test("sin nadie dentro y nada que cobrar, la cuenta queda sin consumo", () => {
