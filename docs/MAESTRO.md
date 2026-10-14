@@ -3003,7 +3003,7 @@ antes del cobro en servidor (orden de ejecución).
   cuenta y `Paginacion`. Un periodo sin entradas lo dice; sin ninguna en la sucursal, «Todavía no llegó nada». Anular
   o registrar vuelve a leer. 1 prueba contra la base.*
 
-- [ ] **B9-14 · El producto listo para vender** (M-39, X-8 y X-9).
+- [~] **B9-14 · El producto listo para vender** (M-39, X-8 y X-9). *A cargo: LuAMi (Claude), en `feat/b9-14`.*
   → «Nuevo producto» pregunta «¿Cuántos hay?», opcional: en blanco nace «Sin contar», como hoy; con un número (también 0)
   nace contado con esa existencia y ya se vende. Supervisión da de alta productos y carga existencia (la matriz le da
   `inventario.catalogo`); cambiar el precio de uno ya creado sigue siendo de administración. Criterio: un refresco dado de
