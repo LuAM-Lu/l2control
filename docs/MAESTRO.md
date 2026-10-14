@@ -3303,7 +3303,7 @@ antes del cobro en servidor (orden de ejecución).
   y 800×1280 en los dos temas: tres platos en 7 toques (la mesa, «Tomar pedido», tres platos, enviar y confirmar), nada
   desplaza; con la impresora de mentira sin papel, la píldora «3 no salieron» y su hoja con «Reimprimir cocina».*
 
-- [ ] **B6-18 · Volver a pedir con la cuenta pedida** (M-39, X-3).
+- [~] **B6-18 · Volver a pedir con la cuenta pedida** (M-39, X-3). *A cargo: LuAMi (Claude), en `feat/b6-18`.*
   → Un pedido nuevo a una cuenta que está en la cola de la caja la devuelve a la mesa (sale de la cola). Si la caja la
   tenía abierta, la suelta sola: lo tecleado sin cobrar se descarta y la caja ve «Mesa 4 volvió a pedir: salió de la
   cola». Lo cobrado en partes sigue cobrado. Criterio: pedir la cuenta, volver a pedir y ver que la caja ya no la tiene; con
