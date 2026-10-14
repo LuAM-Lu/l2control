@@ -386,6 +386,30 @@ export const VincularPulserasResultSchema = z.object({
 });
 export type VincularPulserasResultDto = z.infer<typeof VincularPulserasResultSchema>;
 
+/* ─────────────────────────────── de pie en el plano (B6-19, M-39) */
+
+/** Dónde está el icono de una cuenta de pie en el plano (en cm, como las mesas) y si tiene el candado puesto. */
+export const PosicionDePieSchema = z.object({
+  accountId: IdSchema,
+  x: z.number().int().min(0).max(100_000),
+  y: z.number().int().min(0).max(100_000),
+  fijo: z.boolean(),
+});
+export type PosicionDePieDto = z.infer<typeof PosicionDePieSchema>;
+
+/** Las posiciones de las cuentas de pie abiertas: la última de cada una. Las que nunca se movieron no salen. */
+export const PosicionesDePieSchema = z.object({ posiciones: z.array(PosicionDePieSchema) });
+export type PosicionesDePieDto = z.infer<typeof PosicionesDePieSchema>;
+
+/** Mover el icono de una cuenta de pie o ponerle y quitarle el candado. No cambia la cuenta. */
+export const MoverDePieCommandSchema = z.strictObject({
+  accountId: IdSchema,
+  x: z.number().int().min(0).max(100_000),
+  y: z.number().int().min(0).max(100_000),
+  fijo: z.boolean(),
+});
+export type MoverDePieCommand = z.infer<typeof MoverDePieCommandSchema>;
+
 /* ─────────────────────────────── cambiar de mesa (B6-21, M-39) */
 
 /** La cuenta entera pasa a otra mesa del salón (B6-21), con la versión que se tenía a la vista. */

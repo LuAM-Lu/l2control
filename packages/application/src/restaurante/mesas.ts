@@ -29,6 +29,9 @@ import {
   MarcarMesaLimpiaCommandSchema,
   MesasPorLimpiarSchema,
   VincularPulserasCommandSchema,
+  MoverDePieCommandSchema,
+  PosicionesDePieSchema,
+  type PosicionesDePieDto,
   type MesasPorLimpiarDto,
   problemasDe,
   type FamilyAccountDto,
@@ -78,11 +81,58 @@ export interface CasosMesas {
   marcarLimpia(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<MesasPorLimpiarDto>>;
   /** Cambia una cuenta de mesa entera (B6-21): con sus pedidos, sus niños y el papel «CAMBIO DE MESA». */
   cambiar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CambioDeMesaDto>>;
+  /** Dónde están en el plano los iconos de las cuentas de pie abiertas (B6-19). */
+  posicionesDePie(ctx: Contexto): Promise<Resultado<PosicionesDePieDto>>;
+  /** Mueve el icono de una cuenta de pie o le pone y quita el candado (B6-19): no cambia la cuenta. */
+  moverDePie(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<PosicionesDePieDto>>;
 }
 
 export function casosMesas(base: Base): CasosMesas {
   return {
     cambiar: (ctx, entrada, ahora = Date.now()) => cambiarDeMesa(base, ctx, entrada, ahora),
+
+    async posicionesDePie(ctx) {
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<PosicionesDePieDto>> => {
+        if (!(await puedeAlgunaDe(tx, ctx, VEN_EL_SALON))) return rechazoDePermiso("DENEGADO");
+        return { ok: true, valor: await posicionesDePieEn(tx, ctx.branchId) };
+      });
+    },
+
+    async moverDePie(ctx, entrada, ahora = Date.now()) {
+      const v = MoverDePieCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "No se movió: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<PosicionesDePieDto>> => {
+        const rechazo = await exigirPermiso(tx, ctx, "pedido.tomar");
+        if (rechazo) return rechazo;
+        // Solo una cuenta de pie abierta tiene icono; cobrada o liberada, desaparece.
+        const dePie = await cuentasDePieEn(tx, ctx.branchId);
+        if (!dePie.some((c) => c.id === cmd.accountId)) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta de pie ya no está abierta." };
+        const ultima = await tx.standingAccountPosition.findFirst({ where: { branchId: ctx.branchId, accountId: cmd.accountId }, orderBy: { at: "desc" } });
+        // Con el candado puesto no se arrastra: primero se quita.
+        if (ultima?.locked && cmd.fijo && (ultima.x !== cmd.x || ultima.y !== cmd.y)) {
+          return { ok: false, motivo: "CONFLICTO", mensaje: "Ese icono está fijo: quítale el candado para moverlo.", problemas: [{ path: ["fijo"], message: "FIJO" }] };
+        }
+        const quien = await nombreDe(tx, ctx);
+        const fila = await tx.standingAccountPosition.create({
+          data: {
+            tenantId: ctx.tenantId,
+            branchId: ctx.branchId,
+            accountId: cmd.accountId,
+            x: cmd.x,
+            y: cmd.y,
+            locked: cmd.fijo,
+            at: new Date(ahora),
+            by: ctx.quien?.userId ?? null,
+            byName: quien.nombre,
+            deviceId: ctx.quien?.deviceId ?? null,
+          },
+        });
+        // Sin versión de la cuenta: el asiento solo avisa a las otras tablets por el canal.
+        await auditar(tx, ctx, { action: "mesa.de_pie", entityType: "account", entityId: cmd.accountId, after: { x: fila.x, y: fila.y, fijo: fila.locked } });
+        return { ok: true, valor: await posicionesDePieEn(tx, ctx.branchId) };
+      });
+    },
 
     async porLimpiar(ctx, ahora = Date.now()) {
       return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<MesasPorLimpiarDto>> => {
@@ -457,6 +507,20 @@ async function puedeAlgunaDe(tx: Transaccion, ctx: Contexto, acciones: readonly 
  * Las mesas por limpiar (B6-14): de las cuentas de mesa abiertas hoy, por mesa, si alguna sigue abierta y cuándo se
  * cerró la última; por limpiar, la que no tiene ninguna abierta y se cerró después de la última limpieza.
  */
+/** Las posiciones de las cuentas de pie abiertas: la última fila de cada una (B6-19). */
+async function posicionesDePieEn(tx: Transaccion, branchId: string): Promise<PosicionesDePieDto> {
+  const abiertas = (await cuentasDePieEn(tx, branchId)).map((c) => c.id);
+  if (abiertas.length === 0) return { posiciones: [] };
+  const filas = await tx.standingAccountPosition.findMany({ where: { branchId, accountId: { in: abiertas } }, orderBy: { at: "desc" } });
+  const vistas = new Set<string>();
+  const posiciones = filas.flatMap((f) => {
+    if (vistas.has(f.accountId)) return [];
+    vistas.add(f.accountId);
+    return [{ accountId: f.accountId, x: f.x, y: f.y, fijo: f.locked }];
+  });
+  return PosicionesDePieSchema.parse({ posiciones });
+}
+
 export async function mesasPorLimpiar(tx: Transaccion, branchId: string, ahora: number): Promise<MesasPorLimpiarDto> {
   const zona = await zonaDe(tx, branchId);
   const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona));

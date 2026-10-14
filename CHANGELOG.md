@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.140.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-10: dónde está la gente de pie.
+
+### Añadido
+- **Cada cuenta de pie es un icono en el plano del mesero**, con su nombre: se arrastra a donde está la gente y un
+  candado lo fija (solo a ese icono). Las otras tablets lo ven donde quedó, en vivo. Moverlo no toca la cuenta: la caja la
+  cobra mientras tanto sin «la cuenta cambió». Al cobrarla o liberarla, desaparece.
+
 ## [0.139.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-8 y X-9: el producto nuevo, listo para vender.
