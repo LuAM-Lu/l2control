@@ -3329,7 +3329,7 @@ antes del cobro en servidor (orden de ejecución).
   `VincularPulseras`, los hermanos al pasar la pulsera y «Toda la familia»; en la caja, «En la mesa N». `sentarDePrueba`
   sienta a un cliente dado; las pruebas que sientan a otro cliente confirman. `vincular-todo.test-db.ts` (2 nuevas).
   Visto en el navegador en los dos temas: tablet, sala y caja.*
-- [ ] **B6-21 · Cambiar de mesa** (M-39, X-16).
+- [~] **B6-21 · Cambiar de mesa** (M-39, X-16). *A cargo: LuAMi (Claude), en `feat/b6-21`.*
   → «Cambiar de mesa» en la tablet y en la caja: la cuenta entera pasa a otra mesa del salón con sus pedidos, sus niños
   vinculados y su historia (un mando propio, no un «guardar»: la mesa sigue sin cambiar por ahí). Lo que falta servir
   saca un papel «CAMBIO DE MESA · 3 → 7» en la cocina y en la barra, con lo que va; las comandas que salgan después dicen
