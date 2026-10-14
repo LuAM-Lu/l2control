@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.131.0 en `main` (publicada, la 0.131.0) · 131 de 147 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.131.0 en `main` (publicada, la 0.131.0) · 131 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -44,7 +44,7 @@ se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operac
 once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
 una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 decidido (2026-10-13, la
-visita de Abby y el reporte n.º 2): la corrección v0.131.1 y once pasos antes de la 1.0.0.** M-28 y M-29
+visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos antes de la 1.0.0.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -175,7 +175,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-36** | **El VPS es la operación real** (2026-10-09, decisiones del usuario) | (1) El VPS ya trabaja con perfiles reales, los equipos del local aprobados y el inventario de verdad: **la 1.0.0 (B8-4) se hace sobre esa base**, sin la corrida limpia de base nueva y semilla (B7-7 queda para otro local). Antes se revisa, solo leyendo, lo que quedó de prueba, y el usuario decide qué hacer con ello. (2) **La operación en paralelo** con el método escrito empieza el 2026-10-09 (B8-3, a cargo del usuario en el local). Lo que salga se corrige como PATCH y **no se publica una versión mientras se prueba**: en modo staging el VPS se pone al día solo y se reiniciaría a mitad. (3) **D-DOM:** no por ahora; sigue `sslip.io`. (4) **D-REIMP:** reimprimir un recibo sigue sin PIN. (5) **F0-09:** la firma formal del alcance queda sin efecto. (6) Pasar el VPS a **modo producción** queda propuesto como D-ENT (§4); **por ahora sigue en staging** (decisión del usuario). El agente de impresión ya imprime por la red del local; falta probarlo por USB (B7-3). La ruta no cambia | B8-3, B8-4 |
 | **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en diez rondas de preguntas) | U-1 a U-14, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, diez pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B6-16 (la comanda de la venta directa, sumado el 2026-10-10) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **127** (B6-16, sumado el 2026-10-10) | B3-16 a B11-7, B6-16, T-20 |
 | **M-38** | **Papel, tablet y caja** (2026-10-10, el usuario tras quedarse sin papel con la impresora por USB y no cerrar el día 9; definido con una propuesta dibujada y tres rondas de preguntas) | W-1 a W-11, abajo en «M-38 en detalle». Primero la corrección **v0.122.1** (los avisos legibles en el tema claro y la tarjeta de los puestos). Después, nueve pasos en este orden (ocho y T-23), en tanda y publicados una vez al final (con la 0.122.1): B3-24 (un día que no se cerró) → B5-6 (la impresora por red y por USB) → T-23 (el campo del cliente, añadido en la cuarta ronda) → B4-18 (la Entrada en tablet) → B6-17 (el mesero en tablet) → T-21 (la barra de las estaciones, por pantalla) → T-22 (las listas largas) → B3-21 (mover efectivo) → B3-22 (el fondo fijo, opcional). **Cambian:** cada impresora es principal o respaldo, y lo elige administración (red o USB, en cualquier orden); la caja de un día anterior deja de cobrar; los nueve formularios con cliente usan una sola pieza que busca también por nombre. La ruta pasa a **136** | B3-21 a B3-24, B4-18, B5-6, B6-17, T-21 a T-23 |
-| **M-39** | **La visita de Abby** (2026-10-13, la lista de la visita, el reporte n.º 2 de Dietina y tres rondas de preguntas) | X-1 a X-15, abajo en «M-39 en detalle». Primero la corrección **v0.131.1**, que se publica sola a la hora que diga el usuario: la caja quita lo que añadió a una mesa y no salió a cocina (el reporte n.º 2), y lo que se vio al vincular el 13 (las medias van con su niño, el «Más tiempo» de un niño vinculado va a su mesa y anular su entrada anula lo de su mesa). Después, once pasos en tanda y publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) → B6-20 (vincular la familia entera) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal en una pestaña) → B1-7 (una persona, un equipo) → B9-14 (el producto listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario y cambiar de fecha) → B10-4 (el aforo del cumpleaños y el exclusivo) → B10-5 (el cumpleaños en la caja, el parque y el salón). **Cambian:** el personal sigue pagando fuera del sistema (en su quincena) y administración lo marca descontado; supervisión da de alta productos y carga existencia; una persona trabaja en un solo equipo a la vez. La ruta pasa a **147** | B1-7, B3-25, B3-26, B4-19, B6-18 a B6-20, B9-14, B10-3 a B10-5 |
+| **M-39** | **La visita de Abby** (2026-10-13, la lista de la visita, el reporte n.º 2 de Dietina y tres rondas de preguntas) | X-1 a X-16, abajo en «M-39 en detalle». Primero la corrección **v0.131.1**, que se publica sola a la hora que diga el usuario: la caja quita lo que añadió a una mesa y no salió a cocina (el reporte n.º 2), y lo que se vio al vincular el 13 (las medias van con su niño, el «Más tiempo» de un niño vinculado va a su mesa y anular su entrada anula lo de su mesa). Después, doce pasos en tanda y publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) → B6-20 (vincular la familia entera) → B6-21 (cambiar de mesa) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal en una pestaña) → B1-7 (una persona, un equipo) → B9-14 (el producto listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario y cambiar de fecha) → B10-4 (el aforo del cumpleaños y el exclusivo) → B10-5 (el cumpleaños en la caja, el parque y el salón). **Cambian:** el personal sigue pagando fuera del sistema (en su quincena) y administración lo marca descontado; supervisión da de alta productos y carga existencia; una persona trabaja en un solo equipo a la vez. La ruta pasa a **148** | B1-7, B3-25, B3-26, B4-19, B6-18 a B6-21, B9-14, B10-3 a B10-5 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -254,6 +254,7 @@ caja, y lo que se hará. Antes de decidir se revisó cada punto en el código y,
 | **X-13** | ¿Quién se entera de los cumpleaños? Hoy, Inicio y la apertura de Turno, y solo el mismo día. Lo que se pide aparte va a otra cuenta: el representante paga dos | La caja y el parque ven el de hoy y los de la semana; el cumpleaños tiene su mesa y el mesero pide a su cuenta: una sola cuenta, saldo y extras | B10-5 |
 | **X-14** | Vincular una pulsera a la mesa abre dos cuentas y enreda (pasó el 13). La familia Yenua Akvini (#83, cuatro niños en prepago con medias): la monitora vinculó un niño a la mesa 4 de **otra familia** (Real Parra, que pagó su paquete); el mesero sentó a Yenua en la mesa 2 con los otros tres; la #83 siguió en la cola con las medias (se cobraron aparte); la «Sube a 1 hora» del niño de la mesa 4 cayó en la #83 (se regaló). Leyendo el código: anular la entrada de un niño vinculado no toca lo que está en su mesa | **Corrección:** lo de cada niño va a su mesa (paquete, medias, «Más tiempo» y tiempo de más) y anular su entrada lo anula allá. **Paso:** vincular la familia entera (sus hermanos marcados, se puede desmarcar uno); la cuenta de la familia sale de la cola y dice en qué mesa está | v0.131.1 y B6-20 |
 | **X-15** | Un niño vinculado a la mesa de otra familia, sin aviso | Avisa y pide confirmar («Este niño es de Yenua Akvini y la mesa 4 es de Real Parra»), y queda en la auditoría | B6-20 |
+| **X-16** | Una familia se sentó en una mesa, se cambió a otra y su pedido quedó en la primera. Hoy una cuenta no cambia de mesa (el servidor lo niega) y la comanda sale con la mesa vieja; lo único posible es abrir otra cuenta y juntarlas al cobrar | «Cambiar de mesa» (Toast y Square: «Transferir mesa»): la cuenta entera pasa a la otra mesa con sus pedidos, sus niños vinculados y su historia; lo que falta servir saca un papel «CAMBIO DE MESA · 3 → 7» en cocina y barra; la mesa vieja queda libre | B6-21 |
 
 **Visto en el local (2026-10-13):** la impresora USB como respaldo (B5-6) imprime. **El flujo de un cumpleaños** se le
 explicó al usuario con el código de B10-1 y B10-2 (reservar con anticipo, empezar con lo incluido, invitados sin cobro hasta
@@ -460,12 +461,13 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    que diga el usuario: el reporte n.º 2 (la caja quita lo que añadió a una mesa y no salió a cocina) y lo que se vio al
    vincular el 13 (X-14: las medias con su niño, el «Más tiempo» de un niño vinculado a su mesa, y anular su entrada anula lo
    de su mesa). Después, en tanda y publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) →
-   B6-20 (vincular la familia entera) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal) → B1-7 (una persona, un equipo) → B9-14 (el producto
+   B6-20 (vincular la familia entera) → B6-21 (cambiar de mesa) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal) → B1-7 (una persona, un equipo) → B9-14 (el producto
    listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario) → B10-4 (el aforo y el exclusivo) → B10-5 (el
    cumpleaños en la caja, el parque y el salón).
    **Cómo encajan:** lo que hoy molesta en la operación va primero. B3-25 se apoya en la regla que deja v0.131.1; B6-18 toca
    la misma cola de la caja y el mismo pedido que B3-25. B6-20 se apoya en la corrección (lo de cada niño ya va a su mesa) y
-   va antes de B4-19 porque «Pagar ahora» cobra la cuenta de una familia que puede estar en una mesa. B3-26 junta dos pestañas de la caja (Alt+5 queda libre). B1-7 y B9-14 no dependen de nada.
+   B6-21 en B6-20 (los niños vinculados se mudan con la cuenta); los dos van antes de B4-19 porque «Pagar ahora» cobra la
+   cuenta de una familia que puede estar en una mesa. B3-26 junta dos pestañas de la caja (Alt+5 queda libre). B1-7 y B9-14 no dependen de nada.
    B6-19 va antes de B10-5 porque los dos ponen cosas en el plano del mesero; B10-3 y B10-4 van antes de B10-5, que enseña
    el cumpleaños con su aforo en la caja y en el parque.
 
@@ -3307,6 +3309,14 @@ antes del cobro en servidor (orden de ejecución).
   pide confirmar («Este niño es de Yenua Akvini y la mesa 4 es de Real Parra: ¿vincular igual?»), y queda en la
   auditoría. Criterio: una familia de cuatro niños con medias, en prepago sin cobrar, se vincula de una vez a su mesa y
   queda una sola cuenta con todo; vincular a uno a la mesa de otra familia lo pregunta.
+- [ ] **B6-21 · Cambiar de mesa** (M-39, X-16).
+  → «Cambiar de mesa» en la tablet y en la caja: la cuenta entera pasa a otra mesa del salón con sus pedidos, sus niños
+  vinculados y su historia (un mando propio, no un «guardar»: la mesa sigue sin cambiar por ahí). Lo que falta servir
+  saca un papel «CAMBIO DE MESA · 3 → 7» en la cocina y en la barra, con lo que va; las comandas que salgan después dicen
+  la mesa nueva. La mesa vieja queda libre (por limpiar). Si la nueva ya tiene gente, queda como mesa compartida (B6-7).
+  Lo hace quien toma pedidos, sin PIN (no mueve dinero), y queda en la auditoría. Criterio: una mesa con un plato por
+  servir se cambia de la 3 a la 7; la cocina recibe el papel, el siguiente pedido sale con la 7, la 3 queda libre y la
+  caja cobra la cuenta en la 7.
 - [ ] **B6-19 · De pie en el plano** (M-39, X-10).
   → Cada cuenta de pie es un icono en el plano del mesero, con su nombre: se arrastra a donde está la gente y un candado lo
   fija (solo a ese icono). Moverlo no cambia la cuenta (no le sube la versión ni choca con la caja): va en su propio
@@ -4368,7 +4378,8 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-13** · Revisada la vinculación con lo que pasó ese día en el VPS (la familia Yenua Akvini en tres cuentas y un
   niño suyo cobrado a Real Parra): las medias, el «Más tiempo» y anular la entrada de un niño vinculado pasan a la v0.131.1
   (B4-20 queda dentro); entra B6-20, vincular la familia entera con aviso si la mesa es de otra familia. «Pagar ahora» lo
-  cobra la caja y lo puede pedir la monitora. Siguen siendo once pasos y 147 en la ruta.
+  cobra la caja y lo puede pedir la monitora. Y B6-21, cambiar de mesa (una familia se mudó y su pedido quedó en la
+  primera): doce pasos, 148 en la ruta.
 
 ---
 
