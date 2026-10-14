@@ -43,3 +43,4 @@ export {
   type ResumenDeEspera,
   type UmbralesDeAtencion,
 } from "./atencion.ts";
+export { VENTANA_REPETIDO_MS, VENTANA_SIN_PIN_MS, anularSinPin, pedidoRepetido } from "./anulacion.ts";

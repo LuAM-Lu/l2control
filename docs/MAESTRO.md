@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.131.1 en `main` (publicada, la 0.131.0) · 131 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.132.0 en `main` (publicada, la 0.131.0) · 132 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2067,7 +2067,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   `fondo-fijo.test-db.ts` (5): apagado de fábrica, de un punto de cobro, el criterio, lo que quedó del último Z, apagarlo,
   solo agregar y el aislamiento.*
 
-- [~] **B3-25 · Anular un ítem por su estado** (M-39, X-2). *A cargo: LuAMi (Claude), en `feat/b3-25`.*
+- [x] **B3-25 · Anular un ítem por su estado** (M-39, X-2).
+  *Hecho el 2026-10-13 (v0.132.0), en `feat/b3-25`.*
   → Lo que no salió a cocina ni a barra se quita sin más, en la caja y en la tablet (v0.131.1 deja igual la regla del
   servidor y la de la pantalla). Lo que salió se anula con su motivo, ahora también desde el ticket de la caja (la misma pieza
   que en Mesas, con su papel «ANULAR»): sin PIN si lo anula quien lo pidió y en los primeros 2 minutos; después, o si es
@@ -2075,6 +2076,12 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   confirmarlo («Ya se pidió hace 40 s desde Tablet: ¿otra vez?»). Criterio: añadir y quitar en la caja sin PIN; anular desde
   la caja un plato recién pedido por el mismo mesero sin PIN, y uno de hace 5 minutos con el de supervisión; repetir un
   pedido pide confirmarlo.
+  *B3-25: `anularSinPin` y `pedidoRepetido` en `@l2/domain-orders` (`anulacion.ts`, 2 pruebas); `pedidos.enviar` rechaza
+  el repetido con `PEDIDO_REPETIDO` salvo `repetir`, y el pedido dice quién lo envió (`enviadoPorId`);
+  `cuentas.anularPedido` sin PIN en la ventana de quien lo pidió (la anulación lleva su rol: el contrato admite
+  cualquiera). En la caja, `onAnularPedido` y la fila por pedido; en Mesas, la confirmación en la vista del pedido.
+  `pedidos.test-db.ts` (4 nuevas). Visto en el navegador en los dos temas: el repetido pregunta, la supervisora anula sin
+  PIN lo suyo y la caja anula 1 de 2 con su PIN.*
 - [ ] **B3-26 · Deudas: clientes y personal en una pestaña** (M-39, X-6).
   → Caja → Deudas con «Clientes» (lo de B3-11) y «Personal»: por persona y en la quincena, sus vales y sus adelantos
   (B3-21), con lo que suman. El personal paga fuera del sistema, en su quincena: administración marca «Descontado en la

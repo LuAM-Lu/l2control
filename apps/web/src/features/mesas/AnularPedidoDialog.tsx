@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
+import { ShieldCheck } from "lucide-react";
 import type { MotivoAnulacionPedido, Rechazo } from "@l2/contracts";
-import { Button, Dialog, Input, cn } from "@l2/ui";
+import { Button, Dialog, Input, Stepper, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "../cash/Autorizacion.tsx";
 
 /** El motivo en palabras: vive aquí porque es lo único que lo enseña (§7.5). */
@@ -37,6 +38,9 @@ const PREPARADO: { id: boolean; texto: string; detalle: string }[] = [
  * inventario; si sí, sale como merma (M-18). Lo autoriza la administración o un supervisor con su PIN
  * (el mesero no se autoriza a sí mismo): el servidor lo comprueba, deja quién y cuándo, y saca el papel
  * «ANULAR» en la impresora de comandas. No tiene vuelta: lo anulado por error se vuelve a pedir.
+ *
+ * B3-25 (M-39): quien lo pidió lo anula sin PIN en sus primeros 2 minutos (`sinPin`); la caja también anula desde su
+ * ticket, y de una fila con varias unidades elige cuántas (`cantidadMax`).
  */
 export function AnularPedidoDialog({
   pedido,
@@ -44,14 +48,20 @@ export function AnularPedidoDialog({
   descripcion,
   onAplicar,
   onCerrar,
+  sinPin = false,
+  cantidadMax,
 }: {
   /** Un pedido, o la mesa entera al cerrarla sin cobrar (B6-13): su número y lo que se anula. */
   pedido: Readonly<{ id: string; numero: number; lineas: readonly Readonly<{ cantidad: number; nombre: string }>[] }> | null;
   titulo?: string | undefined;
   descripcion?: string | undefined;
-  /** Anula todos los platos anulables de este pedido de una vez, con el mismo motivo y autorización. */
-  onAplicar: (motivo: MotivoAnulacionPedido, detalle: string | undefined, preparado: boolean, autorizacion: unknown) => Promise<Rechazo | null>;
+  /** Anula todos los platos anulables de este pedido de una vez, con el mismo motivo y autorización (o `cantidad` de ellos). */
+  onAplicar: (motivo: MotivoAnulacionPedido, detalle: string | undefined, preparado: boolean, autorizacion: unknown, cantidad: number) => Promise<Rechazo | null>;
   onCerrar: () => void;
+  /** Lo pidió quien anula, hace menos de 2 minutos (B3-25): sin PIN. El servidor lo vuelve a comprobar. */
+  sinPin?: boolean;
+  /** Una fila con varias unidades (la caja, B3-25): cuántas se anulan. Sin ella, todas. */
+  cantidadMax?: number | undefined;
 }) {
   const [motivo, setMotivo] = useState<MotivoAnulacionPedido | null>(null);
   const [nota, setNota] = useState("");
@@ -59,7 +69,8 @@ export function AnularPedidoDialog({
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [enviando, setEnviando] = useState(false);
   const [para, setPara] = useState<string | null>(null);
-  const a = useAutorizacion("pedido.anularEnProduccion", pedido !== null);
+  const [cantidad, setCantidad] = useState(1);
+  const a = useAutorizacion("pedido.anularEnProduccion", pedido !== null && !sinPin);
 
   // Cada pedido abre el formulario limpio. Derivado en el render, sin efecto.
   if ((pedido?.id ?? null) !== para) {
@@ -68,13 +79,14 @@ export function AnularPedidoDialog({
     setNota("");
     setPreparado(null);
     setErrores({});
+    setCantidad(cantidadMax ?? 1);
   }
 
   if (!pedido) return null;
 
   async function confirmar() {
     if (!pedido || enviando) return;
-    const nuevos: Record<string, string> = { ...(a.falta() ?? {}) };
+    const nuevos: Record<string, string> = { ...(sinPin ? {} : (a.falta() ?? {})) };
     if (!motivo) nuevos.motivo = "Elige el motivo";
     if (motivo === "OTRO" && nota.trim().length < 3) nuevos.nota = "Explica la anulación";
     if (preparado === null) nuevos.preparado = "Di si la cocina ya lo preparó";
@@ -84,7 +96,7 @@ export function AnularPedidoDialog({
     }
     const razon = `${TEXTO_MOTIVO_ANULACION[motivo!]}${nota.trim() ? ` · ${nota.trim()}` : ""}`;
     setEnviando(true);
-    const rechazo = await onAplicar(motivo!, nota.trim() || undefined, preparado!, a.autorizacion(razon)).catch(
+    const rechazo = await onAplicar(motivo!, nota.trim() || undefined, preparado!, sinPin ? undefined : a.autorizacion(razon), cantidadMax ? cantidad : 0).catch(
       () => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se anuló nada." }) as Rechazo,
     );
     setEnviando(false);
@@ -105,7 +117,7 @@ export function AnularPedidoDialog({
           <Button surface="pos" variant="neutral" onClick={onCerrar}>
             Cancelar
           </Button>
-          <Button surface="pos" variant="danger" onClick={() => void confirmar()} disabled={a.permiso === "DENEGADO" || enviando}>
+          <Button surface="pos" variant="danger" onClick={() => void confirmar()} disabled={(!sinPin && a.permiso === "DENEGADO") || enviando}>
             {enviando ? "Anulando…" : "Anular pedido"}
           </Button>
         </div>
@@ -114,6 +126,12 @@ export function AnularPedidoDialog({
       <div className="flex flex-col gap-5">
         <div className="rounded-[var(--radius-control)] border border-line p-3">
           <p className="text-[13px] text-ink">{pedido.lineas.map((l) => `${l.cantidad}× ${l.nombre}`).join(" · ")}</p>
+          {cantidadMax !== undefined && cantidadMax > 1 && (
+            <div className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-detalle text-ink-2">Cuántas se anulan</span>
+              <Stepper value={cantidad} onChange={setCantidad} label="Cuántas se anulan" min={1} max={cantidadMax} surface="tablet" />
+            </div>
+          )}
         </div>
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">1 · Motivo</legend>
@@ -176,14 +194,21 @@ export function AnularPedidoDialog({
           {errores.preparado && <p className="text-[12px] text-state-crit">{errores.preparado}</p>}
         </fieldset>
 
-        <CampoAutorizacion
-          a={a}
-          numero={3}
-          denegado="Tu puesto no puede anular un pedido en producción."
-          errores={errores}
-          deshabilitado={enviando}
-          onConfirmar={() => void confirmar()}
-        />
+        {sinPin ? (
+          <p className="flex items-center gap-1.5 text-detalle text-ink-2">
+            <ShieldCheck size={14} className="shrink-0 text-state-ok" aria-hidden="true" />
+            Lo pediste tú hace menos de 2 minutos: se anula sin PIN, a tu nombre.
+          </p>
+        ) : (
+          <CampoAutorizacion
+            a={a}
+            numero={3}
+            denegado="Tu puesto no puede anular un pedido en producción."
+            errores={errores}
+            deshabilitado={enviando}
+            onConfirmar={() => void confirmar()}
+          />
+        )}
 
         {errores.general && (
           <p role="alert" className="rounded-[var(--radius-control)] border border-state-crit/40 bg-state-crit-bg px-3 py-2 text-[12px] text-state-crit">
