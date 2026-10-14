@@ -3375,7 +3375,7 @@ antes del cobro en servidor (orden de ejecución).
   limpiar una mesa ocupada. En la web, `CambiarDeMesa.tsx` en Mesas y en la caja, y «Cambios de mesa» en el historial de
   impresión. `cuentas.test-db.ts` (3 nuevas). Visto en el navegador en los dos temas, con el papel en la impresora de
   prueba.*
-- [ ] **B6-19 · De pie en el plano** (M-39, X-10).
+- [~] **B6-19 · De pie en el plano** (M-39, X-10). *A cargo: LuAMi (Claude), en `feat/b6-19`.*
   → Cada cuenta de pie es un icono en el plano del mesero, con su nombre: se arrastra a donde está la gente y un candado lo
   fija (solo a ese icono). Moverlo no cambia la cuenta (no le sube la versión ni choca con la caja): va en su propio
   registro, de solo agregar, y en vivo a las otras tablets. Desaparece al cobrar o liberar. Criterio: dos tablets ven el
