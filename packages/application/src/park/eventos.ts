@@ -29,6 +29,7 @@ import {
   PublicarCatalogoEventosCommandSchema,
   ReservaEventoSchema,
   ReservarEventoCommandSchema,
+  CambiarFechaEventoCommandSchema,
   ParkTermsSchema,
   TarifarioSchema,
   type AccountLineDto,
@@ -74,6 +75,8 @@ export interface CasosEventos {
   reservar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
   /** Cancela una reserva cuyo anticipo no se ha cobrado (`CancelarReservaCommandSchema`). */
   cancelar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
+  /** Cambia el día y el horario de un cumpleaños con su motivo (B10-3): hasta antes de empezar, con el aforo comprobado. */
+  cambiarFecha(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
   /**
    * Empieza el día del evento (`EmpezarEventoCommandSchema`, B10-2): con el anticipo cobrado y en su día, abre
    * la cuenta del día con el saldo y lo que incluye el paquete, que sale del estante (ADR-023).
@@ -385,6 +388,83 @@ export function casosEventos(base: Base): CasosEventos {
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: r };
       }
+    },
+
+    async cambiarFecha(ctx, entrada, ahora = Date.now()) {
+      const v = CambiarFechaEventoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "La fecha no se cambió: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<ReservaEventoDto | Rechazo> => {
+        // Lo hace quien reserva (B10-3, M-39 X-11).
+        const rechazo = await exigirPermiso(tx, ctx, "evento.reservar");
+        if (rechazo) return rechazo;
+        const previo = await tx.eventReschedule.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+        if (previo) return (await reservasDe(tx, { id: previo.reservationId }))[0]!;
+        const fila = await tx.eventReservation.findFirst({ where: { id: cmd.reservaId, branchId: ctx.branchId } });
+        if (!fila) return noExiste;
+        const reserva = (await reservasDe(tx, { id: fila.id }))[0]!;
+        // Hasta antes de empezar: con el anticipo por cobrar o cobrado.
+        if (reserva.estado !== "ANTICIPO_POR_COBRAR" && reserva.estado !== "CONFIRMADA") {
+          return {
+            ok: false,
+            motivo: "CONFLICTO",
+            mensaje: reserva.estado === "CANCELADA" ? "Esa reserva está cancelada." : "Ese cumpleaños ya empezó: su fecha no se cambia.",
+            problemas: [{ path: ["reservaId"], message: "NO_SE_CAMBIA" }],
+          };
+        }
+        if (reserva.fecha === cmd.fecha && reserva.inicio === cmd.inicio && reserva.fin === cmd.fin) {
+          return invalido("Es la misma fecha y el mismo horario.", ["fecha"], "MISMA_FECHA");
+        }
+        const aforo = await aforoDe(tx, ctx.branchId);
+        if (aforo === null) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "El parque no tiene tarifario publicado: sin aforo no se cambia." };
+        // El aforo del nuevo horario, como al reservar: los demás de ese día, sin ella.
+        await candadoDeEventos(tx, ctx.branchId);
+        const hoy = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
+        const otros = (await reservasDe(tx, { branchId: ctx.branchId, eventDate: new Date(cmd.fecha) })).filter((x) => x.estado !== "CANCELADA" && x.id !== reserva.id);
+        const problema = reservaProblem({
+          reserva: { fecha: cmd.fecha, inicio: cmd.inicio, fin: cmd.fin, invitados: reserva.invitados },
+          hoy,
+          paquete: reserva.paquete,
+          otros: otros.map((o) => ({ fecha: o.fecha, inicio: o.inicio, fin: o.fin, invitados: o.invitados })),
+          aforo,
+        });
+        if (problema) return invalido(MENSAJE_RESERVA[problema], [RUTA_RESERVA[problema]], problema);
+
+        const quien = await nombreDe(tx, ctx);
+        await tx.eventReschedule.create({
+          data: {
+            tenantId: ctx.tenantId,
+            reservationId: fila.id,
+            fromDate: fila.eventDate,
+            fromStart: fila.startsMinute,
+            fromEnd: fila.endsMinute,
+            toDate: new Date(cmd.fecha),
+            toStart: cmd.inicio,
+            toEnd: cmd.fin,
+            reason: cmd.motivo,
+            operationKey: cmd.idempotencyKey,
+            at: new Date(ahora),
+            by: ctx.quien?.userId ?? null,
+            byName: quien.nombre,
+            deviceId: ctx.quien?.deviceId ?? null,
+          },
+        });
+        await tx.eventReservation.update({ where: { id: fila.id }, data: { eventDate: new Date(cmd.fecha), startsMinute: cmd.inicio, endsMinute: cmd.fin } });
+        await auditar(tx, ctx, {
+          action: "evento.cambiar_fecha",
+          entityType: "event_reservation",
+          entityId: fila.id,
+          reason: cmd.motivo,
+          before: { fecha: reserva.fecha, horario: [reserva.inicio, reserva.fin] },
+          after: { fecha: cmd.fecha, horario: [cmd.inicio, cmd.fin], estado: reserva.estado },
+        });
+        return (await reservasDe(tx, { id: fila.id }))[0]!;
+      });
+      if ("ok" in r) {
+        if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "evento.cambiar_fecha", reason: r.mensaje });
+        return r;
+      }
+      return { ok: true, valor: r };
     },
 
     async cancelar(ctx, entrada, ahora = Date.now()) {
@@ -769,6 +849,8 @@ export async function reservasDe(tx: Transaccion, where: Prisma.EventReservation
     select: { accountId: true, status: true, cause: true, savedAt: true, savedByName: true },
   });
   const ultima = new Map(versiones.map((x) => [x.accountId, x]));
+  // Sus cambios de fecha (B10-3): la historia de cada una.
+  const cambios = await tx.eventReschedule.findMany({ where: { reservationId: { in: filas.map((f) => f.id) } }, orderBy: { at: "asc" } });
   const dias = filas.flatMap((f) => (f.day ? [f.day.accountId] : []));
   const estancias =
     dias.length === 0
@@ -804,6 +886,9 @@ export async function reservasDe(tx: Transaccion, where: Prisma.EventReservation
       reservadaEn: f.createdAt.toISOString(),
       reservadaPor: f.createdByName,
       cancelada: estado === "CANCELADA" ? { en: v.savedAt.toISOString(), por: v.savedByName } : null,
+      cambios: cambios
+        .filter((c) => c.reservationId === f.id)
+        .map((c) => ({ de: { fecha: c.fromDate.toISOString().slice(0, 10), inicio: c.fromStart, fin: c.fromEnd }, motivo: c.reason, en: c.at.toISOString(), por: c.byName })),
       dia:
         f.day && statusDia
           ? {

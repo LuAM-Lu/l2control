@@ -812,6 +812,8 @@ export {
   PublicarCatalogoEventosCommandSchema,
   ReservaEventoSchema,
   ReservarEventoCommandSchema,
+  CambiarFechaEventoCommandSchema,
+  type CambiarFechaEventoCommand,
   type AgendaEventosDto,
   type AgendaEventosQuery,
   type CancelarReservaCommand,

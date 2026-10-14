@@ -27,6 +27,20 @@ import { CampoDelCliente, type ClienteElegido } from "../clientes/CampoDelClient
 import { CampoTelefono } from "../clientes/CamposDelCliente.tsx";
 import { cancelarReserva, empezarEvento, reservarEvento } from "./eventos.acciones";
 import { AL_DIA, ESTADO, POR_COBRAR, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
+import { CambiarFechaDialog, MesDeCumpleanos, cambiaDeFecha } from "./MesYCambioDeFecha.tsx";
+
+/** La vista elegida (lista, mes o canceladas) se recuerda en este equipo (B10-3): una preferencia, no un dato del negocio. */
+const CLAVE_VISTA = "l2.eventos.vista";
+type Vista = "proximas" | "mes" | "canceladas";
+function vistaGuardada(): Vista {
+  try {
+    // lint-permitido: sin-simulacion — preferencia del equipo (la vista de la agenda), no un dato del negocio
+    const v = window.localStorage.getItem(CLAVE_VISTA);
+    return v === "mes" || v === "canceladas" ? v : "proximas";
+  } catch {
+    return "proximas";
+  }
+}
 
 /**
  * Parque → Eventos: la agenda de cumpleaños (B10-1, V-10). Arriba, el resumen (hoy, anticipos por
@@ -67,7 +81,20 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
   // La agenda cambia al reservar, al cancelar y al cobrar o anular un anticipo en la caja.
   useAlCambiar(["eventos", "cuentas"], () => router.refresh());
 
-  const [vista, setVista] = useState<"proximas" | "canceladas">("proximas");
+  const [vista, setVistaEnPantalla] = useState<Vista>("proximas");
+  // La que se eligió la última vez en este equipo, después de pintar (el servidor no la sabe).
+  useEffect(() => setVistaEnPantalla(vistaGuardada()), []);
+  const setVista = (v: Vista) => {
+    setVistaEnPantalla(v);
+    try {
+      // lint-permitido: sin-simulacion — preferencia del equipo (la vista de la agenda), no un dato del negocio
+      window.localStorage.setItem(CLAVE_VISTA, v);
+    } catch {
+      // Sin almacenamiento (ventana privada): se elige otra vez la próxima.
+    }
+  };
+  /** B10-3: la reserva a la que se le cambia la fecha. */
+  const [cambiandoFecha, setCambiandoFecha] = useState<ReservaEventoDto | null>(null);
   const [filtro, setFiltro] = useState<Filtro>("TODAS");
   const [creando, setCreando] = useState(false);
   const [cancelando, setCancelando] = useState<ReservaEventoDto | null>(null);
@@ -153,6 +180,15 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
             <MoneyDisplay value={toMajor(enDolares(r.saldo))} currency="USD" size="sm" tone="muted" /> · {preciosConIva ? "IVA incluido" : "sin IVA"}
             {r.cancelada ? ` · cancelada por ${r.cancelada.por}` : ` · reservada por ${r.reservadaPor}`}
           </p>
+          {r.cambios.length > 0 && (
+            <p className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-ink-3">
+              <CalendarDays size={12} aria-hidden="true" />
+              <span>
+                Era el {fechaCorta(r.cambios.at(-1)!.de.fecha)}, {horaDelDia(r.cambios.at(-1)!.de.inicio, formatoHora)} · «{r.cambios.at(-1)!.motivo}» · cambió {r.cambios.at(-1)!.por}
+                {r.cambios.length > 1 ? ` (${r.cambios.length} cambios)` : ""}
+              </span>
+            </p>
+          )}
           {r.dia && (
             <p className="flex flex-wrap items-center gap-x-1.5 text-[12.5px] text-ink-2">
               <PartyPopper size={12} className="text-brand" aria-hidden="true" />
@@ -162,6 +198,12 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
             </p>
           )}
         </div>
+        {cambiaDeFecha(r) && puedeReservar && (
+          <Button type="button" variant="ghost" surface="admin" className="shrink-0 gap-1.5 self-start lg:self-auto" onClick={() => setCambiandoFecha(r)}>
+            <CalendarDays size={14} aria-hidden="true" />
+            Cambiar fecha
+          </Button>
+        )}
         {r.estado === "CONFIRMADA" && r.fecha === hoy && puedeReservar && (
           <Button type="button" variant="primary" surface="admin" className="shrink-0 gap-1.5 self-start lg:self-auto" disabled={enviando} onClick={() => void empezar(r)}>
             <PartyPopper size={14} aria-hidden="true" />
@@ -316,13 +358,26 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
         surface="admin"
         className="mt-4 min-h-0 flex-1"
         activa={vista}
-        onCambiar={(id) => setVista(id as "proximas" | "canceladas")}
+        onCambiar={(id) => setVista(id as Vista)}
         pestanas={[
           {
             id: "proximas",
             etiqueta: "Próximas",
             contador: enPie.length,
             contenido: lista(filtradas, enPie.length === 0 ? { title: "Ningún cumpleaños reservado", hint: puedeReservar ? "Pulsa «Nueva reserva» cuando una familia lo pida." : "Las reservas se hacen en la caja." } : { title: "Ninguna en este estado", hint: "Cambia el filtro para ver las demás." }, true),
+          },
+          {
+            id: "mes",
+            etiqueta: "Mes",
+            contenido: (
+              <MesDeCumpleanos
+                reservas={enPie}
+                hoy={hoy}
+                formato={formatoHora}
+                iconos={ICONO_ESTADO}
+                onElegir={(r) => (cambiaDeFecha(r) && puedeReservar ? setCambiandoFecha(r) : avisar.info(`Cumpleaños de ${r.cumpleanero}`, { detalle: `${fechaLarga(r.fecha)}, ${horario(r.inicio, r.fin, formatoHora)} · ${ESTADO[r.estado].texto}` }))}
+              />
+            ),
           },
           { id: "canceladas", etiqueta: "Canceladas", contador: canceladas.length, contenido: lista(canceladas, { title: "Ninguna cancelada", hint: "Las que se cancelen se quedan aquí, con quién lo hizo." }, false) },
         ]}
@@ -342,6 +397,8 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
           }}
         />
       )}
+
+      <CambiarFechaDialog reserva={cambiandoFecha} hoy={hoy} formato={formatoHora} onCerrar={() => setCambiandoFecha(null)} onHecho={() => router.refresh()} />
 
       <Confirmacion
         abierto={cancelando !== null}

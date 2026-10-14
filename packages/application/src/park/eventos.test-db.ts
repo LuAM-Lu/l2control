@@ -513,3 +513,37 @@ describe("el saldo incobrable (B10-2)", () => {
     assert.match(!entrar.ok ? entrar.mensaje : "", /incobrable/);
   });
 });
+
+describe("cambiar la fecha de un cumpleaños (B10-3, M-39)", () => {
+  const cambiar = (reservaId: string, fecha: string, inicio: number, fin: number, ctx: Contexto = ctxCajera) =>
+    local.app.eventos.cambiarFecha(ctx, { idempotencyKey: randomUUID(), reservaId, fecha, inicio, fin, motivo: "La familia lo pasa al domingo" }, AHORA + 5 * MIN);
+
+  test("confirmado, pasa del sábado al domingo con su motivo y el anticipo sigue cobrado; a un horario sin aforo, no", async () => {
+    const r = await reservar(reserva({ fecha: "2026-12-12" }));
+    valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(await cuentaDe(r.cuenta.id), "8700"), AHORA + MIN));
+    const cambiada = valor(await cambiar(r.id, "2026-12-13", 16 * 60, 19 * 60));
+    assert.deepEqual([cambiada.fecha, cambiada.inicio, cambiada.fin, cambiada.estado], ["2026-12-13", 960, 1140, "CONFIRMADA"]);
+    assert.deepEqual(cambiada.cambios.map((c) => [c.de.fecha, c.de.inicio, c.motivo]), [["2026-12-12", 900, "La familia lo pasa al domingo"]]);
+    assert.equal((await cuentaDe(r.cuenta.id)).status, "COBRADA", "el anticipo sigue cobrado");
+    const agenda = valor(await local.app.eventos.agenda(ctxCajera, { desde: "2026-12-12", hasta: "2026-12-13" }, AHORA));
+    assert.deepEqual(agenda.reservas.filter((x) => x.id === r.id).map((x) => x.fecha), ["2026-12-13"]);
+
+    // Otro de 20 que quiere el mismo horario del domingo: 15 + 20 pasa del aforo (30).
+    const otro = await reservar(reserva({ fecha: "2026-12-19", invitados: 20 }));
+    const sinAforo = await cambiar(otro.id, "2026-12-13", 16 * 60, 19 * 60);
+    assert.equal(!sinAforo.ok && sinAforo.problemas?.[0]?.message, "AFORO_DEL_HORARIO");
+    const mismo = await cambiar(r.id, "2026-12-13", 16 * 60, 19 * 60);
+    assert.equal(!mismo.ok && mismo.problemas?.[0]?.message, "MISMA_FECHA");
+    const monitora = await cambiar(otro.id, "2026-12-20", 15 * 60, 18 * 60, ctxMonitora);
+    assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "event_reservation", entityId: r.id });
+    assert.ok(asientos.some((a) => a.action === "evento.cambiar_fecha" && a.reason === "La familia lo pasa al domingo"));
+  });
+
+  test("la reserva no cambia por otro lado: solo su día y su horario, y con su cambio anotado", async () => {
+    const r = await reservar(reserva({ fecha: "2026-12-26" }));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.eventReservation.update({ where: { id: r.id }, data: { eventDate: new Date("2026-12-27") } })));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.eventReservation.update({ where: { id: r.id }, data: { guests: 19 } })));
+    await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.eventReservation.delete({ where: { id: r.id } })));
+  });
+});

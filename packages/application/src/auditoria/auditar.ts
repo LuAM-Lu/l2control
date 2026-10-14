@@ -70,6 +70,7 @@ export type AccionAuditada =
   | "evento.catalogo"
   | "evento.reservar"
   | "evento.cancelar"
+  | "evento.cambiar_fecha"
   | "evento.empezar"
   | "evento.entrada"
   | "mesa.vincular"
