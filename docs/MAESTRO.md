@@ -2082,7 +2082,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cualquiera). En la caja, `onAnularPedido` y la fila por pedido; en Mesas, la confirmación en la vista del pedido.
   `pedidos.test-db.ts` (4 nuevas). Visto en el navegador en los dos temas: el repetido pregunta, la supervisora anula sin
   PIN lo suyo y la caja anula 1 de 2 con su PIN.*
-- [ ] **B3-26 · Deudas: clientes y personal en una pestaña** (M-39, X-6).
+- [~] **B3-26 · Deudas: clientes y personal en una pestaña** (M-39, X-6). *A cargo: LuAMi (Claude), en `feat/b3-26`.*
   → Caja → Deudas con «Clientes» (lo de B3-11) y «Personal»: por persona y en la quincena, sus vales y sus adelantos
   (B3-21), con lo que suman. El personal paga fuera del sistema, en su quincena: administración marca «Descontado en la
   quincena» por persona y periodo (sin tocar la gaveta, auditado) y deja de salir como pendiente. «Anular vale»
