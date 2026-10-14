@@ -47,6 +47,7 @@ import {
   lineasDelPedido,
   notasSugeridas,
   partesDelPedido,
+  pedidoRepetido,
   problemaParaDeshacer,
   servidoDelPedido,
   servidoPorPlato,
@@ -155,6 +156,23 @@ export function casosPedidos(base: Base): CasosPedidos {
           const destino = await destinoDelPedido(tx, ctx, cmd);
           if ("ok" in destino) return destino;
           const { actual, tableId, mesa } = destino;
+
+          // El mismo pedido de hace menos de 2 minutos para esta cuenta (B3-25, M-39 X-2): casi siempre un toque doble o dos
+          // equipos pidiendo lo mismo. Se pregunta; con «Sí, otra vez» (`repetir`), sale.
+          if (actual && cmd.repetir !== true) {
+            const anterior = await tx.kitchenOrder.findFirst({ where: { accountId: actual.cuenta.id }, orderBy: { createdAt: "desc" } });
+            const suyas = (anterior?.items ?? []) as unknown as LineaGuardada[];
+            if (anterior && pedidoRepetido(cmd.lineas, { lineas: suyas, en: anterior.createdAt.getTime() }, ahora)) {
+              const equipo = anterior.deviceId ? (await tx.device.findUnique({ where: { id: anterior.deviceId }, select: { label: true } }))?.label : null;
+              const segundos = Math.max(1, Math.round((ahora - anterior.createdAt.getTime()) / 1000));
+              return {
+                ok: false,
+                motivo: "CONFLICTO",
+                mensaje: `Ya se pidió lo mismo hace ${segundos} s${equipo ? ` desde ${equipo}` : ""} (${anterior.createdByName}): ¿pedirlo otra vez?`,
+                problemas: [{ path: ["lineas"], message: "PEDIDO_REPETIDO" }],
+              };
+            }
+          }
 
           // Lo que entra en la cuenta lo dice el catálogo de ahora, no la tablet.
           const platoEn = await catalogoEn(tx, ahora);
@@ -593,6 +611,7 @@ async function pedidosDe(tx: Transaccion, filas: readonly FilaPedido[]): Promise
       lineas: (f.items as unknown as LineaGuardada[]).map((l, i) => ({ ...l, servido: iso(servidos.get(f.id)![i] ?? null) })),
       enviadoEn: f.createdAt.toISOString(),
       enviadoPor: f.createdByName,
+      enviadoPorId: f.createdBy,
       comandas,
       comanda: {
         estado,

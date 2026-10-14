@@ -134,7 +134,7 @@ import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inve
 import { asentarAjuste } from "../inventario/salidas.ts";
 import { encolarEn } from "../impresion/impresion.ts";
 import { NOMBRE_DE_AREA, areaEnElPedido, areaSinImpresora, oficioDe, sinImpresoraPara, type LineaGuardada } from "../restaurante/comandas.ts";
-import { AREAS_DE_COMANDA, type AreaDeComanda } from "@l2/domain-orders";
+import { AREAS_DE_COMANDA, anularSinPin, type AreaDeComanda } from "@l2/domain-orders";
 import { documentoDeAnulacion, rotuloDePedido } from "../impresion/plantillas.ts";
 import { categoriasDe, reglasDe } from "./reglas-de-descuento.ts";
 import { mesaSinCuenta } from "../restaurante/plano.ts";
@@ -1272,10 +1272,19 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           const prep = await prepararAnulacion(tx, ctx, actual.cuenta, cmd.lineIds, true);
           if ("ok" in prep) return prep;
 
-          // La autorización se comprueba y se registra ANTES de anular nada (§7.3).
-          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "pedido.anularEnProduccion", autorizacion, ahora, CON_PIN);
-          if (!permiso.ok) return permiso;
-          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { id: true, fullName: true, role: true } });
+          // Quien lo pidió lo anula sin PIN en sus primeros 2 minutos (B3-25, M-39 X-2): se equivocó al tocar. Queda a su
+          // nombre. Después, o si es otra persona, la autorización se comprueba y se registra ANTES de anular nada (§7.3).
+          const sinPin =
+            prep.pedido !== null && anularSinPin({ porId: prep.pedido.createdBy, en: prep.pedido.createdAt.getTime() }, ctx.quien?.userId, ahora);
+          let autorizadoPor: string;
+          if (sinPin) {
+            autorizadoPor = ctx.quien!.userId!;
+          } else {
+            const permiso = await exigirPermisoOAutorizacion(tx, ctx, "pedido.anularEnProduccion", autorizacion, ahora, CON_PIN);
+            if (!permiso.ok) return permiso;
+            autorizadoPor = permiso.autorizadoPor!;
+          }
+          const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: autorizadoPor }, select: { id: true, fullName: true, role: true } });
           return asentarAnulacion(tx, ctx, actual, prep, { motivo: cmd.motivo, detalle: cmd.detalle, preparado: cmd.preparado }, autorizador, ahora, cmd.idempotencyKey);
         });
 

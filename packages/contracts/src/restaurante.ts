@@ -202,6 +202,8 @@ export const EnviarPedidoCommandSchema = z
     tableId: IdSchema.optional(),
     cuentaId: z.uuid("Cuenta desconocida").optional(),
     lineas: z.array(LineaPedidaSchema).min(1, "Un pedido sin platos no se envía").max(40, "Hasta 40 platos distintos por pedido"),
+    /** Sí, otra vez (B3-25): el mismo pedido de hace menos de 2 minutos se envía igual. */
+    repetir: z.literal(true).optional(),
   })
   .refine((c) => c.tableId !== undefined || c.cuentaId !== undefined, { path: ["cuentaId"], message: "El pedido es de una mesa o de una cuenta de pie" });
 export type EnviarPedidoCommand = z.infer<typeof EnviarPedidoCommandSchema>;
@@ -294,6 +296,8 @@ export const PedidoSchema = z.object({
     .min(1),
   enviadoEn: TimestampSchema,
   enviadoPor: z.string(),
+  /** Quién lo envió (B3-25): en sus primeros 2 minutos lo anula sin PIN. `null` en los pedidos de antes. */
+  enviadoPorId: IdSchema.nullable().default(null),
   /** Sus papeles (B6-10), cocina primero; vacío si todo se sirve sin comanda. */
   comandas: z.array(ComandaDelPedidoSchema).default([]),
   /** El pedido entero: lo que más atención pide de sus papeles (`comandas`), con la impresora y el error de ese. */

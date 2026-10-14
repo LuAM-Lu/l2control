@@ -3,6 +3,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from "react";
 import {
   BadgePercent,
+  Ban,
   Banknote,
   Check,
   CircleCheckBig,
@@ -101,6 +102,8 @@ import {
   type FamilyAccountDto,
   type ImpuestosDto,
   type TurnoDto,
+  type MotivoAnulacionPedido,
+  type PedidoDto,
   type Rechazo,
   type VentaCerradaDto,
   type PosTerminalDto,
@@ -145,6 +148,10 @@ import {
   type FiltroCola,
 } from "./ColaCuentas.tsx";
 import { CortesiaDialog } from "./CortesiaDialog.tsx";
+import { AnularPedidoDialog } from "../mesas/AnularPedidoDialog.tsx";
+import { usePedidos } from "../mesas/PedidosProvider.tsx";
+import { anularSinPin } from "@l2/domain-orders";
+import { useOperador } from "../identity/operador.ts";
 import { DescuentoDialog, type PedidoDeDescuento } from "./DescuentoDialog.tsx";
 import { textoAlcance, textoValor } from "./descuentos.ts";
 import { descuentosDeCuenta } from "../cuentas/cuentas.acciones";
@@ -238,6 +245,7 @@ function CobroCuenta({
   onPorItems,
   onPonerNota,
   onCortesia,
+  onAnularPedido,
   categoryOf,
   onDescuento,
   onQuitarDescuento,
@@ -281,6 +289,17 @@ function CobroCuenta({
    * si lo hay, para que el diálogo lo enseñe.
    */
   onCortesia?: (linea: AccountLineDto, motivo: CortesiaDto["motivo"] | null, detalle: string | undefined, autorizacion: unknown) => Promise<Rechazo | null>;
+  /**
+   * Anula lo que ya salió en su comanda (B3-25, M-39 X-2): con su motivo y, pasados los 2 minutos de quien lo pidió, el
+   * PIN de supervisión. Devuelve el rechazo, si lo hay.
+   */
+  onAnularPedido?: (
+    lineIds: string[],
+    motivo: MotivoAnulacionPedido,
+    detalle: string | undefined,
+    preparado: boolean,
+    autorizacion: unknown,
+  ) => Promise<Rechazo | null>;
   /** La categoría de cada producto del catálogo: el descuento «por categorías» la necesita (B3-6). */
   categoryOf: CategoryOf;
   /** Pone un descuento a la cuenta en el servidor, con su autorización (B3-6). Devuelve el rechazo, si lo hay. */
@@ -411,6 +430,10 @@ function CobroCuenta({
   const [mostrarCatalogo, setMostrarCatalogo] = useState(esVentaDirecta(cuenta));
   /** Fila de mostrador tocada: enseña su cantidad y «Eliminar». */
   const [filaAbierta, setFilaAbierta] = useState<string | null>(null);
+  /** Lo que salió en su comanda y se va a anular (B3-25): la fila, su pedido y si va sin PIN. */
+  const [anulandoFila, setAnulandoFila] = useState<{ fila: Fila; pedido: PedidoDto; sinPin: boolean } | null>(null);
+  const { pedidos } = usePedidos();
+  const operador = useOperador();
   /** La línea seleccionada para dar o quitar cortesía. */
   const [lineaParaCortesia, setLineaParaCortesia] = useState<{
     linea: AccountLineDto;
@@ -1193,10 +1216,16 @@ function CobroCuenta({
               );
               const esMostrador =
                 f.item !== null && onCambiarCantidad !== undefined;
+              // Lo que salió en su comanda (B3-25): se anula con su motivo; el pedido es el de hoy.
+              const pedidoDeFila =
+                f.enCocina && onAnularPedido !== undefined && f.cortesia === undefined
+                  ? (pedidos.find((p) => p.id === cuenta.lines.find((l) => l.id === f.lineIds[0])?.orderId) ?? null)
+                  : null;
               const expandible =
                 f.anulada === undefined &&
                 f.porUso === undefined &&
                 (esMostrador ||
+                  pedidoDeFila !== null ||
                   (onCortesia !== undefined && permisoCortesia !== "DENEGADO"));
               const tachada = f.cortesia !== undefined || f.anulada !== undefined || f.porUso !== undefined;
               const abierta = expandible && filaAbierta === f.clave;
@@ -1282,7 +1311,7 @@ function CobroCuenta({
                     <button
                       type="button"
                       aria-expanded={abierta}
-                      aria-label={`${f.concepto}, ${f.cantidad} ${f.cantidad === 1 ? "unidad" : "unidades"}, ${importe}. ${esMostrador ? "Cambiar cantidad o cortesía" : "Opciones de cortesía"}`}
+                      aria-label={`${f.concepto}, ${f.cantidad} ${f.cantidad === 1 ? "unidad" : "unidades"}, ${importe}. ${esMostrador ? "Cambiar cantidad o cortesía" : pedidoDeFila ? "Cortesía o anular" : "Opciones de cortesía"}`}
                       onClick={() => setFilaAbierta(abierta ? null : f.clave)}
                       className={cn(
                         COLUMNAS,
@@ -1338,6 +1367,23 @@ function CobroCuenta({
                               {f.cortesia ? "Quitar cortesía" : "Cortesía"}
                             </Button>
                           )}
+                        {pedidoDeFila && (
+                          <Button
+                            surface="pos"
+                            variant="danger"
+                            className="text-[13px]"
+                            onClick={() =>
+                              setAnulandoFila({
+                                fila: f,
+                                pedido: pedidoDeFila,
+                                sinPin: anularSinPin({ porId: pedidoDeFila.enviadoPorId, en: Date.parse(pedidoDeFila.enviadoEn) }, operador?.id, Date.now()),
+                              })
+                            }
+                          >
+                            <Ban size={15} aria-hidden="true" />
+                            Anular
+                          </Button>
+                        )}
                         {esMostrador && f.item && !f.cortesia && (
                           <Button
                             surface="pos"
@@ -2223,6 +2269,37 @@ function CobroCuenta({
         onCambiar={setFormaVuelto}
         onCerrar={() => setEligiendoVuelto(false)}
       />
+      {onAnularPedido && (
+        <AnularPedidoDialog
+          pedido={
+            anulandoFila && {
+              id: anulandoFila.pedido.id,
+              numero: anulandoFila.pedido.numero,
+              lineas: [{ cantidad: anulandoFila.fila.cantidad, nombre: anulandoFila.fila.concepto }],
+            }
+          }
+          sinPin={anulandoFila?.sinPin ?? false}
+          cantidadMax={anulandoFila?.fila.cantidad}
+          onCerrar={() => setAnulandoFila(null)}
+          onAplicar={async (motivo, detalle, preparado, autorizacion, cantidad) => {
+            const { fila, pedido, sinPin } = anulandoFila!;
+            // Las últimas unidades de la fila: de una fila de 3, anular 1 deja las 2 primeras.
+            const lineIds = fila.lineIds.slice(fila.lineIds.length - Math.max(1, Math.min(cantidad, fila.lineIds.length)));
+            const rechazo = await onAnularPedido(lineIds, motivo, detalle, preparado, autorizacion);
+            if (rechazo) {
+              // Si el servidor no lo ve dentro de la ventana (el reloj del equipo, o pasó el tiempo), se pide el PIN.
+              if (sinPin && rechazo.motivo === "NO_PERMITIDO") setAnulandoFila({ fila, pedido, sinPin: false });
+              return rechazo;
+            }
+            avisar.ok(`${lineIds.length === 1 ? "Anulado" : `${lineIds.length} anulados`} · ${fila.concepto}`, {
+              detalle: `${preparado ? "Sale como merma" : "Vuelve al inventario"}.${pedido.comandas.length > 0 ? " Sale su papel «ANULAR»." : ""}`,
+            });
+            setAnulandoFila(null);
+            setFilaAbierta(null);
+            return null;
+          }}
+        />
+      )}
       {lineaParaCortesia && onCortesia && (
         <CortesiaDialog
           linea={lineaParaCortesia.linea}
@@ -2416,7 +2493,7 @@ export function CajaScreen({
   // El último cobro sale del registro de ventas: sobrevive a una recarga y
   // «Ventas» ve lo mismo.
   const { ventas, adoptar, imprimir } = useVentas();
-  const { cortesia: cortesiaEnServidor, descuento: descuentoEnServidor } = useCuentas();
+  const { cortesia: cortesiaEnServidor, descuento: descuentoEnServidor, anularPedido: anularPedidoEnServidor } = useCuentas();
   // La categoría de cada producto, para el descuento «por categorías» (B3-6).
   const categoryOf = useMemo<CategoryOf>(() => {
     const porId = new Map(catalogo.productos.map((p) => [p.id, p.categoria]));
@@ -3030,6 +3107,26 @@ export function CajaScreen({
                   onDividir: (n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n)),
                   // La cuenta de una persona ya es parte de una división: se cobra, o se une de nuevo desde la suya.
                   ...(actual.divididaDe ? {} : { onPorItems: () => setDividiendoPorItems(actual.id) }),
+                  // B3-25: lo que salió en su comanda se anula desde el ticket (no desde la carga de papel).
+                  ...(modoPapel
+                    ? {}
+                    : {
+                        onAnularPedido: async (lineIds: string[], motivo: MotivoAnulacionPedido, detalle: string | undefined, preparado: boolean, autorizacion: unknown) => {
+                          const r = await anularPedidoEnServidor(
+                            {
+                              idempotencyKey: globalThis.crypto.randomUUID(),
+                              accountId: actual.id,
+                              version: actual.version ?? 0,
+                              lineIds,
+                              motivo,
+                              preparado,
+                              ...(detalle ? { detalle } : {}),
+                            },
+                            autorizacion,
+                          );
+                          return r.ok ? null : r;
+                        },
+                      }),
                   onCortesia: async (linea, motivo, detalle, autorizacion) => {
                     const r = await cortesiaEnServidor(
                       {
@@ -3684,9 +3781,13 @@ function agruparFilas(
     // Lo que ya salió en una comanda (B6-16) no se edita: se preparó.
     const deMostrador = linea !== undefined && esLineaDeMostrador(linea) && linea.orderId === undefined;
     // Lo juntado de otra cuenta (B3-16) no se suma con lo de esta, ni lo que lleva otra nota (B6-16).
+    // Lo que salió en una comanda se suma por pedido (B3-25): «2 Bubble Valle» de la misma comanda, una fila que se anula
+    // por unidades.
     const clave = deMostrador
       ? `mostrador|${linea.vieneDe?.cuentaId ?? ""}|${linea.nota ?? ""}|${l.description}|${l.unitPrice.amount}`
-      : l.id;
+      : linea?.orderId !== undefined && linea.productId !== undefined && linea.kind === "RESTAURANTE"
+        ? `pedido|${linea.orderId}|${linea.vieneDe?.cuentaId ?? ""}|${linea.nota ?? ""}|${l.description}|${l.unitPrice.amount}`
+        : l.id;
     const previa = filas.get(clave);
     const deCuenta = deCuentaDe(linea);
     filas.set(clave, {

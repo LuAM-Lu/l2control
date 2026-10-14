@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.132.0] — 2026-10-13 · Hacia la puesta en marcha
+
+M-39, X-2: anular según lo que ya pasó con el plato.
+
+### Añadido
+- **La caja anula lo que salió en su comanda**, desde su ticket: toca el plato, «Anular», el motivo, si la cocina ya lo
+  preparó y, de una fila de varias, cuántas. Sale su papel «ANULAR», como en Mesas. Lo de una misma comanda va en una fila
+  («2 Papas fritas»).
+- **Quien lo pidió lo anula sin PIN en sus primeros 2 minutos**, y queda a su nombre. Después, o si es otra persona, con
+  el PIN de supervisión (lo comprueba el servidor).
+- **Pedir lo mismo para la misma cuenta en menos de 2 minutos pregunta** «¿Pedirlo otra vez?», con quién y desde qué
+  equipo se pidió: un toque doble, o la tablet y la caja pidiendo lo mismo, ya no saca dos comandas.
+
 ## [0.131.1] — 2026-10-13 · Hacia la puesta en marcha
 
 Lo que se vio el 13 de octubre en la caja y al vincular (M-39, X-1, X-5 y X-14).

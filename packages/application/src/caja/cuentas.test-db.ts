@@ -628,11 +628,16 @@ describe("la cuenta de una mesa (B6-1, I-05, B6-9)", () => {
 });
 
 describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
-  /** Un pedido real del mesero (B6-2): la anulación nombra su comanda y saca su papel «ANULAR». */
+  /**
+   * Un pedido real del mesero (B6-2): la anulación nombra su comanda y saca su papel «ANULAR». Confirmado: aquí se pide
+   * a propósito lo mismo dos veces (el aviso de repetido, B3-25, se prueba con los pedidos).
+   */
   const pedir = async (tableId: string, cantidad = 1) => {
     await sentadaEn(tableId);
-    return valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: agua, cantidad, precioMinor: "100" }] }, AHORA)).cuenta;
+    return valor(await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: agua, cantidad, precioMinor: "100" }], repetir: true }, AHORA)).cuenta;
   };
+  /** Pasados los 2 minutos en que quien lo pidió lo anula sin PIN (B3-25). */
+  const DESPUES = AHORA + 3 * MIN;
   const anular = (c: FamilyAccountDto, lineIds: string[], extra: Record<string, unknown> = {}) => ({
     idempotencyKey: randomUUID(),
     accountId: c.id,
@@ -652,19 +657,19 @@ describe("anular un pedido en producción (F6-14, B6-3, B6-6)", () => {
     assert.equal(!aMano.ok && aMano.problemas?.[0]?.message, "ANULACION_DESDE_LA_PANTALLA");
 
     const cmd = anular(c, [linea.id]);
-    const sinAutorizar = await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, AHORA);
+    const sinAutorizar = await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, DESPUES);
     assert.equal(!sinAutorizar.ok && sinAutorizar.motivo, "NO_PERMITIDO");
-    const r = valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "Se equivocó de mesa" }, AHORA));
+    const r = valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, { autorizadorId: supervisor, pin: "5937", motivo: "Se equivocó de mesa" }, DESPUES));
     const anulada = r.lines.find((l) => l.id === linea.id)!;
     assert.deepEqual(anulada.anulacion, {
       motivo: "PEDIDO_EQUIVOCADO",
       autorizadaPor: { id: supervisor, name: "Luis Guerrero", role: "SUPERVISOR" },
-      en: new Date(AHORA).toISOString(),
+      en: new Date(DESPUES).toISOString(),
       preparado: false,
     });
     assert.deepEqual(anulada.amount, usd("100")); // conserva su importe
     // Un doble clic no la aplica dos veces.
-    assert.deepEqual(valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, AHORA)), r);
+    assert.deepEqual(valor(await local.app.cuentas.anularPedido(ctxMesero, cmd, undefined, DESPUES)), r);
 
     const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "account", entityId: c.id });
     assert.ok(asientos.some((a) => a.action === "pedido.anular" && a.authorizedBy === supervisor));

@@ -63,8 +63,9 @@ const linea = (nombre: string, cantidad = 1, extra: Record<string, unknown> = {}
   precioMinor: nombre === "Tequeños" ? "450" : nombre === "Refresco" ? "150" : "100",
   ...extra,
 });
+/** Un pedido confirmado: aquí se piden a propósito platos iguales seguidos; el aviso de repetido (B3-25) se prueba aparte. */
 const enviar = (ctx: Contexto, tableId: string, lineas: unknown[], pedidoId = randomUUID(), ahora = AHORA) =>
-  l.app.pedidos.enviar(ctx, { pedidoId, tableId, lineas }, ahora);
+  l.app.pedidos.enviar(ctx, { pedidoId, tableId, lineas, repetir: true }, ahora);
 const trabajosDe = (pedidoId: string) =>
   l.base.conTenant(l.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { orderId: pedidoId }, orderBy: [{ createdAt: "asc" }, { kind: "desc" }] }));
 /** La cola avanza como la mueve el agente: lo toma (ENVIADO) y luego sale o falla. */
@@ -300,7 +301,8 @@ describe("anular en cocina, con papel e inventario (B6-6, M-18)", () => {
       mesero,
       { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineIds, motivo: "CLIENTE_DESISTIO", preparado },
       { ...conPin, autorizadorId: supervisor },
-      AHORA,
+      // Pasados los 2 minutos de quien lo pidió (B3-25): lo autoriza supervisión con su PIN.
+      AHORA + 5 * MIN,
     );
   const platosDe = (cuenta: PedidoEnviadoDto["cuenta"], pedidoId: string) => cuenta.lines.filter((l) => l.orderId === pedidoId).map((l) => l.id);
 
@@ -755,5 +757,59 @@ describe("servir y cerrar la mesa (B6-13)", () => {
     assert.equal(otra.version, cerrada.version);
     const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "account", entityId: cuenta.id });
     assert.ok(asientos.some((a) => a.action === "mesa.cerrar_sin_cobrar"));
+  });
+});
+
+describe("anular por estado (B3-25, M-39)", () => {
+  const conPin = { autorizadorId: "", pin: "5937", motivo: "Lo autorizo" };
+  const platosDe = (cuenta: PedidoEnviadoDto["cuenta"], pedidoId: string) => cuenta.lines.filter((l) => l.orderId === pedidoId).map((l) => l.id);
+  const anularSin = (ctx: Contexto, cuenta: PedidoEnviadoDto["cuenta"], lineIds: string[], ahora: number, autorizacion?: unknown) =>
+    l.app.cuentas.anularPedido(
+      ctx,
+      { idempotencyKey: randomUUID(), accountId: cuenta.id, version: cuenta.version, lineIds, motivo: "PEDIDO_EQUIVOCADO", preparado: false },
+      autorizacion,
+      ahora,
+    );
+
+  test("quien lo pidió lo anula sin PIN en sus primeros 2 minutos, y queda a su nombre", async () => {
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-1", [linea("Tequeños")], pedidoId, AHORA + 30 * MIN));
+    const r = valor(await anularSin(mesero, cuenta, platosDe(cuenta, pedidoId), AHORA + 31 * MIN));
+    const anulada = r.lines.find((x) => x.orderId === pedidoId)!;
+    assert.equal(anulada.anulacion?.autorizadaPor.name, "Pedro Díaz");
+  });
+
+  test("pasados los 2 minutos, u otra persona, pide el PIN de supervisión", async () => {
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-1", [linea("Tequeños")], pedidoId, AHORA + 40 * MIN));
+    const tarde = await anularSin(mesero, cuenta, platosDe(cuenta, pedidoId), AHORA + 45 * MIN);
+    assert.equal(!tarde.ok && tarde.motivo, "NO_PERMITIDO", JSON.stringify(tarde));
+    const otra = await anularSin(cajera, cuenta, platosDe(cuenta, pedidoId), AHORA + 41 * MIN);
+    assert.equal(!otra.ok && otra.motivo, "NO_PERMITIDO", "la caja no lo pidió: sin PIN no lo anula");
+    const r = valor(await anularSin(cajera, cuenta, platosDe(cuenta, pedidoId), AHORA + 45 * MIN, { ...conPin, autorizadorId: supervisor }));
+    assert.equal(r.lines.find((x) => x.orderId === pedidoId)!.anulacion?.autorizadaPor.name, "Luis Guerrero");
+  });
+
+  test("la caja anula una unidad de las que salieron en un pedido; las otras siguen", async () => {
+    const pedidoId = randomUUID();
+    const { cuenta } = valor(await enviar(mesero, "mesa-1", [linea("Tequeños", 3)], pedidoId, AHORA + 50 * MIN));
+    const platos = platosDe(cuenta, pedidoId);
+    const r = valor(await anularSin(cajera, cuenta, platos.slice(2), AHORA + 55 * MIN, { ...conPin, autorizadorId: supervisor }));
+    assert.deepEqual(
+      r.lines.filter((x) => x.orderId === pedidoId).map((x) => x.anulacion !== undefined),
+      [false, false, true],
+    );
+  });
+
+  test("lo mismo para la misma cuenta en menos de 2 minutos pregunta; con «Sí, otra vez», sale; otro pedido, no pregunta", async () => {
+    valor(await l.app.pedidos.enviar(mesero, { pedidoId: randomUUID(), tableId: "mesa-2", lineas: [linea("Tequeños", 2)] }, AHORA + 60 * MIN));
+    const repetido = await l.app.pedidos.enviar(cajera, { pedidoId: randomUUID(), tableId: "mesa-2", lineas: [linea("Tequeños"), linea("Tequeños")] }, AHORA + 61 * MIN);
+    assert.equal(!repetido.ok && repetido.motivo, "CONFLICTO", JSON.stringify(repetido));
+    assert.ok(!repetido.ok && repetido.problemas?.some((p) => p.message === "PEDIDO_REPETIDO"));
+    assert.match(!repetido.ok ? repetido.mensaje : "", /hace 60 s desde Salón \(Pedro Díaz\)/);
+    valor(await l.app.pedidos.enviar(cajera, { pedidoId: randomUUID(), tableId: "mesa-2", lineas: [linea("Tequeños", 2)], repetir: true }, AHORA + 61 * MIN));
+    // Otro pedido (otra cantidad) no pregunta, y pasada la ventana el mismo sale sin preguntar.
+    valor(await l.app.pedidos.enviar(mesero, { pedidoId: randomUUID(), tableId: "mesa-2", lineas: [linea("Tequeños")] }, AHORA + 61 * MIN + 5_000));
+    valor(await l.app.pedidos.enviar(mesero, { pedidoId: randomUUID(), tableId: "mesa-2", lineas: [linea("Tequeños")] }, AHORA + 64 * MIN));
   });
 });

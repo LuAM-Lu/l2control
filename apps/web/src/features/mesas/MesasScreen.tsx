@@ -44,7 +44,8 @@ import { Badge, Button, Cajon, Confirmacion, Container, Dialog, Marquesina, Mone
 import { chargeableLines } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
-import { DESHACER_SERVIDO_MS } from "@l2/domain-orders";
+import { DESHACER_SERVIDO_MS, anularSinPin } from "@l2/domain-orders";
+import { useOperador } from "../identity/operador.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
 import { ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
@@ -189,6 +190,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   useSinGuardar(Object.values(borradores).some((l) => l.length > 0));
   const [vinculando, setVinculando] = useState(false);
   const [anulando, setAnulando] = useState<PedidoDto | null>(null);
+  const operador = useOperador();
+  /** B3-25: el mismo pedido de hace un momento, esperando «Sí, otra vez». */
+  const [repetido, setRepetido] = useState<{ cuenta: FamilyAccountDto; mensaje: string } | null>(null);
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
   const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
@@ -353,7 +357,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    * tablet enseñó viaja para comprobarlo. Fail-closed: si algo del borrador ya no está en la carta, no se
    * envía nada.
    */
-  async function enviar(c: FamilyAccountDto) {
+  async function enviar(c: FamilyAccountDto, repetir = false) {
     const lineas = borradores[c.id] ?? [];
     const platos = lineas.flatMap((l) => {
       const it = carta.find((i) => i.id === l.itemId);
@@ -376,9 +380,15 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         ...(l.nota ? { nota: l.nota } : {}),
         precioMinor: String(it.precio.amount),
       })),
+      ...(repetir ? { repetir: true as const } : {}),
     });
     setEnviando(false);
     if (!r.ok) {
+      // El mismo pedido de hace un momento (B3-25): se pregunta, con quién y desde dónde se pidió.
+      if (r.motivo === "CONFLICTO" && r.problemas?.some((p) => p.message === "PEDIDO_REPETIDO")) {
+        setRepetido({ cuenta: c, mensaje: r.mensaje });
+        return;
+      }
       avisar.error(r.mensaje);
       return;
     }
@@ -544,6 +554,21 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             bloqueo={null}
           />
         </Container>
+        {/* B3-25: el mismo pedido de hace menos de 2 minutos para esta cuenta se confirma, con quién y desde dónde. */}
+        <Confirmacion
+          abierto={repetido !== null}
+          onCerrar={() => setRepetido(null)}
+          titulo="¿Pedirlo otra vez?"
+          confirmar="Sí, otra vez"
+          ocupado={enviando}
+          onConfirmar={() => {
+            const r = repetido;
+            setRepetido(null);
+            if (r) void enviar(r.cuenta, true);
+          }}
+        >
+          <p>{repetido?.mensaje}</p>
+        </Confirmacion>
       </div>
     );
   }
@@ -848,6 +873,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
           </Dialog>
           <AnularPedidoDialog
             pedido={anulando}
+            sinPin={anulando !== null && anularSinPin({ porId: anulando.enviadoPorId, en: Date.parse(anulando.enviadoEn) }, operador?.id, ahora)}
             onCerrar={() => setAnulando(null)}
             onAplicar={async (motivo, detalleMotivo, preparado, autorizacion) => {
               const rechazoAnular = await aplicarAnulacion(anulando!, motivo, detalleMotivo, preparado, autorizacion);

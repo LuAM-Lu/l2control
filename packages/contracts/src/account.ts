@@ -13,6 +13,7 @@
  * para las tres y para el servidor (ADR-017).
  */
 import { z } from "zod";
+import { RoleSchema } from "./identity.ts";
 import { ClienteDeCuentaSchema } from "./clientes.ts";
 import { DescuentoAplicadoSchema } from "./descuentos.ts";
 import { TaxCodeSchema } from "./impuestos.ts";
@@ -100,6 +101,9 @@ export type MotivoAnulacionPedido = z.infer<typeof MotivoAnulacionPedidoSchema>;
  *
  * Distinta de la cortesía (§7.3): un mesero puede pedirla con la autorización de otro, pero no
  * puede concederse cortesías a sí mismo. Por eso lleva su propio mando (`pedido.anularEnProduccion`).
+ *
+ * B3-25 (M-39): quien lo pidió lo anula sin PIN en sus primeros 2 minutos, y queda a su nombre con su rol (un mesero, una
+ * cajera). Lo decide el servidor (`anularSinPin`); pasada la ventana, autoriza supervisión o administración.
  */
 export const AnulacionPedidoSchema = z
   .strictObject({
@@ -108,7 +112,7 @@ export const AnulacionPedidoSchema = z
     autorizadaPor: z.object({
       id: IdSchema,
       name: z.string().trim().min(2).max(80),
-      role: z.enum(["ADMIN", "SUPERVISOR"]),
+      role: RoleSchema,
     }),
     en: TimestampSchema,
     /**
