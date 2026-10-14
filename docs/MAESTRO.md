@@ -3314,7 +3314,7 @@ antes del cobro en servidor (orden de ejecución).
   `COBRO_EN_PARTES`. En la caja, el aviso cuando la cuenta a la vista vuelve a la mesa; en la tablet, el aviso al enviar
   y el texto de la cuenta en la cola. `cuentas.test-db.ts` (3 nuevas). Visto en el navegador en los dos temas, con la
   caja y la tablet en dos equipos a la vez.*
-- [ ] **B6-20 · Vincular la familia entera** (M-39, X-14 y X-15).
+- [~] **B6-20 · Vincular la familia entera** (M-39, X-14 y X-15). *A cargo: LuAMi (Claude), en `feat/b6-20`.*
   → Pasar la pulsera de un niño para vincularlo ofrece a toda su familia: sus hermanos que están en la sala, marcados (se
   puede desmarcar al que se sienta en otra mesa). Va todo lo de cada niño (paquete, medias, «Más tiempo» y tiempo de más,
   como deja la corrección v0.131.1). La cuenta de la familia sale de la cola si no le queda nada y, en la caja y en el
