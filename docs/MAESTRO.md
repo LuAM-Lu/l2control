@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.131.0 en `main` (publicada, la 0.131.0) · 131 de 136 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.131.0 en `main` (publicada, la 0.131.0) · 131 de 147 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -43,7 +43,8 @@ equipos e inventario de verdad); la operación en paralelo con el método escrit
 se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operación en paralelo): cuatro correcciones y
 once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
-una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última.** M-28 y M-29
+una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 decidido (2026-10-13, la
+visita de Abby y el reporte n.º 2): la corrección v0.131.1 y once pasos antes de la 1.0.0.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -174,6 +175,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-36** | **El VPS es la operación real** (2026-10-09, decisiones del usuario) | (1) El VPS ya trabaja con perfiles reales, los equipos del local aprobados y el inventario de verdad: **la 1.0.0 (B8-4) se hace sobre esa base**, sin la corrida limpia de base nueva y semilla (B7-7 queda para otro local). Antes se revisa, solo leyendo, lo que quedó de prueba, y el usuario decide qué hacer con ello. (2) **La operación en paralelo** con el método escrito empieza el 2026-10-09 (B8-3, a cargo del usuario en el local). Lo que salga se corrige como PATCH y **no se publica una versión mientras se prueba**: en modo staging el VPS se pone al día solo y se reiniciaría a mitad. (3) **D-DOM:** no por ahora; sigue `sslip.io`. (4) **D-REIMP:** reimprimir un recibo sigue sin PIN. (5) **F0-09:** la firma formal del alcance queda sin efecto. (6) Pasar el VPS a **modo producción** queda propuesto como D-ENT (§4); **por ahora sigue en staging** (decisión del usuario). El agente de impresión ya imprime por la red del local; falta probarlo por USB (B7-3). La ruta no cambia | B8-3, B8-4 |
 | **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en diez rondas de preguntas) | U-1 a U-14, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, diez pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B6-16 (la comanda de la venta directa, sumado el 2026-10-10) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **127** (B6-16, sumado el 2026-10-10) | B3-16 a B11-7, B6-16, T-20 |
 | **M-38** | **Papel, tablet y caja** (2026-10-10, el usuario tras quedarse sin papel con la impresora por USB y no cerrar el día 9; definido con una propuesta dibujada y tres rondas de preguntas) | W-1 a W-11, abajo en «M-38 en detalle». Primero la corrección **v0.122.1** (los avisos legibles en el tema claro y la tarjeta de los puestos). Después, nueve pasos en este orden (ocho y T-23), en tanda y publicados una vez al final (con la 0.122.1): B3-24 (un día que no se cerró) → B5-6 (la impresora por red y por USB) → T-23 (el campo del cliente, añadido en la cuarta ronda) → B4-18 (la Entrada en tablet) → B6-17 (el mesero en tablet) → T-21 (la barra de las estaciones, por pantalla) → T-22 (las listas largas) → B3-21 (mover efectivo) → B3-22 (el fondo fijo, opcional). **Cambian:** cada impresora es principal o respaldo, y lo elige administración (red o USB, en cualquier orden); la caja de un día anterior deja de cobrar; los nueve formularios con cliente usan una sola pieza que busca también por nombre. La ruta pasa a **136** | B3-21 a B3-24, B4-18, B5-6, B6-17, T-21 a T-23 |
+| **M-39** | **La visita de Abby** (2026-10-13, la lista de la visita, el reporte n.º 2 de Dietina y tres rondas de preguntas) | X-1 a X-13, abajo en «M-39 en detalle». Primero la corrección **v0.131.1** (la caja quita lo que añadió a una mesa y no salió a cocina: el reporte n.º 2), que se publica sola a la hora que diga el usuario. Después, once pasos en tanda y publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) → B4-20 (las medias con su niño) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal en una pestaña) → B1-7 (una persona, un equipo) → B9-14 (el producto listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario y cambiar de fecha) → B10-4 (el aforo del cumpleaños y el exclusivo) → B10-5 (el cumpleaños en la caja, el parque y el salón). **Cambian:** el personal sigue pagando fuera del sistema (en su quincena) y administración lo marca descontado; supervisión da de alta productos y carga existencia; una persona trabaja en un solo equipo a la vez. La ruta pasa a **147** | B1-7, B3-25, B3-26, B4-19, B4-20, B6-18, B6-19, B9-14, B10-3 a B10-5 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -231,6 +233,29 @@ escribirlo o pegarlo; «sección inteligente» y «manual inteligente», sin IA 
 cosa; «Botones de Tiempo… estamos el monitor de parque» se lee como que el monitor de parque trabaja con ellos en el
 teléfono, así que T-15 los mide también a 390 px; la pausa «máxima 10 min» se hace ajuste con 10 de fábrica, y «una
 pausa por pulsera» es una por visita (la pulsera ya es de un solo uso, V-1).
+
+**M-39 en detalle.** Lo que trajo el usuario el 2026-10-13 de la visita de Abby, el reporte n.º 2 que mandó Dietina desde la
+caja, y lo que se hará. Antes de decidir se revisó cada punto en el código y, solo leyendo, en la base del VPS.
+
+| # | Lo que se vio | Lo que se hará | Paso |
+|---|---|---|---|
+| **X-1** | Reporte n.º 2 (Dietina, caja, mesa 4): «Lo consumido no se quita». No fue un pedido doble del mesero y la tablet: la caja añadió «Bubble Valle» dos veces a la cuenta de la mesa (7:52:55 y 7:53:10 pm, versiones 9 y 10 de la #0084) y la pantalla le ofreció el «−» que el servidor niega en una cuenta de mesa | Lo que no salió a cocina se quita, también en una mesa: la regla de la pantalla y la del servidor, iguales | v0.131.1 |
+| **X-2** | ¿Cuál es la mejor práctica para anular o eliminar un ítem? Hoy «Anular» solo está en Mesas y siempre espera a supervisión. El 12 y el 13 no hubo pedidos repetidos desde dos equipos | Por estado, como Toast, Square y Lightspeed: lo no enviado se borra libre; lo enviado se anula con motivo, también desde el ticket de la caja, sin PIN si es quien lo pidió en los primeros 2 minutos y después con el PIN de supervisión; repetir el mismo pedido en menos de 2 minutos pide confirmarlo | B3-25 |
+| **X-3** | La mesa pidió la cuenta y vuelve a pedir: sigue en la cola de la caja y suma lo nuevo (la caja podría cobrar lo que no se sirvió) | Un pedido nuevo la devuelve a la mesa sola; si la caja la tenía abierta, la suelta sola (lo tecleado sin cobrar se descarta) y se le dice | B6-18 |
+| **X-4** | El papá quiere pagar el parque a los 20 minutos, con el niño dentro: la caja solo cobra lo que está en su cola, y la cuenta de una familia en el parque no se ve | La cuenta de la familia se ve en la caja; «Pagar ahora» con su paquete; al salir dentro del tiempo se va sin pasar por la caja; si se pasa, el tiempo de más; sin devolución si sale antes | B4-19 |
+| **X-5** | Evaluar el flujo de las medias del parque a la caja y al inventario. La entrada pone el par en la cuenta y sale del estante; la caja lo cobra; si lo quita, vuelve. **Hueco:** el par no va con su niño, y anular su entrada deja las medias cobrándose | El par lleva la estancia del niño: anular su entrada lo anula y vuelve al estante | B4-20 |
+| **X-6** | Juntar deudas y consumo del personal («son lo mismo»); qué pasa cuando el empleado paga y dónde se refleja; cancelar un vale y devolver o no al inventario (solo administración) | Una pestaña Caja → Deudas con «Clientes» y «Personal» (vales y adelantos). El personal paga fuera del sistema, en su quincena: administración marca «Descontado en la quincena», sin tocar la gaveta. Anular un vale: administración, cada cosa al estante o a merma, de cualquier día | B3-26 |
+| **X-7** | Sesiones duplicadas: el 13, una misma persona estaba en la PC de recepción y en la tablet a la vez | Una persona, un equipo: entrar en otro cierra el anterior y ese lo dice. Administración y soporte, sin límite | B1-7 |
+| **X-8** | «Nuevo producto más userfriendly»: lo que se cuenta nace «Sin contar» y no se vende hasta cargar el inventario inicial en otra pantalla | «¿Cuántos hay?» en el alta, opcional: en blanco nace «Sin contar», como hoy; con un número (también 0), contado y a la venta | B9-14 |
+| **X-9** | Permisos para dar de alta productos y cargar existencia (hoy: el alta, solo administración) | Supervisión da de alta y carga existencia; el precio de uno ya creado sigue siendo de administración | B9-14 |
+| **X-10** | Que el mesero ponga a la gente de pie en un lugar del plano: un icono que se arrastra y se bloquea | Un icono por cuenta de pie, arrastrable, con candado; moverlo no toca la cuenta | B6-19 |
+| **X-11** | Vista de calendario para los cumpleaños y poder cambiarlos de fecha (hoy: una lista por día y solo cancelar antes del anticipo) | Vista de mes junto a la lista; cambiar fecha y hora con motivo, aun con el anticipo cobrado, hasta antes de empezar y con el aforo del nuevo horario; lo hace quien reserva | B10-3 |
+| **X-12** | ¿Entra gente de afuera si los invitados no llenan el aforo? Sí: el parque es compartido. Pero los invitados que no han llegado no tienen su lugar, y si el parque se llena antes no entran | Lugares guardados desde 30 minutos antes hasta su fin; un paquete «Exclusivo» cierra el parque a las visitas normales en su horario | B10-4 |
+| **X-13** | ¿Quién se entera de los cumpleaños? Hoy, Inicio y la apertura de Turno, y solo el mismo día. Lo que se pide aparte va a otra cuenta: el representante paga dos | La caja y el parque ven el de hoy y los de la semana; el cumpleaños tiene su mesa y el mesero pide a su cuenta: una sola cuenta, saldo y extras | B10-5 |
+
+**Visto en el local (2026-10-13):** la impresora USB como respaldo (B5-6) imprime. **El flujo de un cumpleaños** se le
+explicó al usuario con el código de B10-1 y B10-2 (reservar con anticipo, empezar con lo incluido, invitados sin cobro hasta
+los reservados y los demás como visita normal, el saldo en la caja como una mesa); sus huecos son X-11 a X-13.
 
 **M-38 en detalle.** Lo que trajo el usuario el 2026-10-10 y lo que se hará. La auditoría en tablet se hizo con el
 navegador (táctil, 1280×800 y 800×1280) como el mesero y la monitora; la comparación de la caja, con las prácticas de
@@ -429,6 +454,17 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    vez en B4-18). T-22 hace la pieza de listas en `@l2/ui` y la lleva a Representantes, Productos, Movimientos, Ventas e
    Historial de impresión. B3-21 va antes de B3-22 porque el fondo fijo se calcula con la gaveta que ya conoce los
    movimientos; los dos tocan el corte como B3-17 y mantienen el cierre a ciegas.
+17. **M-39** (2026-10-13, la visita de Abby). Primero la corrección **v0.131.1** (el reporte n.º 2: la caja quita lo que
+   añadió a una mesa y no salió a cocina), publicada sola en cuanto esté, a la hora que diga el usuario. Después, en tanda y
+   publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) → B4-20 (las medias con su niño) →
+   B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal) → B1-7 (una persona, un equipo) → B9-14 (el producto
+   listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario) → B10-4 (el aforo y el exclusivo) → B10-5 (el
+   cumpleaños en la caja, el parque y el salón).
+   **Cómo encajan:** lo que hoy molesta en la operación va primero. B3-25 se apoya en la regla que deja v0.131.1; B6-18 toca
+   la misma cola de la caja y el mismo pedido que B3-25. B4-20 va antes de B4-19 porque «Pagar ahora» cobra la cuenta de la
+   familia con sus medias. B3-26 junta dos pestañas de la caja (Alt+5 queda libre). B1-7 y B9-14 no dependen de nada.
+   B6-19 va antes de B10-5 porque los dos ponen cosas en el plano del mesero; B10-3 y B10-4 van antes de B10-5, que enseña
+   el cumpleaños con su aforo en la caja y en el parque.
 
 Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -1101,6 +1137,12 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Comprobado en el navegador: tope por dirección, código igual en pantalla y consola, contraseña
   mala rechazada y buena aprobando, panel con el código, caducada en los dos lados y renovada; sin
   desplazar la página a 1366×768, 1280×800 y 800×1280.*
+
+- [ ] **B1-7 · Una persona, un equipo** (M-39, X-7).
+  → Entrar con el PIN en un equipo cierra la sesión que esa persona tenga abierta en otro, y ese otro lo dice al momento
+  («Entraste en «Tablet»: aquí se cerró la sesión»), por el canal en vivo; queda en la auditoría como cerrada en otro equipo.
+  Administración y la cuenta de soporte no tienen límite. Criterio: con Ana en la PC de recepción, entrar como Ana en la
+  tablet cierra la de la PC y la PC lo dice; Abigail sigue en dos equipos.
 
 ### Etapa 2 · Dinero (F3, sin lo fiscal)
 
@@ -2020,6 +2062,23 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   `fondo-fijo.test-db.ts` (5): apagado de fábrica, de un punto de cobro, el criterio, lo que quedó del último Z, apagarlo,
   solo agregar y el aislamiento.*
 
+- [ ] **B3-25 · Anular un ítem por su estado** (M-39, X-2).
+  → Lo que no salió a cocina ni a barra se quita sin más, en la caja y en la tablet (v0.131.1 deja igual la regla del
+  servidor y la de la pantalla). Lo que salió se anula con su motivo, ahora también desde el ticket de la caja (la misma pieza
+  que en Mesas, con su papel «ANULAR»): sin PIN si lo anula quien lo pidió y en los primeros 2 minutos; después, o si es
+  otra persona, con el PIN de supervisión. Pedir para la misma cuenta lo mismo que se pidió hace menos de 2 minutos pide
+  confirmarlo («Ya se pidió hace 40 s desde Tablet: ¿otra vez?»). Criterio: añadir y quitar en la caja sin PIN; anular desde
+  la caja un plato recién pedido por el mismo mesero sin PIN, y uno de hace 5 minutos con el de supervisión; repetir un
+  pedido pide confirmarlo.
+- [ ] **B3-26 · Deudas: clientes y personal en una pestaña** (M-39, X-6).
+  → Caja → Deudas con «Clientes» (lo de B3-11) y «Personal»: por persona y en la quincena, sus vales y sus adelantos
+  (B3-21), con lo que suman. El personal paga fuera del sistema, en su quincena: administración marca «Descontado en la
+  quincena» por persona y periodo (sin tocar la gaveta, auditado) y deja de salir como pendiente. «Anular vale»
+  (administración, con su PIN): cada cosa al estante o a merma, de cualquier día. «Ver mis vales» con el PIN sigue. La
+  pestaña Personal se va (su dirección vieja lleva a la nueva) y Reportes → Personal dice qué se descontó y cuándo.
+  Criterio: un vale y un adelanto de una persona salen juntos; al marcar la quincena descontada dejan de estar pendientes y
+  el reporte lo dice; anular un vale devuelve lo elegido al estante.
+
 ### Etapa 4 · Parque (F5, es el producto)
 
 - [x] **B4-1 · `Guardian`, `Kid` y `ParkSession`**, sin entidad pulsera. El código solo es único entre
@@ -2412,6 +2471,18 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   sus dos niños en botones y un toque de paquete; solo el teclado numérico; nada desplaza; registrada en cuenta abierta. La
   entrada desde la caja, a 1366×768.*
 
+- [ ] **B4-19 · Pagar el parque antes de salir** (M-39, X-4).
+  → La cuenta de una familia con niños en la sala se ve en la caja («En el parque», y buscando por su pulsera o su
+  cliente). «Pagar ahora»: por niño, el paquete (sugiere el que cubre lo que lleva; el tiempo abierto pasa a ese paquete), y
+  se cobra con lo demás de la cuenta. Queda prepagado: al salir dentro de su tiempo, la salida dice «Pagado» y se va sin
+  pasar por la caja; si se pasa, el tiempo de más va a la caja; si sale antes, no se devuelve. Criterio: una familia en
+  cuenta abierta paga en la caja a los 20 minutos y sale a los 50 sin pasar por la caja; otra que se pasa deja su tiempo de
+  más en la cola.
+- [ ] **B4-20 · Las medias con su niño** (M-39, X-5).
+  → El par de medias lleva la estancia de su niño: anular la entrada de ese niño anula también sus medias y vuelven al
+  estante, y en la caja la línea dice de qué pulsera son. Criterio: anular la entrada de un niño con medias deja la cuenta
+  sin ellas y la existencia como antes de entrar.
+
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
 - [x] **B5-1 · Socket.io con adaptador Valkey** y autorización en el handshake (F2-09, ADR-008). El
@@ -2561,6 +2632,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   tarjeta y la cifra «Estado». Pruebas: `impresora.test.ts` (7), `respaldo.test-db.ts` (5), las del agente (21) y del
   worker (6); en el navegador con una impresora de mentira por TCP y el agente desde su código (el USB, simulado: esta PC no
   tiene térmica; la cola de Windows se prueba con un PowerShell de mentira y queda por ver en la laptop real).*
+  *· Visto en el local (2026-10-13): la USB como respaldo imprime.*
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -2899,6 +2971,12 @@ antes del cobro en servidor (orden de ejecución).
   cuenta y `Paginacion`. Un periodo sin entradas lo dice; sin ninguna en la sucursal, «Todavía no llegó nada». Anular
   o registrar vuelve a leer. 1 prueba contra la base.*
 
+- [ ] **B9-14 · El producto listo para vender** (M-39, X-8 y X-9).
+  → «Nuevo producto» pregunta «¿Cuántos hay?», opcional: en blanco nace «Sin contar», como hoy; con un número (también 0)
+  nace contado con esa existencia y ya se vende. Supervisión da de alta productos y carga existencia (la matriz le da
+  `inventario.catalogo`); cambiar el precio de uno ya creado sigue siendo de administración. Criterio: un refresco dado de
+  alta con 24 se vende al momento en la caja; uno sin número sale «Sin contar»; supervisión da de alta y no cambia un precio.
+
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 
 - [x] **B6-1 · Mesas, plano y carta** persistidos (F6-01 a F6-03). Se borra `src/demo/restaurante.ts`.
@@ -3216,6 +3294,18 @@ antes del cobro en servidor (orden de ejecución).
   y 800×1280 en los dos temas: tres platos en 7 toques (la mesa, «Tomar pedido», tres platos, enviar y confirmar), nada
   desplaza; con la impresora de mentira sin papel, la píldora «3 no salieron» y su hoja con «Reimprimir cocina».*
 
+- [ ] **B6-18 · Volver a pedir con la cuenta pedida** (M-39, X-3).
+  → Un pedido nuevo a una cuenta que está en la cola de la caja la devuelve a la mesa (sale de la cola). Si la caja la
+  tenía abierta, la suelta sola: lo tecleado sin cobrar se descarta y la caja ve «Mesa 4 volvió a pedir: salió de la
+  cola». Lo cobrado en partes sigue cobrado. Criterio: pedir la cuenta, volver a pedir y ver que la caja ya no la tiene; con
+  la caja cobrándola sin terminar, el pedido sale igual y la caja lo dice.
+- [ ] **B6-19 · De pie en el plano** (M-39, X-10).
+  → Cada cuenta de pie es un icono en el plano del mesero, con su nombre: se arrastra a donde está la gente y un candado lo
+  fija (solo a ese icono). Moverlo no cambia la cuenta (no le sube la versión ni choca con la caja): va en su propio
+  registro, de solo agregar, y en vivo a las otras tablets. Desaparece al cobrar o liberar. Criterio: dos tablets ven el
+  icono donde lo dejó el mesero; con candado no se arrastra; la caja cobra la cuenta mientras se mueve el icono, sin «la
+  cuenta cambió».
+
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
 - [x] **B10-1 · Reservas con agenda y anticipo**: fecha y horario, cliente (del directorio de familias),
@@ -3258,6 +3348,23 @@ antes del cobro en servidor (orden de ejecución).
   1366×768, 800×1280 y 390×844. **A confirmar con el cliente:** que los invitados no paguen tiempo de más al pasarse
   de la hora del evento (hoy, «en gracia» como aviso, sin cobro) y que los que sobran de lo reservado entren como
   visita normal.*
+
+- [ ] **B10-3 · El calendario y cambiar de fecha** (M-39, X-11).
+  → Parque → Eventos con vista de mes (cada día con sus cumpleaños: hora, quién y el icono de su estado) junto a la lista; la
+  vista elegida se recuerda. «Cambiar fecha» (día y hora) con motivo, también con el anticipo cobrado, hasta antes de
+  empezar: comprueba el aforo del nuevo horario como al reservar, lo hace quien reserva y queda en su historia. Criterio: un
+  cumpleaños confirmado pasa del sábado al domingo con su motivo y el anticipo sigue cobrado; a un horario sin aforo, no.
+- [ ] **B10-4 · El aforo del cumpleaños y el exclusivo** (M-39, X-12).
+  → Desde 30 minutos antes y hasta su fin, el parque guarda el lugar de los invitados que no han llegado: las visitas
+  normales tienen el aforo menos esos lugares, y la entrada lo dice («Quedan 8 lugares: 7 guardados para el cumpleaños de
+  Sofía»). Un paquete puede ser «Exclusivo»: en su horario no entran visitas normales y no se reserva otro cumpleaños
+  encima. Criterio: con aforo 30 y un cumpleaños de 15 que empieza en 20 minutos, la entrada normal admite 15; con uno
+  exclusivo en curso, ninguna.
+- [ ] **B10-5 · El cumpleaños en la caja, el parque y el salón** (M-39, X-13).
+  → La caja y el parque ven el cumpleaños de hoy (hora, invitados reservados y cuántos entraron) y, en su detalle, los de la
+  semana con el anticipo cobrado o no; el parque avisa 30 minutos antes. Al empezar, el cumpleaños toma su mesa del plano:
+  el mesero pide a su cuenta y el representante paga una sola (el saldo y lo extra); lo incluido sigue sin cobrarse.
+  Criterio: un pedido del mesero para la mesa del cumpleaños entra en su cuenta y la caja cobra saldo y extras juntos.
 
 ### Etapa 11 · Reportes (F9, M-29)
 
@@ -4246,6 +4353,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-11** · M-38 entregado entero, sin parar entre pasos (v0.123.0 a v0.131.0) y publicado una vez con la etiqueta
   v0.131.0: el VPS se puso al día solo a las 5:09 am (sus seis migraciones de expandir, la salud en verde). La caja del
   día 9 sigue abierta y ahora pide cerrarse. Quedan B8-1 y B8-4.
+- **2026-10-13** · La visita de Abby y el reporte n.º 2 (la caja no podía quitar lo que añadió a una mesa) → M-39, con
+  tres rondas de preguntas: la corrección v0.131.1 y once pasos (anular por estado, volver a pedir, las medias con su niño,
+  pagar el parque antes, deudas y personal, una persona un equipo, el producto listo para vender, de pie en el plano y tres
+  de cumpleaños). La ruta pasa a 147. La USB de respaldo (B5-6) imprime en el local.
 
 ---
 
