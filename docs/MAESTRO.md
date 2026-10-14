@@ -3431,7 +3431,7 @@ antes del cobro en servidor (orden de ejecución).
   de la hora del evento (hoy, «en gracia» como aviso, sin cobro) y que los que sobran de lo reservado entren como
   visita normal.*
 
-- [ ] **B10-3 · El calendario y cambiar de fecha** (M-39, X-11).
+- [~] **B10-3 · El calendario y cambiar de fecha** (M-39, X-11). *A cargo: LuAMi (Claude), en `feat/b10-3`.*
   → Parque → Eventos con vista de mes (cada día con sus cumpleaños: hora, quién y el icono de su estado) junto a la lista; la
   vista elegida se recuerda. «Cambiar fecha» (día y hora) con motivo, también con el anticipo cobrado, hasta antes de
   empezar: comprueba el aforo del nuevo horario como al reservar, lo hace quien reserva y queda en su historia. Criterio: un
