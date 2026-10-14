@@ -148,6 +148,8 @@ export function ColaCuentas({
   onMarcadas,
   todas,
   onCobrarJuntas,
+  enElParque = [],
+  onPagarAhora,
 }: {
   className?: string;
   /** Ya ordenadas y filtradas. */
@@ -192,6 +194,9 @@ export function ColaCuentas({
   /** Toda la cola, sin filtro: una marcada sigue marcada aunque la búsqueda la oculte. */
   todas?: readonly FamilyAccountDto[];
   onCobrarJuntas?: () => void;
+  /** Las familias con niños en la sala (B4-19), ya filtradas: «Pagar ahora» las pasa a la cola. */
+  enElParque?: readonly FamilyAccountDto[];
+  onPagarAhora?: (c: FamilyAccountDto) => void;
 }) {
   const [ancla, setAncla] = useState<string | null>(null);
   const cola = todas ?? cuentas;
@@ -567,6 +572,36 @@ export function ColaCuentas({
             );
           })}
         </ul>
+      )}
+
+      {/* B4-19: las familias que siguen en la sala. «Pagar ahora» cobra su tiempo antes de salir. */}
+      {onPagarAhora && enElParque.length > 0 && !juntando && (
+        <section aria-label="En el parque" className="flex max-h-36 shrink-0 flex-col gap-1.5 overflow-y-auto border-t border-line px-2 py-2">
+          <p className="flex items-center gap-1.5 px-1 text-etiqueta font-semibold tracking-[0.07em] text-ink-3 uppercase">
+            <Baby size={12} aria-hidden="true" />
+            En el parque
+          </p>
+          {enElParque.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              onClick={() => onPagarAhora(c)}
+              title="Pagar ahora el tiempo de sus niños"
+              className="flex min-h-12 w-full cursor-pointer items-center justify-between gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-1.5 text-left hover:border-brand focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <span className="flex min-w-0 flex-col">
+                <Marquesina className="text-[13.5px] font-semibold text-ink">{nombreDeCuenta(c)}</Marquesina>
+                <span className="tnum text-[11.5px] text-ink-3">
+                  {numeroDeOrden(c)} · {c.sessionIds.length - c.closedSessionIds.length} en la sala
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-1 text-[12px] font-semibold text-brand">
+                <HandCoins size={13} aria-hidden="true" />
+                Pagar ahora
+              </span>
+            </button>
+          ))}
+        </section>
       )}
 
       {/* B3-16: lo marcado y «Cobrar juntas». */}

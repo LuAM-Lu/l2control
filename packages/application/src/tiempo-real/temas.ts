@@ -146,6 +146,7 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "soporte.aviso": ["soporte"],
   "parque.reanudar": ["sala"],
   "parque.recarga": PARQUE,
+  "parque.pagar_ahora": PARQUE,
   "parque.cierre_administrativo": PARQUE,
   "representante.corregir": PARQUE,
   // Una consulta no cambia nada: se audita (§7.6) y no avisa a nadie.

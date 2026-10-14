@@ -30,6 +30,7 @@ import {
   CierreHuerfanaCommandSchema,
   AnularEntradaCommandSchema,
   RecargaCommandSchema,
+  PagarAhoraCommandSchema,
   EstanciaSchema,
   FamilyAccountSchema,
   MonitorSnapshotSchema,
@@ -55,7 +56,7 @@ import {
   type SettlementLineDto,
   type TarifarioDto,
 } from "@l2/contracts";
-import { annulEntry, annulEntryAtTable, chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
+import { annulEntry, annulEntryAtTable, chargeableLines, chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
 import { add, money, type Money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
@@ -123,6 +124,11 @@ export interface CasosParque {
   nombrar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<EstanciaDto>>;
   /** Recarga tiempo a una estancia en sala (`RecargaCommandSchema`, F5-11). */
   recargar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<RecargaResult>>;
+  /**
+   * Paga el parque antes de salir (`PagarAhoraCommandSchema`, B4-19): el tiempo abierto de cada niño pasa al paquete
+   * elegido y la cuenta de la familia, a la cola de la caja.
+   */
+  pagarAhora(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<FamilyAccountDto>>;
   /**
    * Pausa el tiempo de un niño que sale a comer, o termina su pausa antes del máximo (`PausaCommandSchema`,
    * B4-7, M-27). Una pausa por visita; el máximo es el de los ajustes de la sucursal al pausar.
@@ -198,12 +204,24 @@ async function estancias(tx: Transaccion, busqueda: BusquedaDeEstancias): Promis
       return [`${v.branchId}:${v.version}`, activos] as const;
     }),
   );
-  return filas.map((f) => ({
-    ...f,
-    extensions: recargas.filter((r) => r.sessionId === f.id).map(({ sessionId: _, ...r }) => r),
-    pauses: pausas.filter((x) => x.sessionId === f.id).map(({ sessionId: _, ...x }) => x),
-    porUso: paquetesDe.get(`${f.branchId}:${f.tariffVersion}`) ?? [],
-  }));
+  // El tiempo abierto que pasó a un paquete al pagar antes de salir (B4-19): desde que entró, como ese paquete.
+  const pagadas = await tx.parkSessionPrepaid.findMany({
+    where: { sessionId: { in: filas.map((f) => f.id) } },
+    select: { sessionId: true, packageId: true, packageName: true, minutes: true, priceMinor: true },
+  });
+  return filas.map((f) => {
+    const pagada = pagadas.find((p) => p.sessionId === f.id);
+    return {
+      ...f,
+      ...(pagada
+        ? { packageId: pagada.packageId, packageName: pagada.packageName, durationMinutes: pagada.minutes, priceMinor: pagada.priceMinor, mode: "PREPAGO" }
+        : {}),
+      pagadaAntes: pagada !== undefined,
+      extensions: recargas.filter((r) => r.sessionId === f.id).map(({ sessionId: _, ...r }) => r),
+      pauses: pausas.filter((x) => x.sessionId === f.id).map(({ sessionId: _, ...x }) => x),
+      porUso: paquetesDe.get(`${f.branchId}:${f.tariffVersion}`) ?? [],
+    };
+  });
 }
 
 /** Una estancia, o `null`. */
@@ -920,6 +938,117 @@ export function casosParque(base: Base): CasosParque {
       }
     },
 
+    async pagarAhora(ctx, entrada, ahora = Date.now()) {
+      const v = PagarAhoraCommandSchema.safeParse(entrada);
+      if (!v.success) {
+        return { ok: false, motivo: "INVALIDO", mensaje: "No se pasó a la caja: hay datos que corregir.", problemas: problemasDe(v.error) };
+      }
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<FamilyAccountDto | Rechazo> => {
+          const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
+          if (rechazo) return rechazo;
+          const previa = await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } });
+          if (previa) {
+            if (previa.cause !== "PAGAR_AHORA" || previa.accountId !== cmd.accountId) return conflictoDeClave;
+            return (await vigenteDe(tx, previa.accountId))!.cuenta;
+          }
+          const fila = await tx.account.findUnique({ where: { id: cmd.accountId }, select: { branchId: true } });
+          const actual = fila?.branchId === ctx.branchId ? await vigenteDe(tx, cmd.accountId) : null;
+          if (!actual) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa cuenta no existe en esta sucursal." };
+          if (actual.cuenta.kind !== "FAMILIA") {
+            return invalido("Se paga antes de salir la cuenta de una familia del parque.", ["accountId"], "NO_ES_DEL_PARQUE");
+          }
+          if (actual.cuenta.status !== "ABIERTA" && actual.cuenta.status !== "POR_COBRAR") {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta ya no está abierta.", problemas: [{ path: ["accountId"], message: "CUENTA_CERRADA" }] };
+          }
+          if (actual.version !== cmd.version) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta cambió mientras la mirabas: vuelve a intentarlo.", problemas: [{ path: ["version"], message: "VERSION" }] };
+          }
+          // Sus niños en la sala que no están en una mesa (lo de esos se paga con la mesa).
+          const vinculadas = await sessionsVinculadas(tx, ctx.branchId);
+          const regla = await reglaDeHuerfanas(tx, ctx.branchId);
+          const enSala = (await estancias(tx, { where: { accountId: actual.cuenta.id, status: "ACTIVA" }, orderBy: { startedAt: "asc" } })).filter(
+            (f) => !vinculadas.has(f.id) && !huerfana(f, ahora, regla),
+          );
+          if (enSala.length === 0) return { ok: false, motivo: "CONFLICTO", mensaje: "Esta familia no tiene niños en la sala: lo suyo se cobra como siempre." };
+
+          // El tiempo abierto de cada niño pasa al paquete elegido (de la tarifa con que entró), desde que entró.
+          const quien = await nombreDe(tx, ctx);
+          const nuevas: AccountLineDoc[] = [];
+          for (const f of enSala.filter(esTiempoAbierto)) {
+            const eleccion = cmd.paquetes.find((p) => p.sessionId === f.id);
+            // De la tarifa con que entró (B4-17); si no la guardó, de la de hoy.
+            const hoy = (await tarifarioDe(tx, ctx))?.tarifario.packages ?? [];
+            const paquete =
+              f.porUso.find((p) => p.duration.kind === "fixed" && p.name === eleccion?.paquete) ??
+              (f.porUso.length === 0 ? hoy.find((p) => p.name === eleccion?.paquete && p.active && p.duration.kind === "fixed") : undefined);
+            if (!eleccion || !paquete || paquete.duration.kind !== "fixed") {
+              return invalido(`Elige el paquete de ${nombreDeFila(f)}.`, ["paquetes"], "FALTA_EL_PAQUETE");
+            }
+            await tx.parkSessionPrepaid.create({
+              data: {
+                tenantId: ctx.tenantId,
+                sessionId: f.id,
+                packageId: hoy.find((p) => p.name === paquete.name)?.id ?? paquete.name,
+                packageName: paquete.name,
+                minutes: paquete.duration.minutes,
+                priceMinor: BigInt(paquete.price.minor),
+                currency: "USD",
+                operationKey: cmd.idempotencyKey,
+                createdAt: new Date(ahora),
+                createdBy: ctx.quien?.userId ?? null,
+                createdByName: quien.nombre,
+              },
+            });
+            nuevas.push({
+              id: `pre-${f.id}`,
+              concept: `Paquete ${paquete.name} · ${f.wristbandCode}`.slice(0, 80),
+              kind: "PAQUETE",
+              amount: { minor: paquete.price.minor, currency: "USD" },
+              paid: false,
+              sessionId: f.id,
+            });
+          }
+          const conLineas = { ...actual.cuenta, lines: [...actual.cuenta.lines, ...nuevas] };
+          if (chargeableLines(conLineas).length === 0) {
+            return { ok: false, motivo: "CONFLICTO", mensaje: "No hay nada que pagar ahora: lo de sus niños ya está pagado.", problemas: [{ path: ["accountId"], message: "NADA_QUE_PAGAR" }] };
+          }
+          const instante = new Date(ahora).toISOString();
+          const nueva = FamilyAccountSchema.parse({
+            ...conLineas,
+            status: "POR_COBRAR",
+            pendingSince: actual.cuenta.status === "POR_COBRAR" ? (actual.cuenta.pendingSince ?? instante) : instante,
+            version: actual.version + 1,
+          });
+          await guardarVersion(tx, ctx, nueva, { cause: "PAGAR_AHORA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await auditar(tx, ctx, {
+            action: "parque.pagar_ahora",
+            entityType: "account",
+            entityId: nueva.id,
+            after: {
+              cuenta: nueva.orderNumber ?? null,
+              ninos: enSala.length,
+              paquetes: nuevas.map((l) => l.concept),
+            },
+          });
+          return nueva;
+        });
+
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "parque.pagar_ahora", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
     async pausa(ctx, entrada, ahora = Date.now()) {
       const v = PausaCommandSchema.safeParse(entrada);
       if (!v.success) {
@@ -1291,6 +1420,8 @@ type FilaDeEstancia = Awaited<ReturnType<Transaccion["parkSession"]["findFirstOr
   pauses: { kind: string; at: Date; maxMinutes: number | null }[];
   /** Los paquetes activos del tarifario con que entró (B4-6). */
   porUso: EstanciaDto["porUso"];
+  /** Su tiempo abierto pasó a un paquete al pagar antes de salir (B4-19). */
+  pagadaAntes: boolean;
 };
 
 /**
@@ -1424,6 +1555,7 @@ function estanciaDe(f: FilaDeEstancia): EstanciaDto {
       at: e.createdAt.toISOString(),
     })),
     porUso: f.porUso,
+    pagadaAntes: f.pagadaAntes,
     ...(pausaDe(f) ? { pausa: pausaDe(f) } : {}),
   });
 }

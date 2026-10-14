@@ -1482,6 +1482,7 @@ model ParkSession {
   guardian         Guardian               @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   kid              Kid?                   @relation(fields: [tenantId, kidId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   extensions       ParkSessionExtension[]
+  prepaid          ParkSessionPrepaid[]
   pauses           ParkSessionPause[]
   eventReservation EventReservation?      @relation(fields: [tenantId, eventReservationId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
 
@@ -1514,6 +1515,29 @@ model ParkSessionExtension {
   @@unique([tenantId, operationKey])
   @@index([tenantId, sessionId])
   @@map("park_session_extension")
+}
+
+/// Pagar el parque antes de salir (B4-19, M-39): el tiempo abierto de un niño que pasa a un paquete al pagarlo, desde que
+/// entró. Una por estancia, de una activa y de tiempo abierto; solo se añade.
+model ParkSessionPrepaid {
+  id            String   @id @default(uuid(7)) @db.Uuid
+  tenantId      String   @map("tenant_id") @db.Uuid
+  sessionId     String   @map("session_id") @db.Uuid
+  packageId     String   @map("package_id")
+  packageName   String   @map("package_name")
+  minutes       Int
+  priceMinor    BigInt   @map("price_minor")
+  currency      String
+  operationKey  String   @map("operation_key") @db.Uuid
+  createdAt     DateTime @map("created_at") @db.Timestamptz(3)
+  createdBy     String?  @map("created_by") @db.Uuid
+  createdByName String   @map("created_by_name")
+
+  session ParkSession @relation(fields: [tenantId, sessionId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, sessionId])
+  @@map("park_session_prepaid")
 }
 
 /// La pausa por comida de una estancia (B4-7, M-27): PAUSA (cuándo y con qué máximo) y, si la monitora la

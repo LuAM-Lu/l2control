@@ -151,6 +151,7 @@ import {
 import { CortesiaDialog } from "./CortesiaDialog.tsx";
 import { AnularPedidoDialog } from "../mesas/AnularPedidoDialog.tsx";
 import { CambiarDeMesa } from "../mesas/CambiarDeMesa.tsx";
+import { PagarAhoraDialog, hayQuePagarAntes } from "../park/PagarAhoraDialog.tsx";
 import { usePedidos } from "../mesas/PedidosProvider.tsx";
 import { anularSinPin } from "@l2/domain-orders";
 import { useOperador } from "../identity/operador.ts";
@@ -2467,6 +2468,8 @@ export function CajaScreen({
   const [confirmandoJuntas, setConfirmandoJuntas] = useState(false);
   /** Dividir por ítems (B3-20): la cuenta que se reparte entre personas. */
   const [dividiendoPorItems, setDividiendoPorItems] = useState<string | null>(null);
+  /** B4-19: la familia que paga el parque antes de salir. */
+  const [pagandoAntes, setPagandoAntes] = useState<FamilyAccountDto | null>(null);
   // B3-24: en la caja de un día anterior no se elige sola la primera: lo primero que se ve es que hay que cerrarla.
   const actual =
     porCobrar.find((c) => c.id === elegida) ?? (deOtroDia ? null : porCobrar[0]) ?? null;
@@ -2522,6 +2525,15 @@ export function CajaScreen({
     () => filtrarCola(porCobrar, busqueda, filtro),
     [porCobrar, busqueda, filtro],
   );
+  // B4-19: las familias con niños en la sala (fuera de una mesa), con la búsqueda de la cola: «Pagar ahora».
+  const enElParque = useMemo(() => {
+    if (filtro !== "TODAS" && filtro !== "PARQUE") return [];
+    const enSala = new Set((sala?.sessions ?? []).map((x) => x.id));
+    const enMesas = new Set(cuentas.filter((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR")).flatMap((c) => c.sessionIds));
+    const sesiones = (sala?.sessions ?? []).filter((x) => !enMesas.has(x.id));
+    const familias = cuentas.filter((c) => c.sessionIds.some((id) => enSala.has(id) && !enMesas.has(id)) && hayQuePagarAntes(c, sesiones));
+    return filtrarCola(familias, busqueda, "PARQUE");
+  }, [cuentas, sala, busqueda, filtro]);
 
   // El último cobro sale del registro de ventas: sobrevive a una recarga y
   // «Ventas» ve lo mismo.
@@ -2666,6 +2678,11 @@ export function CajaScreen({
       avisar.error(`La pulsera ${codigo} no tiene cuenta en caja`, {
         detalle: "Búscala por el nombre de la familia o el número de orden.",
       });
+      return;
+    }
+    // Una familia que sigue en la sala (B4-19): la caja le ofrece pagar ahora su tiempo.
+    if (!suMesa && hayQuePagarAntes(cuenta, sala?.sessions ?? [])) {
+      setPagandoAntes(cuenta);
       return;
     }
     if (cuenta.status !== "POR_COBRAR") {
@@ -3085,6 +3102,8 @@ export function CajaScreen({
           onMarcadas={setMarcadas}
           todas={porCobrar}
           onCobrarJuntas={() => setConfirmandoJuntas(true)}
+          enElParque={enElParque}
+          onPagarAhora={setPagandoAntes}
           onMesaLimpia={(m) =>
             void marcarLimpia(m.tableId).then((r) => (r.ok ? avisar.ok(`Mesa ${m.label} limpia y libre`) : avisar.error(r.mensaje)))
           }
@@ -3213,6 +3232,17 @@ export function CajaScreen({
         onCerrar={() => setViendoAtajos(false)}
       />
       {puedeMoverEfectivo && <MoverEfectivoDialog abierto={moviendoEfectivo} onCerrar={() => setMoviendoEfectivo(false)} onHecho={() => setMoviendoEfectivo(false)} />}
+      {/* B4-19: pagar el parque antes de salir; la cuenta pasa a la cola y se abre para cobrarla. */}
+      <PagarAhoraDialog
+        cuenta={pagandoAntes}
+        desde="CAJA"
+        onCerrar={() => setPagandoAntes(null)}
+        onHecho={(c) => {
+          setBusqueda("");
+          setFiltro("TODAS");
+          elegirOtra(c.id);
+        }}
+      />
       {/* B3-20: repartir los ítems entre personas; cada una se cobra aparte. */}
       <DividirPorItems
         cuentaId={dividiendoPorItems}
