@@ -1143,7 +1143,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   mala rechazada y buena aprobando, panel con el código, caducada en los dos lados y renovada; sin
   desplazar la página a 1366×768, 1280×800 y 800×1280.*
 
-- [ ] **B1-7 · Una persona, un equipo** (M-39, X-7).
+- [~] **B1-7 · Una persona, un equipo** (M-39, X-7). *A cargo: LuAMi (Claude), en `feat/b1-7`.*
   → Entrar con el PIN en un equipo cierra la sesión que esa persona tenga abierta en otro, y ese otro lo dice al momento
   («Entraste en «Tablet»: aquí se cerró la sesión»), por el canal en vivo; queda en la auditoría como cerrada en otro equipo.
   Administración y la cuenta de soporte no tienen límite. Criterio: con Ana en la PC de recepción, entrar como Ana en la
