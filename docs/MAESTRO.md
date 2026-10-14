@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.143.0 en `main` (sin publicar: el VPS sigue en la 0.131.0) · 143 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.143.0 en `main` (publicada) · 143 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -44,8 +44,8 @@ se hace sobre esa base. M-37 entregado entero (2026-10-10, lo visto en la operac
 once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.1 a v0.122.0, publicados juntos al final
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
 una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 entregado entero (2026-10-14, la
-visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.132.0 a v0.143.0, en `main`; falta la etiqueta
-v0.143.0 que lo publica.** M-28 y M-29
+visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.132.0 a v0.143.0, publicados juntos con la etiqueta
+v0.143.0.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -4472,8 +4472,10 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-14** · M-39 entregado entero, sin parar entre pasos (v0.131.1 y v0.132.0 a v0.143.0, seis migraciones de
   expandir): anular por estado, volver a pedir, la familia entera, cambiar de mesa, pagar el parque antes, deudas y personal
   en una pestaña, una persona un equipo, el producto listo para vender, de pie en el plano, el calendario de cumpleaños, su
-  aforo y el exclusivo, y el cumpleaños en la caja, el parque y su mesa. Queda en `main` sin publicar: la etiqueta v0.143.0
-  la pone el usuario (el permiso de la sesión no dejó crearla ni leer el VPS). Quedan B8-1 y B8-4.
+  aforo y el exclusivo, y el cumpleaños en la caja, el parque y su mesa. Quedan B8-1 y B8-4.
+- **2026-10-14** · Publicada la v0.143.0 a pedido del usuario (3:04 pm): el VPS la puso en 42 s, con respaldo antes, y sus
+  seis migraciones; la salud en verde. A las 3:11 pm se hizo el corte Z de la caja del día; su papel espera al agente de la
+  laptop, que no se reporta desde las 2:25 pm (sigue en 0.131.0).
 
 ---
 
