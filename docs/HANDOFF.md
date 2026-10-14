@@ -7,21 +7,20 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-11 · v0.131.0 en `main` y publicada (el VPS en 0.131.0) · M-38 entregado entero; nada reclamado*
+*2026-10-14 · v0.143.0 en `main` (d9b2001), sin publicar: el VPS sigue en 0.131.0 · M-39 entregado entero; nada reclamado*
 
 ```text
-M-38 entero, en tanda y publicado una vez con la etiqueta v0.131.0 (el VPS se puso al día solo a las 5:09 am): B3-24 (un
-  día sin cerrar), B5-6 (impresora principal y respaldo, red o USB), T-23 (el campo del cliente), B4-18 y B6-17 (las
-  tablets), T-21 (la barra por pantalla), T-22 (las listas largas), B3-21 (mover efectivo) y B3-22 (el fondo fijo).
-Quedan B8-1 (la red del local) y B8-4 (la puesta en marcha, 1.0.0), del usuario. B6-4, después del piloto.
-El día 9: la caja «PC Recep. Lenovo» sigue abierta en el VPS. Con la 0.131.0 es una caja de un día anterior: solo cobra lo
-  de su día y pide cerrarse (Turno → «Cerrar la caja»). La cierra el usuario con su PIN; nadie la tocó.
-Impresoras en el VPS: «CAJA POS» (USB) encendida para recibos y «CAJA» (red) apagada, sin respaldo elegido. Si se quiere,
-  administración pone una de respaldo en Ajustes → Impresoras.
-El agente de la laptop de caja sigue en 0.111.0 (la laptop estaba apagada al publicar): al encenderla se pone al día solo;
-  comprobarlo en Ajustes → Impresoras. La USB de verdad como respaldo no se probó en la laptop del local.
-Por mirar en el local: «Paga …» del campo del cliente (T-23); el detalle de un representante en la tablet vertical (T-22);
-  mover efectivo (tope de $ 20, Ajustes → Sucursal) y el fondo fijo (apagado; Ajustes → Dispositivos).
+M-39 entero en main, sin parar entre pasos: v0.131.1 y B3-25 a B10-5 (v0.132.0 a v0.143.0), seis migraciones de expandir.
+Falta publicar: la etiqueta v0.143.0 sobre d9b2001 (git tag v0.143.0 d9b2001 y git push origin v0.143.0); el VPS se pone
+  al día solo en un minuto. El permiso de la sesión no dejó crearla. Después: /salud en 0.143.0, que la caja cobre y que el
+  agente de la laptop responda (Ajustes → Impresoras).
+Quedan B8-1 (la red del local) y B8-4 (la 1.0.0), del usuario. B6-4, después del piloto.
+Decidido al programar, para mirar en el local: con partes iguales ya cobradas no se pide más a esa cuenta (B6-18); una mesa
+  sin cliente anotado (de antes de B6-9) no pregunta «otra familia» (B6-20); lo descontado en la quincena se marca con lo
+  que hay ese día (B3-26); administración y soporte no cierran su otra sesión (B1-7); lo contado sin entrada vale $ 0 (B9-14);
+  los lugares los guardan solo los cumpleaños con el anticipo cobrado (B10-4); la cuenta del cumpleaños con mesa no sale de
+  la cola al pedir y el mesero puede sentarlo y empezarlo (B10-5).
+El día 9: la caja «PC Recep. Lenovo» sigue abierta en el VPS; la cierra el usuario. Impresoras y agente, como el 11.
 Cuidado: MAESTRO.md y muchos .ts van con CRLF. El día de negocio termina a las 4:00 am: un turno abierto antes es de ayer.
 ```
 
