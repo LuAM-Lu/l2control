@@ -16,6 +16,16 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.139.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-8 y X-9: el producto nuevo, listo para vender.
+
+### Añadido
+- **«Nuevo producto» pregunta «¿Cuántos hay?»**, opcional: con un número (también 0) nace contado con esa existencia y se
+  vende al momento; en blanco nace «Sin contar», como antes.
+- **Supervisión da de alta productos y carga su existencia.** Cambiar el precio de uno ya creado sigue siendo de
+  administración.
+
 ## [0.138.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-7: las sesiones duplicadas.

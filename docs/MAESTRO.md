@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.138.0 en `main` (publicada, la 0.131.0) · 138 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.139.0 en `main` (publicada, la 0.131.0) · 139 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3003,11 +3003,18 @@ antes del cobro en servidor (orden de ejecución).
   cuenta y `Paginacion`. Un periodo sin entradas lo dice; sin ninguna en la sucursal, «Todavía no llegó nada». Anular
   o registrar vuelve a leer. 1 prueba contra la base.*
 
-- [~] **B9-14 · El producto listo para vender** (M-39, X-8 y X-9). *A cargo: LuAMi (Claude), en `feat/b9-14`.*
+- [x] **B9-14 · El producto listo para vender** (M-39, X-8 y X-9).
+  *Hecho el 2026-10-14 (v0.139.0), en `feat/b9-14`.*
   → «Nuevo producto» pregunta «¿Cuántos hay?», opcional: en blanco nace «Sin contar», como hoy; con un número (también 0)
   nace contado con esa existencia y ya se vende. Supervisión da de alta productos y carga existencia (la matriz le da
   `inventario.catalogo`); cambiar el precio de uno ya creado sigue siendo de administración. Criterio: un refresco dado de
   alta con 24 se vende al momento en la caja; uno sin número sale «Sin contar»; supervisión da de alta y no cambia un precio.
+  *B9-14: `ProductoNuevoSchema.existencia` (solo para lo que se cuenta; el alta en lote sigue sin cantidades). El alta
+  con existencia deja un conteo «Al darlo de alta» a nombre de quien lo crea (`asentarAjuste`, con su arranque), valorado
+  como cualquier conteo sin entradas antes. La matriz da `inventario.catalogo` a supervisión (D-AUT de M-39, en
+  `matriz-del-plan.test.ts`). `productos.test-db.ts` (1 nueva); `entradas.test-db.ts` y `visibilidad.test.ts`, al día.
+  Visto en el navegador en los dos temas: la supervisora da de alta un refresco con 24 y la caja lo vende al momento;
+  otro sin número sale «Sin inventario inicial».*
 
 ### Etapa 6 · Restaurante en el servidor (en el piloto desde M-15, que cierra D-RES)
 

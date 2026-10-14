@@ -64,7 +64,7 @@ describe("un permiso dado abre su sección (T-13)", () => {
   });
 
   test("una revocación cierra lo que el rol daba", () => {
-    const supervision = actor("SUPERVISOR", { revokes: ["inventario.entrada", "inventario.ajustar"] });
+    const supervision = actor("SUPERVISOR", { revokes: ["inventario.entrada", "inventario.ajustar", "inventario.catalogo"] });
     assert.equal(ve(supervision, "inventario/entradas"), false);
     assert.equal(ve(supervision, "inventario/productos"), false);
   });

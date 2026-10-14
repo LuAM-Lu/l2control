@@ -216,6 +216,15 @@ export const ProductoNuevoSchema = z
     minimo: MinimoSchema.optional(),
     /** En qué comanda sale (B6-10). Sin decirlo, la de su tipo. */
     area: AreaDeProductoSchema.optional(),
+    /**
+     * «¿Cuántos hay?» (B9-14, M-39): con un número (también 0), nace contado con esa existencia y ya se vende; sin él, nace
+     * «Sin contar», como antes.
+     */
+    existencia: z.number({ error: "Cuántos hay: un número entero" }).int("Cuántos hay: un número entero").min(0, "No puede ser negativo").max(100_000, "Demasiados: revisa el número").optional(),
+  })
+  .refine((p) => p.existencia === undefined || p.tipo === "PRODUCTO", {
+    message: "Solo un producto que se cuenta lleva existencia",
+    path: ["existencia"],
   })
   .refine((p) => p.codigoBarras === undefined || p.tipo === "PRODUCTO", {
     message: "Solo un producto que se cuenta lleva código de barras",
@@ -246,7 +255,9 @@ export const AltaEnLoteCommandSchema = z
       return new Set(nombres).size === nombres.length && new Set(codigos).size === codigos.length;
     },
     { message: "Cada producto va una vez, con su propio código de barras", path: ["productos"] },
-  );
+  )
+  // Sin cantidades: la hoja da de alta; «¿Cuántos hay?» es del alta de uno (B9-14), y el stock del lote se cuenta otro día.
+  .refine((c) => c.productos.every((p) => p.existencia === undefined), { message: "El alta en lote no lleva cantidades: se cuentan otro día", path: ["productos"] });
 export type AltaEnLoteCommand = z.infer<typeof AltaEnLoteCommandSchema>;
 
 /**

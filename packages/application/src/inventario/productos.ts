@@ -53,6 +53,8 @@ import { auditar, auditarRechazo, type AccionAuditada, type Asiento } from "../a
 import { exigirPermiso, nombreDe } from "../identidad/actor.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
 import { arranquesDe, existenciasDe } from "./existencias.ts";
+import { asentarAjuste } from "./salidas.ts";
+import { randomUUID } from "node:crypto";
 import { retiradosDe } from "./retiro.ts";
 import { asegurarCategoria, categoriaComoEnLista, categoriasDe } from "./lista-de-categorias.ts";
 
@@ -533,7 +535,26 @@ async function guardar(
   switch (cmd.kind) {
     case "CREAR": {
       const creado = await crearProductoEn(tx, ctx, cmd.producto, quien, ahora, ["producto"]);
-      return "ok" in creado ? creado : { cambio: creado.asiento };
+      if ("ok" in creado) return creado;
+      // «¿Cuántos hay?» (B9-14): nace contado con esa existencia, como un conteo a nombre de quien lo da de alta.
+      if (cmd.producto.existencia !== undefined) {
+        if (!ctx.quien?.userId) return invalido("El alta con existencia la hace una persona del local.", ["producto", "existencia"], "Sin persona");
+        await auditar(tx, ctx, creado.asiento);
+        await asentarAjuste(tx, ctx, {
+          kind: "CONTEO",
+          reason: null,
+          note: "Al darlo de alta",
+          content: [{ productId: creado.fila.id, esperado: 0, contado: cmd.producto.existencia }],
+          operationKey: randomUUID(),
+          ahora,
+          autorizadoPor: ctx.quien.userId,
+          movimientos: cmd.producto.existencia > 0 ? [{ productId: creado.fila.id, quantity: cmd.producto.existencia, valueMinor: 0n }] : [],
+          arranques: [{ productId: creado.fila.id, quantity: cmd.producto.existencia }],
+          resumen: { alta: creado.fila.name, contado: cmd.producto.existencia },
+        });
+        return { cambio: null };
+      }
+      return { cambio: creado.asiento };
     }
     case "EDITAR": {
       const antes = await tx.product.findUnique({ where: { id: cmd.productId } });
