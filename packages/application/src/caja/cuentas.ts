@@ -1575,7 +1575,8 @@ export async function guardarVersion(
       | "JUNTAR"
       | "DIVIDIR"
       | "UNIR"
-      | "CAMBIAR_MESA";
+      | "CAMBIAR_MESA"
+      | "PAGAR_AHORA";
     operationKey: string | null;
     ahora: number;
     quien: string;

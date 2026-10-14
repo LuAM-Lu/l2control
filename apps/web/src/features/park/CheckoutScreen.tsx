@@ -152,7 +152,13 @@ export function CheckoutScreen({
   const snap = snapshot;
 
   const preview = useMemo(
-    () => buildCheckoutPreview(snap, seleccionados, (accountId) => cuentas.find((c) => c.id === accountId)?.mode === "CUENTA_ABIERTA"),
+    () =>
+      buildCheckoutPreview(snap, seleccionados, (accountId, sessionId) => {
+        const c = cuentas.find((x) => x.id === accountId);
+        // Su paquete ya pagado (B4-19, pagó antes de salir): si sale antes, no se devuelve ni se cobra por uso.
+        const pagado = c?.lines.some((l) => l.kind === "PAQUETE" && l.sessionId === sessionId && l.paid) ?? false;
+        return c?.mode === "CUENTA_ABIERTA" && !pagado;
+      }),
     [snap, seleccionados],
   );
 

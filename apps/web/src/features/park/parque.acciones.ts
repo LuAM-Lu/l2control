@@ -127,6 +127,16 @@ export async function corregirDirectorio(entrada: unknown): Promise<Resultado<Di
   return (await aplicacion()).representantes.corregir(ctx, entrada);
 }
 
+/** Paga el parque antes de salir (B4-19): el tiempo abierto pasa a su paquete y la cuenta, a la cola de la caja. */
+export async function pagarParqueAhora(entrada: unknown): Promise<Resultado<FamilyAccountDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).parque.pagarAhora(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.id }, "parque pagado antes de salir");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "pagar antes de salir rechazado");
+  return r;
+}
+
 /** Recarga tiempo a un niño en sala (F5-11): un paquete de tiempo fijo más, a su cuenta. */
 export async function recargarEstancia(entrada: unknown): Promise<Resultado<RecargaResult>> {
   const ctx = await contextoActual();

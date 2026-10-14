@@ -44,8 +44,11 @@ export function contratadoDeEstancia(dto: MonitorSnapshotDto["sessions"][number]
 export function buildCheckoutPreview(
   snapshot: MonitorSnapshotDto,
   sessionIds: readonly string[],
-  /** ¿Paga al salir (cuenta abierta)? Entonces, si sale antes de tiempo, se cobra por uso (B4-6). */
-  cuentaAbierta: (accountId: string) => boolean = () => false,
+  /**
+   * ¿Paga al salir (cuenta abierta)? Entonces, si sale antes de tiempo, se cobra por uso (B4-6). Con su paquete ya pagado
+   * (B4-19, pagó antes de salir), no: si sale antes, no se devuelve.
+   */
+  cuentaAbierta: (accountId: string, sessionId: string) => boolean = () => false,
 ): CheckoutPreviewDto {
   const now = toEpochMs(snapshot.serverNow);
   const endedAt = snapshot.serverNow;
@@ -67,7 +70,7 @@ export function buildCheckoutPreview(
           policy: toParkTerms(dto.terms),
           tarifa: tarifaDeEstancia(dto),
           contratado: contratadoDeEstancia(dto),
-          cuentaAbierta: cuentaAbierta(dto.accountId),
+          cuentaAbierta: !dto.pagadaAntes && cuentaAbierta(dto.accountId, dto.id),
           tiempoAbierto,
         },
         now,

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.135.0 en `main` (publicada, la 0.131.0) · 135 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.136.0 en `main` (publicada, la 0.131.0) · 136 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2483,7 +2483,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   sus dos niños en botones y un toque de paquete; solo el teclado numérico; nada desplaza; registrada en cuenta abierta. La
   entrada desde la caja, a 1366×768.*
 
-- [~] **B4-19 · Pagar el parque antes de salir** (M-39, X-4). *A cargo: LuAMi (Claude), en `feat/b4-19`.*
+- [x] **B4-19 · Pagar el parque antes de salir** (M-39, X-4).
+  *Hecho el 2026-10-14 (v0.136.0), en `feat/b4-19`.*
   → La cuenta de una familia con niños en la sala se ve en la caja («En el parque», y buscando por su pulsera o su
   cliente). «Pagar ahora» lo cobra la caja; si la familia lo pide en la puerta, la monitora pulsa «Pagar ahora» en la sala,
   elige el paquete y la cuenta aparece en la cola de la caja. Por niño, el paquete (sugiere el que cubre lo que lleva; el tiempo abierto pasa a ese paquete), y
@@ -2491,6 +2492,13 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   pasar por la caja; si se pasa, el tiempo de más va a la caja; si sale antes, no se devuelve. Criterio: una familia en
   cuenta abierta paga en la caja a los 20 minutos y sale a los 50 sin pasar por la caja; otra que se pasa deja su tiempo de
   más en la cola.
+  *B4-19: migración `20261208000000_pagar_antes_de_salir` (solo expande: la tabla `park_session_prepaid`, de solo agregar
+  y de una estancia activa de tiempo abierto; la causa `PAGAR_AHORA`; la recarga admite una estancia que ya pasó a un
+  paquete). `paqueteQueCubre` y `paquetesParaPagarAntes` en `@l2/domain-park` (2 pruebas). `parque.pagarAhora`: la cuenta
+  de la familia a POR_COBRAR, con la línea del paquete de cada niño de tiempo abierto; el cargador de estancias mide y
+  cobra ese paquete (`pagadaAntes`). En la web, `PagarAhoraDialog` en la caja (al pie de la cola y con la pulsera) y en
+  la ficha de la sala; la salida no ofrece «por uso» con el paquete pagado. `pagar-ahora.test-db.ts` (4). Visto en el
+  navegador en los dos temas: la caja cobra a los 20 minutos, la salida dice «Todo pagado» y la sala manda a la caja.*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 

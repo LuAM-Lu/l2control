@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.136.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-4: la familia que quiere pagar el parque antes de irse.
+
+### Añadido
+- **«Pagar ahora» en la caja:** al pie de la cola, «En el parque» lista las familias con niños en la sala; «Pagar ahora»
+  (o pasar la pulsera de uno de sus niños) abre su cuenta para cobrarla con lo demás.
+- **«Pagar ahora» en la sala:** si la familia lo pide en la puerta, la monitora elige el paquete y la cuenta aparece en la
+  cola de la caja.
+- **El tiempo abierto pasa a un paquete:** cada niño de tiempo abierto elige su paquete (se sugiere el que cubre lo que
+  lleva), contado desde que entró. Queda prepagado: al salir dentro de su tiempo, «Todo pagado» y se va sin pasar por la
+  caja; si se pasa, el tiempo de más va a la caja; si sale antes, no se devuelve. «Más tiempo» sigue sirviendo.
+
 ## [0.135.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-16: la familia que se cambió de mesa.

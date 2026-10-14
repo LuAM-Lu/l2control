@@ -302,6 +302,8 @@ export const EstanciaSchema = ParkSessionSchema.extend({
    * más barato de estos que cubre lo que estuvo. Los activos de esa versión, no los de hoy.
    */
   porUso: z.array(z.object({ name: z.string().trim().min(1).max(40), duration: DurationSchema, price: MoneySchema })).default([]),
+  /** Su tiempo abierto pasó a un paquete al pagar antes de salir (B4-19): `packageName` y `duration` ya lo dicen. */
+  pagadaAntes: z.boolean().default(false),
 });
 export type EstanciaDto = z.infer<typeof EstanciaSchema>;
 
@@ -581,6 +583,20 @@ export const RecargaCommandSchema = z.strictObject({
   packageId: IdSchema,
 });
 export type RecargaCommand = z.infer<typeof RecargaCommandSchema>;
+
+/**
+ * Pagar el parque antes de salir (B4-19, M-39): la cuenta de la familia pasa a la cola de la caja con lo de sus niños en
+ * la sala. Cada niño con tiempo abierto elige su paquete (desde que entró); los de paquete fijo ya lo tienen en la cuenta.
+ * Con la versión de la cuenta que se tenía a la vista.
+ */
+export const PagarAhoraCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  accountId: IdSchema,
+  version: z.number().int().positive(),
+  /** El paquete de cada niño con tiempo abierto, por su nombre en la tarifa con que entró. */
+  paquetes: z.array(z.object({ sessionId: IdSchema, paquete: z.string().trim().min(1).max(40) })).max(30),
+});
+export type PagarAhoraCommand = z.infer<typeof PagarAhoraCommandSchema>;
 
 /**
  * Pausar el tiempo de un niño que sale a comer, o terminar su pausa antes del máximo (B4-7, M-27). Una pausa

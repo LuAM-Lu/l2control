@@ -45,6 +45,8 @@ export {
   type EstadoPulseraDto,
   RepresentanteEncontradoSchema,
   RecargaCommandSchema,
+  PagarAhoraCommandSchema,
+  type PagarAhoraCommand,
   TIEMPO_ABIERTO_ID,
   PausaCommandSchema,
   PausaSchema,

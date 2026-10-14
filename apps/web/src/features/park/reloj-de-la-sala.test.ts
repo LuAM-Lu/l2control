@@ -35,6 +35,7 @@ const estancia: EstanciaDto = {
   terms: terminos,
   recargas: [],
   porUso: [],
+  pagadaAntes: false,
 };
 const salaLeidaA = (serverNow: number): MonitorSnapshotDto => ({
   serverNow: new Date(serverNow).toISOString(),

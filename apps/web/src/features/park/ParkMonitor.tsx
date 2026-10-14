@@ -1,8 +1,9 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen, Unlink } from "lucide-react";
-import { WristbandCodeSchema, type CatalogoDto, type ReservaEventoDto } from "@l2/contracts";
+import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen, Unlink, HandCoins } from "lucide-react";
+import { PagarAhoraDialog, hayQuePagarAntes } from "./PagarAhoraDialog.tsx";
+import { WristbandCodeSchema, type CatalogoDto, type FamilyAccountDto, type ReservaEventoDto } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
@@ -69,6 +70,8 @@ export function ParkMonitor({
   const canal = useTiempoReal();
   const { tarifario } = useTarifario();
   const [recargando, setRecargando] = useState(false);
+  /** B4-19: la familia que paga el parque antes de salir (la manda a la cola de la caja). */
+  const [pagandoAntes, setPagandoAntes] = useState<FamilyAccountDto | null>(null);
   const [revisando, setRevisando] = useState(false);
   const huerfanas = sala?.huerfanas ?? [];
   const model = useMemo(() => (sala ? toMonitorModel(sala, ahora) : SALA_VACIA), [sala, ahora]);
@@ -456,6 +459,13 @@ export function ParkMonitor({
                     Vincular a una mesa
                   </Button>
                 )}
+                {/* B4-19: la familia pide pagar en la puerta: la sala la manda a la caja. */}
+                {cuentaFicha && hayQuePagarAntes(cuentaFicha, sala?.sessions ?? []) && !mesaActual && (
+                  <Button variant="neutral" className="w-full" onClick={() => setPagandoAntes(cuentaFicha)}>
+                    <HandCoins size={17} aria-hidden="true" />
+                    Pagar ahora
+                  </Button>
+                )}
                 {/* B6-15: vuelve a su familia o pasa a otra mesa, con lo que se debe de él. */}
                 {puedeVincular && mesaActual && (
                   <Button variant="neutral" className="w-full" onClick={() => setDesvinculando(true)}>
@@ -663,6 +673,7 @@ export function ParkMonitor({
         />
       )}
       {otraFamilia.dialogo}
+      <PagarAhoraDialog cuenta={pagandoAntes} desde="SALA" onCerrar={() => setPagandoAntes(null)} />
     </div>
   );
 }

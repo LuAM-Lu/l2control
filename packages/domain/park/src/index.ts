@@ -561,6 +561,7 @@ export { money };
 /* ---------------------------------------------------------- cumpleaños */
 
 export * from "./eventos.ts";
+export * from "./pagar-antes.ts";
 
 /* ------------------------------------------------- la regla de precio (B4-17, M-37) */
 
