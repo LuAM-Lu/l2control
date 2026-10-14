@@ -570,6 +570,8 @@ function ProductoNuevo({
   const [presentacion, setPresentacion] = useState("");
   const [area, setArea] = useState<AreaDeProductoDto | null>(null);
   const [precio, setPrecio] = useState("");
+  /** «¿Cuántos hay?» (B9-14): en blanco nace «Sin contar»; con un número, contado y ya a la venta. */
+  const [cuantos, setCuantos] = useState("");
   const [errores, setErrores] = useState<Record<string, string>>({});
   const [general, setGeneral] = useState<string | null>(null);
   useEffect(() => {
@@ -601,6 +603,7 @@ function ProductoNuevo({
     setPresentacion("");
     setArea(null);
     setPrecio("");
+    setCuantos("");
     setErrores({});
     setGeneral(null);
     onCerrar();
@@ -610,6 +613,11 @@ function ProductoNuevo({
     const precioMinor = centavos(precio);
     if (!precioMinor) {
       setErrores({ precioMinor: "Un precio en dólares mayor que cero, con hasta dos decimales (1,50)" });
+      return;
+    }
+    const existencia = tipo === "PRODUCTO" && cuantos.trim() !== "" ? Number(cuantos.trim()) : undefined;
+    if (existencia !== undefined && (!Number.isInteger(existencia) || existencia < 0)) {
+      setErrores({ existencia: "Cuántos hay: un número entero (0 o más), o en blanco si no se ha contado" });
       return;
     }
     const r = await cambiar(
@@ -627,17 +635,20 @@ function ProductoNuevo({
           // La copia (B9-8) lleva también el mínimo y la carta del original.
           ...(plantilla ? { enCarta: plantilla.enCarta } : {}),
           ...(plantilla && tipo === "PRODUCTO" && plantilla.minimo !== null ? { minimo: plantilla.minimo } : {}),
+          ...(existencia !== undefined ? { existencia } : {}),
         },
       },
       "crear",
     );
     if (!r) return;
     if (r.ok) {
-      avisar.ok(`${nombre.trim()} a la venta a ${usd(precioDe(precioMinor))}`);
+      avisar.ok(`${nombre.trim()} a la venta a ${usd(precioDe(precioMinor))}`, {
+        detalle: tipo !== "PRODUCTO" ? undefined : existencia === undefined ? "Sin contar: se cuenta con una entrada o un conteo." : `Contado: hay ${existencia}.`,
+      });
       cerrar();
       return;
     }
-    const e = porCampo(r, ["nombre", "categoria", "taxCode", "precioMinor", "tipo", "codigoBarras", "presentacion", "area"]);
+    const e = porCampo(r, ["nombre", "categoria", "taxCode", "precioMinor", "tipo", "codigoBarras", "presentacion", "area", "existencia"]);
     setErrores(e.errores);
     setGeneral(e.general);
   };
@@ -697,7 +708,26 @@ function ProductoNuevo({
             setErrores(({ precioMinor: _, ...resto }) => resto);
           }}
         />
-        <p className="text-[12px] text-ink-3">Pide confirmar tu identidad: mueve lo que cobra el negocio.</p>
+        {tipo === "PRODUCTO" && (
+          <Input
+            surface="admin"
+            label="¿Cuántos hay? (opcional)"
+            placeholder="En blanco: «Sin contar»"
+            inputMode="numeric"
+            autoComplete="off"
+            value={cuantos}
+            error={errores["existencia"]}
+            onChange={(e) => {
+              setCuantos(e.target.value.replace(/D/g, "").slice(0, 6));
+              setErrores(({ existencia: _, ...resto }) => resto);
+            }}
+          />
+        )}
+        <p className="text-[12px] text-ink-3">
+          {tipo === "PRODUCTO"
+            ? "Con un número (también 0) nace contado y se vende ya; en blanco nace «Sin contar» y se cuenta con una entrada o un conteo."
+            : "Un preparado o un servicio no se cuenta: se vende desde que se guarda."}
+        </p>
         {general && <Aviso mensaje={general} />}
       </div>
     </Sheet>

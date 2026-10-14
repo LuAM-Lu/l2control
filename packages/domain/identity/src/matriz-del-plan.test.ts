@@ -65,7 +65,7 @@ const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>
   "evento.reservar": { fila: ["✅", "✅", "✅", "❌", "❌", "❌"], decision: "B10-1, V-10" },
   "papel.revisar": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "B3-7, ADR-027" },
   "inventario.entrada": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "B9-3" },
-  "inventario.catalogo": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-13, M-27 (P-15): ajustable" },
+  "inventario.catalogo": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "T-13, M-27 (P-15): ajustable; B9-14, M-39 (X-9): supervisión da de alta" },
   "sistema.actualizar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-8b, ADR-028" },
   "soporte.gestionar": { fila: ["✅", "❌", "❌", "❌", "❌", "❌"], decision: "T-11, M-27 (P-4), D-SOP: ajustable" },
   "turno.abrirFueraDelPunto": { fila: ["✅", "🔐", "🔐", "❌", "❌", "❌"], decision: "B3-9, M-31: lo autoriza administración" },

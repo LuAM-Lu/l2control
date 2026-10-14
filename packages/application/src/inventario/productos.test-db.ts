@@ -256,3 +256,39 @@ describe("identificación y tipo (B9-6)", () => {
     assert.match(!r.ok ? r.mensaje : "", /tiene 6 en stock/);
   });
 });
+
+describe("el producto listo para vender (B9-14, M-39)", () => {
+  test("«¿Cuántos hay?»: con 24 nace contado y se vende; en blanco, «Sin contar»; supervisión da de alta y no cambia un precio", async () => {
+    const luisa = await crearPersona(local, { nombre: "Luisa Mora", role: "SUPERVISOR", pin: "5937" });
+    const supervisora = await contextoDe(local, await crearEquipo(local, "Oficina B914"), luisa, "5937");
+    const conCuantos = valor(
+      await local.app.productos.aplicar(supervisora, { kind: "CREAR", producto: { nombre: "Refresco B914", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "150", existencia: 24 } }, reloj()),
+    );
+    const refresco = producto(conCuantos, "Refresco B914");
+    assert.equal(refresco.existencia, 24, "nace contado con esa existencia");
+    assert.ok(refresco.inventarioInicialEl, "ya arrancó: se vende");
+
+    const sinCuantos = valor(
+      await local.app.productos.aplicar(supervisora, { kind: "CREAR", producto: { nombre: "Malta B914", categoria: "Bebidas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "120" } }, reloj()),
+    );
+    const malta = producto(sinCuantos, "Malta B914");
+    assert.equal(malta.inventarioInicialEl, null, "sin número: «Sin contar», como antes");
+
+    const enCero = valor(
+      await local.app.productos.aplicar(supervisora, { kind: "CREAR", producto: { nombre: "Gomitas B914", categoria: "Golosinas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "50", existencia: 0 } }, reloj()),
+    );
+    assert.deepEqual([producto(enCero, "Gomitas B914").existencia, producto(enCero, "Gomitas B914").inventarioInicialEl !== null], [0, true], "con 0 también nace contado");
+
+    const preparado = await local.app.productos.aplicar(
+      supervisora,
+      { kind: "CREAR", producto: { nombre: "Tequeños B914", categoria: "Comida", taxCode: "GENERAL", tipo: "PREPARADO", precioMinor: "450", existencia: 3 } },
+      reloj(),
+    );
+    assert.equal(preparado.ok, false, "un preparado no se cuenta");
+
+    const precio = await local.app.productos.aplicar(supervisora, { kind: "PROGRAMAR_PRECIO", productId: refresco.id, precioMinor: "200", dia: "2026-10-01" }, reloj());
+    assert.equal(!precio.ok && precio.motivo, "NO_PERMITIDO", "el precio de uno ya creado es de administración");
+    const deLaCajera = await local.app.productos.aplicar(ctxCajera, { kind: "CREAR", producto: { nombre: "Chicle B914", categoria: "Golosinas", taxCode: "GENERAL", tipo: "PRODUCTO", precioMinor: "25" } }, reloj());
+    assert.equal(!deLaCajera.ok && deLaCajera.motivo, "NO_PERMITIDO");
+  });
+});

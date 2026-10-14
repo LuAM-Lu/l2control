@@ -605,6 +605,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo.",
     pasos: [
       "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
+      "«Nuevo producto» pregunta «¿Cuántos hay?» (opcional): con un número, también 0, nace contado y se vende al momento; en blanco nace «Sin contar» y se cuenta con una entrada o un conteo. Lo da de alta administración o supervisión; cambiar el precio de uno ya creado es de administración.",
       "Tres vistas a la derecha (Tarjetas, Lista y Compacta): la Lista es la tabla, donde se eligen productos para editarlos en lote; cada persona elige la suya y se recuerda en este equipo. El estado del stock va en chips con su cuenta (Agotados, Bajo mínimo…), y sin una categoría elegida, las tarjetas y la compacta se agrupan por categoría con su nombre arriba.",
       "«Editar» en cada fila abre su ficha: los datos arriba (nombre, categoría, presentación), el precio debajo. La categoría se elige de la lista; «Escribir una nueva…» para la que no está.",
       "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",

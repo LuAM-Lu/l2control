@@ -233,10 +233,10 @@ describe("dar de alta un producto en la entrada (B9-6)", () => {
     assert.ok(alta, "el alta queda con su asiento");
   });
 
-  test("crear es del catálogo: supervisión recibe pero no da de alta, y nada queda a medias", async () => {
+  test("crear es del catálogo: supervisión recibe y da de alta (B9-14), y nada queda a medias", async () => {
     const r = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }, { nuevo: { ...nuevo, nombre: "Malta light", codigoBarras: undefined }, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }]), ctxSupervisor);
-    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
-    assert.equal((await local.app.productos.leer(ctxAdmin)).productos.some((p) => p.nombre === "Malta light"), false);
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal((await local.app.productos.leer(ctxAdmin)).productos.some((p) => p.nombre === "Malta light"), true);
     // Un nuevo con el código de otro producto tampoco deja la entrada a medias.
     const antes = (await producto("Malta")).existencia;
     const choca = await registrar(compra([{ productId: ids.Malta!, bultos: 1, unidadesPorBulto: 12, costo: { por: "BULTO", minor: "900" } }, { nuevo: { ...nuevo, nombre: "Otra uva" }, bultos: 1, unidadesPorBulto: 1, costo: { por: "BULTO", minor: "50" } }]), ctxAdminElevado);
