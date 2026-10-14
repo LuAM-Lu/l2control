@@ -1,6 +1,7 @@
 "use client";
 
 import type { DiningTableDto, PlanoLocalDto } from "@l2/contracts";
+import { IconoDePieEnElPlano, type IconoDePie } from "./DePieEnElPlano.tsx";
 import { cn } from "@l2/ui";
 import { PiezaFija, Suelo, TramaParque } from "./piezas.tsx";
 import type { EstadoVisible, MesaVista } from "./mesas.ts";
@@ -62,12 +63,21 @@ export function PlanoLocal({
   elegida,
   onElegir,
   className,
+  dePie = [],
+  dePieElegida = null,
+  onElegirDePie,
+  onMoverDePie,
 }: {
   plano: PlanoLocalDto;
   mesas: readonly MesaVista[];
   elegida: string | null;
   onElegir: (id: string) => void;
   className?: string;
+  /** B6-19: las cuentas de pie, cada una con su icono donde la dejó el mesero. */
+  dePie?: readonly IconoDePie[];
+  dePieElegida?: string | null;
+  onElegirDePie?: (id: string) => void;
+  onMoverDePie?: (id: string, x: number, y: number, fijo: boolean) => void;
 }) {
   const porId = new Map(mesas.map((m) => [m.mesa.id, m]));
 
@@ -77,7 +87,7 @@ export function PlanoLocal({
         viewBox={`0 0 ${plano.width} ${plano.height}`}
         role="group"
         aria-label="Plano del local"
-        className="mx-auto h-auto max-h-full w-full"
+        className="mx-auto h-auto max-h-full w-full select-none"
         style={{ aspectRatio: `${plano.width} / ${plano.height}` }}
       >
         <defs>
@@ -107,6 +117,20 @@ export function PlanoLocal({
             activa={t.id === elegida}
             onElegir={() => onElegir(t.id)}
           />
+          ))}
+
+        {/* ── las cuentas de pie (B6-19): encima de todo, donde está la gente ── */}
+        {onMoverDePie &&
+          dePie.map((d) => (
+            <IconoDePieEnElPlano
+              key={d.id}
+              icono={d}
+              ancho={plano.width}
+              alto={plano.height}
+              activo={d.id === dePieElegida}
+              onElegir={() => onElegirDePie?.(d.id)}
+              onMover={(x, y, fijo) => onMoverDePie(d.id, x, y, fijo)}
+            />
           ))}
       </svg>
 

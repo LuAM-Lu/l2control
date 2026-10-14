@@ -947,3 +947,29 @@ describe("cambiar de mesa (B6-21, M-39)", () => {
     assert.deepEqual(enLa22.map((c) => c.id).sort(), [vecina.id, r.cuenta.id].sort(), "mesa compartida");
   });
 });
+
+describe("de pie en el plano (B6-19, M-39)", () => {
+  test("mover el icono no cambia la cuenta: la caja la cobra con su versión; con candado no se mueve; las tablets ven lo mismo", async () => {
+    const c = await sentarDePrueba(local, ctxMesero, undefined, AHORA - MIN);
+    const { cuenta: pedida } = valor(
+      await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), cuentaId: c.id, lineas: [{ productId: agua, cantidad: 1, precioMinor: "100" }], repetir: true }, AHORA),
+    );
+    const enCaja = valor(await local.app.cuentas.guardar(ctxCajera, { cuenta: { ...pedida, status: "POR_COBRAR" } }, AHORA));
+
+    valor(await local.app.mesas.moverDePie(ctxMesero, { accountId: c.id, x: 300, y: 200, fijo: false }, AHORA + 1000));
+    valor(await local.app.mesas.moverDePie(ctxMesero, { accountId: c.id, x: 320, y: 210, fijo: true }, AHORA + 2000));
+    const fijo = await local.app.mesas.moverDePie(ctxMesero, { accountId: c.id, x: 500, y: 500, fijo: true }, AHORA + 3000);
+    assert.equal(!fijo.ok && fijo.problemas?.[0]?.message, "FIJO", "con candado no se arrastra");
+    // Otra tablet (la caja, que también ve el salón) lo ve donde quedó.
+    const vista = valor(await local.app.mesas.posicionesDePie(ctxCajera)).posiciones.find((p) => p.accountId === c.id);
+    assert.deepEqual(vista, { accountId: c.id, x: 320, y: 210, fijo: true });
+
+    // La caja la cobra con la versión de antes de mover el icono: moverlo no la cambió.
+    const { cuenta } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(enCaja, "500", "131"), AHORA + 4000));
+    assert.equal(cuenta.status, "COBRADA");
+    const despues = valor(await local.app.mesas.posicionesDePie(ctxCajera)).posiciones.map((p) => p.accountId);
+    assert.ok(!despues.includes(c.id), "cobrada, desaparece");
+    const tarde = await local.app.mesas.moverDePie(ctxMesero, { accountId: c.id, x: 10, y: 10, fijo: false }, AHORA + 5000);
+    assert.equal(tarde.ok, false);
+  });
+});

@@ -1,6 +1,6 @@
 "use server";
 
-import type { CambioDeMesaDto, DesvincularPulseraResultDto, FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
+import type { PosicionesDePieDto, CambioDeMesaDto, DesvincularPulseraResultDto, FamilyAccountDto, Resultado, VincularPulserasResultDto, MesasPorLimpiarDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -33,6 +33,20 @@ export async function vincularPulseras(entrada: unknown): Promise<Resultado<Vinc
   if (r.ok) log().info({ tenantId: ctx.tenantId, mesa: r.valor.mesa.tableLabel, niños: r.valor.mesa.sessionIds.length }, "pulseras vinculadas a una mesa");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "vincular pulseras rechazado");
   return r;
+}
+
+/** Dónde están en el plano los iconos de las cuentas de pie (B6-19). */
+export async function leerPosicionesDePie(): Promise<Resultado<PosicionesDePieDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).mesas.posicionesDePie(ctx);
+}
+
+/** Mueve el icono de una cuenta de pie o le pone y quita el candado (B6-19): no cambia la cuenta. */
+export async function moverDePie(entrada: unknown): Promise<Resultado<PosicionesDePieDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).mesas.moverDePie(ctx, entrada);
 }
 
 /** Cambia una cuenta de mesa entera (B6-21): con sus pedidos, sus niños y el papel «CAMBIO DE MESA». Sin PIN. */

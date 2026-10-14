@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.139.0 en `main` (publicada, la 0.131.0) · 139 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.140.0 en `main` (publicada, la 0.131.0) · 140 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3375,12 +3375,18 @@ antes del cobro en servidor (orden de ejecución).
   limpiar una mesa ocupada. En la web, `CambiarDeMesa.tsx` en Mesas y en la caja, y «Cambios de mesa» en el historial de
   impresión. `cuentas.test-db.ts` (3 nuevas). Visto en el navegador en los dos temas, con el papel en la impresora de
   prueba.*
-- [~] **B6-19 · De pie en el plano** (M-39, X-10). *A cargo: LuAMi (Claude), en `feat/b6-19`.*
+- [x] **B6-19 · De pie en el plano** (M-39, X-10).
+  *Hecho el 2026-10-14 (v0.140.0), en `feat/b6-19`.*
   → Cada cuenta de pie es un icono en el plano del mesero, con su nombre: se arrastra a donde está la gente y un candado lo
   fija (solo a ese icono). Moverlo no cambia la cuenta (no le sube la versión ni choca con la caja): va en su propio
   registro, de solo agregar, y en vivo a las otras tablets. Desaparece al cobrar o liberar. Criterio: dos tablets ven el
   icono donde lo dejó el mesero; con candado no se arrastra; la caja cobra la cuenta mientras se mueve el icono, sin «la
   cuenta cambió».
+  *B6-19: migración `20261211000000_de_pie_en_el_plano` (solo expande: `standing_account_position`, de solo agregar; vale
+  la última fila de cada cuenta). `mesas.posicionesDePie` y `mesas.moverDePie` (de quien toma pedidos; con candado no se
+  mueve; asiento `mesa.de_pie`, tema mesas) sin tocar la versión de la cuenta. En la web, `DePieEnElPlano.tsx` (el icono
+  arrastrable con su candado, dentro del SVG del plano) y `usePosicionesDePie`. `cuentas.test-db.ts` (1 nueva). Visto en
+  el navegador en los dos temas: la tablet arrastra y fija; otro equipo lo ve en el mismo sitio.*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 

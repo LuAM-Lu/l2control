@@ -75,6 +75,7 @@ export type AccionAuditada =
   | "mesa.vincular"
   | "mesa.desvincular"
   | "mesa.cambiar"
+  | "mesa.de_pie"
   | "cuenta.juntar"
   | "cuenta.partir"
   | "cuenta.dividir"

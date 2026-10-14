@@ -67,6 +67,7 @@ import {
   type Urgencia,
 } from "./mesas.ts";
 import { PlanoLocal } from "./PlanoLocal.tsx";
+import { usePosicionesDePie } from "./DePieEnElPlano.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
 import { cartaDelMesero } from "../inventario/catalogo.ts";
 import { TomaPedido } from "./TomaPedido.tsx";
@@ -239,6 +240,24 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     [plano, porLimpiar, cuentas, pedidos, ahora],
   );
   const pie = useMemo(() => vistaDePie(cuentas, pedidos, ahora), [cuentas, pedidos, ahora]);
+  // B6-19: cada cuenta de pie, un icono en el plano donde la dejó el mesero; la que nunca se movió, abajo, en fila.
+  const { posiciones: posicionesDePie, mover: moverIconoDePie } = usePosicionesDePie();
+  const iconosDePie = useMemo(() => {
+    const porId = new Map(posicionesDePie.map((p) => [p.accountId, p]));
+    const alto = plano?.height ?? 600;
+    const ancho = plano?.width ?? 1000;
+    return pie.cuentas.map((c, i) => {
+      const p = porId.get(c.id);
+      return {
+        id: c.id,
+        nombre: c.family,
+        x: p?.x ?? Math.min(90 + i * 160, ancho - 90),
+        y: p?.y ?? alto - 70,
+        fijo: p?.fijo ?? false,
+        pideCuenta: c.status === "POR_COBRAR",
+      };
+    });
+  }, [posicionesDePie, pie.cuentas, plano]);
   const lugar: Lugar | null =
     seleccion === PIE ? { tipo: "PIE", vista: pie } : (() => {
       const v = mesas.find((m) => m.mesa.id === seleccion);
@@ -1017,7 +1036,21 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
           {modo === "PLANO" ? (
             <>
               <BotonDePie pie={pie} activo={seleccion === PIE} onElegir={() => elegir(PIE)} />
-              <PlanoLocal plano={plano} mesas={mesas} elegida={seleccion === PIE ? null : seleccion} onElegir={(id) => elegir(id)} className="apaisado:min-h-0" />
+              <PlanoLocal
+                plano={plano}
+                mesas={mesas}
+                elegida={seleccion === PIE ? null : seleccion}
+                onElegir={(id) => elegir(id)}
+                className="apaisado:min-h-0"
+                dePie={iconosDePie}
+                dePieElegida={seleccion === PIE ? cuentaSel : null}
+                onElegirDePie={(id) => elegir(PIE, id)}
+                onMoverDePie={(id, x, y, fijo) =>
+                  void moverIconoDePie({ accountId: id, x, y, fijo }).then((r) => {
+                    if (!r.ok) avisar.error(r.mensaje);
+                  })
+                }
+              />
             </>
           ) : (
             <Atender filas={loQuePideAtencion(mesas, pie, ahora, { pedidos: pedidos.map((p) => paraAtender(p, cuentas)), umbrales: { sinPedirMin: atencionSinPedirMin, esperaMin: atencionEsperaMin } }, tiempo)} elegida={seleccion} onElegir={(f) => elegir(f.lugar, f.cuentaId)} onDePie={() => elegir(PIE)} pie={pie} />
