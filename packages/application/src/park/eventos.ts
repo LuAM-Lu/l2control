@@ -97,12 +97,14 @@ const MENSAJE_RESERVA: Record<ProblemaDeReserva, string> = {
   HORARIO_INVALIDO: "El horario no es válido: el evento empieza antes de terminar y dentro del día.",
   INVITADOS_FUERA_DEL_PAQUETE: "Los invitados no caben en ese paquete: mira su mínimo y su máximo.",
   AFORO_DEL_HORARIO: "Con los otros cumpleaños de ese horario se pasa del aforo: elige otra hora u otro día.",
+  HORARIO_EXCLUSIVO: "Un cumpleaños exclusivo no comparte el parque: en ese horario ya hay otro. Elige otra hora u otro día.",
 };
 const RUTA_RESERVA: Record<ProblemaDeReserva, string> = {
   FECHA_PASADA: "fecha",
   HORARIO_INVALIDO: "fin",
   INVITADOS_FUERA_DEL_PAQUETE: "invitados",
   AFORO_DEL_HORARIO: "inicio",
+  HORARIO_EXCLUSIVO: "inicio",
 };
 
 const MENSAJE_CANCELAR: Record<CancelReservationProblem, string> = {
@@ -272,10 +274,10 @@ export function casosEventos(base: Base): CasosEventos {
           const hoy = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
           const otros = (await reservasDe(tx, { branchId: ctx.branchId, eventDate: new Date(cmd.fecha) })).filter((x) => x.estado !== "CANCELADA");
           const problema = reservaProblem({
-            reserva: { fecha: cmd.fecha, inicio: cmd.inicio, fin: cmd.fin, invitados: cmd.invitados },
+            reserva: { fecha: cmd.fecha, inicio: cmd.inicio, fin: cmd.fin, invitados: cmd.invitados, exclusivo: paquete.exclusivo },
             hoy,
             paquete,
-            otros: otros.map((o) => ({ fecha: o.fecha, inicio: o.inicio, fin: o.fin, invitados: o.invitados })),
+            otros: otros.map((o) => ({ fecha: o.fecha, inicio: o.inicio, fin: o.fin, invitados: o.invitados, exclusivo: o.paquete.exclusivo })),
             aforo,
           });
           if (problema) return invalido(MENSAJE_RESERVA[problema], [RUTA_RESERVA[problema]], problema);
@@ -422,10 +424,10 @@ export function casosEventos(base: Base): CasosEventos {
         const hoy = calendarDay(new Date(ahora).toISOString(), await zonaDe(tx, ctx.branchId));
         const otros = (await reservasDe(tx, { branchId: ctx.branchId, eventDate: new Date(cmd.fecha) })).filter((x) => x.estado !== "CANCELADA" && x.id !== reserva.id);
         const problema = reservaProblem({
-          reserva: { fecha: cmd.fecha, inicio: cmd.inicio, fin: cmd.fin, invitados: reserva.invitados },
+          reserva: { fecha: cmd.fecha, inicio: cmd.inicio, fin: cmd.fin, invitados: reserva.invitados, exclusivo: reserva.paquete.exclusivo },
           hoy,
           paquete: reserva.paquete,
-          otros: otros.map((o) => ({ fecha: o.fecha, inicio: o.inicio, fin: o.fin, invitados: o.invitados })),
+          otros: otros.map((o) => ({ fecha: o.fecha, inicio: o.inicio, fin: o.fin, invitados: o.invitados, exclusivo: o.paquete.exclusivo })),
           aforo,
         });
         if (problema) return invalido(MENSAJE_RESERVA[problema], [RUTA_RESERVA[problema]], problema);
@@ -588,7 +590,9 @@ export function casosEventos(base: Base): CasosEventos {
               "INVITADOS_COMPLETOS",
             );
           }
-          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.pulseras, tarifario.tarifario.policy.capacityLimit, ahora, (i) => ["pulseras", i]);
+          const pulseras = await comprobarPulserasYAforo(tx, ctx, cmd.pulseras, tarifario.tarifario.policy.capacityLimit, ahora, (i) => ["pulseras", i], {
+            cumpleanos: reserva.id,
+          });
           if (pulseras) return pulseras;
 
           // Su tiempo es el del evento: hasta su hora de fin. No se cobra tiempo de más (lo paga el paquete); al
@@ -917,7 +921,9 @@ function resumenDeCatalogo(version: number | null, c: CatalogoEventosDto) {
   return {
     version,
     anticipo: porcentaje(c.anticipoBps),
-    aLaVenta: c.paquetes.filter((p) => p.active).map((p) => `${p.name}: $ ${toMajor(money(BigInt(p.price.minor), "USD"))} (${p.minInvitados}-${p.maxInvitados})`),
+    aLaVenta: c.paquetes
+      .filter((p) => p.active)
+      .map((p) => `${p.name}: $ ${toMajor(money(BigInt(p.price.minor), "USD"))} (${p.minInvitados}-${p.maxInvitados})${p.exclusivo ? ", exclusivo" : ""}`),
     retirados: c.paquetes.filter((p) => !p.active).map((p) => p.name),
   };
 }

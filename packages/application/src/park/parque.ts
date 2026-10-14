@@ -34,6 +34,8 @@ import {
   EstanciaSchema,
   FamilyAccountSchema,
   MonitorSnapshotSchema,
+  CumpleanosEnLaPuertaSchema,
+  type CumpleanosEnLaPuertaDto,
   AvisosDeSalaSchema,
   type AvisosDeSalaDto,
   NombrarEstanciaCommandSchema,
@@ -61,6 +63,10 @@ import { add, money, type Money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
   admits,
+  fraseDeGuardados,
+  horaComercial,
+  lugaresDeCumpleanos,
+  puertaParaVisitas,
   epochMs,
   fixed,
   isOrphan,
@@ -290,6 +296,7 @@ export function casosParque(base: Base): CasosParque {
           shiftLabel: "",
           sessions: enSala,
           huerfanas,
+          cumpleanos: await cumpleanosEnLaPuerta(tx, ctx.branchId, ahora),
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };
@@ -1473,7 +1480,12 @@ export async function comprobarPulserasYAforo(
   aforo: number,
   ahora: number,
   ruta: (i: number) => (string | number)[],
-  opciones: Readonly<{ sinAforo?: boolean; generados?: ReadonlySet<string> }> = {},
+  opciones: Readonly<{
+    sinAforo?: boolean;
+    generados?: ReadonlySet<string>;
+    /** Entran los invitados de este cumpleaños (B10-4): a sus lugares, no a los de otro, y sin el cierre del exclusivo. */
+    cumpleanos?: string;
+  }> = {},
 ): Promise<Rechazo | null> {
   // V-1: la serie de pulseras del local, si ya se fijó con el primer lote (D-PUL).
   const { pulseras: serie } = await ajustesDe(tx, ctx.branchId);
@@ -1514,6 +1526,42 @@ export async function comprobarPulserasYAforo(
   // Una huérfana no ocupa sitio: casi seguro ese niño ya no está (F5-13).
   const regla = await reglaDeHuerfanas(tx, ctx.branchId);
   const dentro = activas.filter((a) => !huerfana(a, ahora, regla)).length;
+  // B10-4: los cumpleaños guardan el lugar de sus invitados desde 30 minutos antes; un exclusivo cierra la puerta a las
+  // visitas normales.
+  const cumpleanos = await cumpleanosEnLaPuerta(tx, ctx.branchId, ahora);
+  const lugares = lugaresDeCumpleanos(
+    cumpleanos.map((c) => ({
+      id: c.id,
+      nombre: c.cumpleanero,
+      empiezaEn: Date.parse(c.empiezaEn),
+      terminaEn: Date.parse(c.terminaEn),
+      invitados: c.invitados,
+      entraron: c.entraron,
+      exclusivo: c.exclusivo,
+    })),
+    ahora,
+    opciones.cumpleanos,
+  );
+  const puerta = puertaParaVisitas({ dentro, entran: codigos.length, aforo, lugares });
+  if (!puerta.admite && puerta.motivo === "EXCLUSIVO" && opciones.cumpleanos === undefined) {
+    const fin = cumpleanos.find((c) => c.id === lugares.exclusivo?.id)?.fin ?? 0;
+    return {
+      ok: false,
+      motivo: "CONFLICTO",
+      mensaje: `Ahora es el cumpleaños exclusivo de ${lugares.exclusivo?.nombre ?? ""}, hasta las ${horaComercial(fin)}: no entran visitas normales.`,
+      problemas: [{ path: ["entries"], message: "CUMPLEANOS_EXCLUSIVO" }],
+    };
+  }
+  if (!puerta.admite && puerta.motivo === "AFORO" && lugares.guardados > 0) {
+    const quedan = Math.max(0, aforo - dentro);
+    const caben = puerta.libres === 0 ? "No entra nadie más hasta que lleguen." : `Esta entrada trae ${codigos.length} y caben ${puerta.libres}.`;
+    return {
+      ok: false,
+      motivo: "CONFLICTO",
+      mensaje: `Quedan ${quedan} ${quedan === 1 ? "lugar" : "lugares"}: ${fraseDeGuardados(lugares)}. ${caben}`,
+      problemas: [{ path: ["entries"], message: "LUGARES_GUARDADOS" }],
+    };
+  }
   if (!admits(dentro, codigos.length, aforo)) {
     const libres = Math.max(0, aforo - dentro);
     return {
@@ -1523,6 +1571,49 @@ export async function comprobarPulserasYAforo(
     };
   }
   return null;
+}
+
+/**
+ * Los cumpleaños de hoy que cuentan en la puerta (B10-4): los que tienen el anticipo cobrado (sin él no empiezan), sin
+ * cancelar ni con el saldo dado por incobrable, con cuántos invitados entraron (una entrada anulada no cuenta).
+ */
+export async function cumpleanosEnLaPuerta(tx: Transaccion, branchId: string, ahora: number): Promise<CumpleanosEnLaPuertaDto[]> {
+  const zona = await zonaDe(tx, branchId);
+  const hoy = calendarDay(new Date(ahora).toISOString(), zona);
+  const filas = await tx.eventReservation.findMany({
+    where: { branchId, eventDate: new Date(hoy) },
+    select: { id: true, honoree: true, startsMinute: true, endsMinute: true, guests: true, package: true, accountId: true, day: { select: { accountId: true } } },
+    orderBy: [{ startsMinute: "asc" }, { createdAt: "asc" }],
+  });
+  if (filas.length === 0) return [];
+  const versiones = await tx.accountVersion.findMany({
+    where: { accountId: { in: filas.flatMap((f) => (f.day ? [f.accountId, f.day.accountId] : [f.accountId])) } },
+    orderBy: [{ accountId: "asc" }, { version: "desc" }],
+    distinct: ["accountId"],
+    select: { accountId: true, status: true },
+  });
+  const estado = new Map(versiones.map((v) => [v.accountId, v.status]));
+  const entradas = await tx.parkSession.groupBy({
+    by: ["eventReservationId"],
+    where: { eventReservationId: { in: filas.map((f) => f.id) }, ...SIN_ANULADAS },
+    _count: { _all: true },
+  });
+  const medianoche = startOfDay(hoy, zona);
+  return filas
+    .filter((f) => estado.get(f.accountId) === "COBRADA" && (!f.day || estado.get(f.day.accountId) !== "INCOBRABLE"))
+    .map((f) =>
+      CumpleanosEnLaPuertaSchema.parse({
+        id: f.id,
+        cumpleanero: f.honoree,
+        inicio: f.startsMinute,
+        fin: f.endsMinute,
+        empiezaEn: new Date(medianoche + f.startsMinute * 60_000).toISOString(),
+        terminaEn: new Date(medianoche + f.endsMinute * 60_000).toISOString(),
+        invitados: f.guests,
+        entraron: entradas.find((e) => e.eventReservationId === f.id)?._count._all ?? 0,
+        exclusivo: (f.package as { exclusivo?: unknown } | null)?.exclusivo === true,
+      }),
+    );
 }
 
 /** El tarifario vigente de la sucursal, revalidado; `null` si nunca se publicó (o ya no se entiende). */

@@ -181,7 +181,14 @@ export function EntradaEnCapa({
                 medias={medias}
                 paresQueFaltan={e.paresQueFaltan}
                 sinMedias={e.sinMedias}
-                aforo={{ activos: capacidad.active, limite: capacityLimit, lleno: capacidad.isFull, pocos: capacidad.remaining <= 3 }}
+                aforo={{
+                  activos: capacidad.active,
+                  limite: capacityLimit,
+                  lleno: capacidad.isFull,
+                  pocos: capacidad.remaining <= 3,
+                  // B10-4: lo que guardan los cumpleaños, para una visita normal.
+                  ...(cumple ? {} : { guardados: e.puerta.guardados, exclusivo: e.puerta.exclusivo }),
+                }}
               />
               {/* DEC-21: la familia elige cómo paga (en el parque, salvo que se sume a su cuenta). M-18 (B4-6): lo
                   pagado al entrar no se devuelve si sale antes; en cuenta abierta se cobra por lo que usó. */}

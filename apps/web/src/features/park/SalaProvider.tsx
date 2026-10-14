@@ -165,7 +165,8 @@ export function SalaProvider({ inicial, children }: { inicial: MonitorSnapshotDt
 
   // En vivo (B5-1). Un fallo de red no borra lo que se tenía: se dice, y se vuelve a leer con el
   // siguiente cambio o al reconectarse.
-  useAlCambiar(["sala"], () => {
+  // B10-4: también cuando cambian los cumpleaños (los lugares que guardan en la puerta).
+  useAlCambiar(["sala", "eventos"], () => {
     if (!vetada.current) void refrescar();
   });
 

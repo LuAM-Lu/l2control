@@ -43,6 +43,7 @@ const salaLeidaA = (serverNow: number): MonitorSnapshotDto => ({
   rate: null,
   sessions: [estancia],
   huerfanas: [],
+  cumpleanos: [],
   shiftLabel: "",
 });
 
