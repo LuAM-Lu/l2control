@@ -45,8 +45,8 @@ once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
 una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 entregado entero (2026-10-14, la
 visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.132.0 a v0.143.0, publicados juntos con la etiqueta
-v0.143.0. B8-4 preparado (2026-10-14): la 1.0.0 espera el sí del usuario si el día 4 de la operación termina sin
-novedades.** M-28 y M-29
+v0.143.0. B8-4 preparado (2026-10-14): la 1.0.0 se corta el lunes 19 de octubre con el local cerrado y el martes 20 es el
+primer día en producción.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -3840,7 +3840,7 @@ F9-05).
   → Los totales de los dos sistemas coinciden todos los días del período.
 - [~] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10). *A cargo: LuAMi
   (Claude). Preparado el 2026-10-14, día 4 de la operación con la 0.143.0: listo para pasar a producción si el día
-  termina sin novedades; falta el sí del usuario, B8-1 confirmado y la hora de D-ENT.*
+  termina sin novedades; el corte, el lunes 19 de octubre con el local cerrado; falta B8-1 confirmado.*
   → (M-36) Sobre la base del VPS, sin corrida limpia: antes, la lista de lo que quedó de prueba (solo leyendo) y lo que
   el usuario decida; con el VPS en modo producción (D-ENT).
   → Lo que quedó de prueba (leído el 2026-10-14): nada con nombre de prueba entre productos (101), familias (38) y
@@ -3850,13 +3850,15 @@ F9-05).
   → Después de la 1.0.0 se sigue mejorando (diseño, rendimiento, lo que se vea en el uso): correcciones como 1.0.x y
   mejoras como 1.x.0, cada una con su PR y su CI; en producción las pone administración desde Ajustes → Sistema
   («al cierre»), no solas.
-  → **El plan (acordado con el usuario el 2026-10-14; no se borra nada, se corta por fecha).** Fecha por confirmar:
-  propuesta, el corte al cierre de un día flojo después del fin de semana, no antes de él (viernes, sábado y domingo
-  son los más movidos), y el fin de semana como última prueba con las correcciones del día 4.
+  → **El plan (acordado con el usuario el 2026-10-14; no se borra nada, se corta por fecha).** **Fecha: el domingo 18 de
+  octubre al cierre, cada caja con su Z; el lunes 19, con el local cerrado (no abre los lunes), el corte; el martes 20,
+  el primer día en producción.** No antes del fin de semana: viernes, sábado y domingo son los más movidos y sirven de
+  última prueba con las correcciones del día 4.
   *Días antes:* (1) B8-1, con el internet principal desconectado la caja cobra y la sala se actualiza por el 4G
   (usuario); (2) decidir «Linux Home andruwXOX» y «T an lwt» (usuario); (3) revisar las deudas pendientes y anular con
   su motivo lo que haya sido de ensayo (administración); (4) elegir el día.
-  *El día del corte, al cierre y sin clientes:* (5) sin niños en la sala, todo cobrado y cada caja con su Z (personal);
+  *El domingo 18 al cierre y el lunes 19, con el local cerrado:* (5) el domingo, sin niños en la sala, todo cobrado y cada
+  caja con su Z (personal); el lunes, lo demás:
   (6) conteo físico con la hoja a ciegas (Inventario → Salidas y conteo), las diferencias ajustadas y el informe
   impreso (personal y supervisión); (7) en PDF, Reportes → Ventas e Inventario al momento del periodo de prueba
   (administración); (8) respaldo en Ajustes → Sistema → Respaldos, fijado, bajado a la PC del local y copiado a un disco
