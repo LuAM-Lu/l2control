@@ -2483,7 +2483,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   sus dos niños en botones y un toque de paquete; solo el teclado numérico; nada desplaza; registrada en cuenta abierta. La
   entrada desde la caja, a 1366×768.*
 
-- [ ] **B4-19 · Pagar el parque antes de salir** (M-39, X-4).
+- [~] **B4-19 · Pagar el parque antes de salir** (M-39, X-4). *A cargo: LuAMi (Claude), en `feat/b4-19`.*
   → La cuenta de una familia con niños en la sala se ve en la caja («En el parque», y buscando por su pulsera o su
   cliente). «Pagar ahora» lo cobra la caja; si la familia lo pide en la puerta, la monitora pulsa «Pagar ahora» en la sala,
   elige el paquete y la cuenta aparece en la cola de la caja. Por niño, el paquete (sugiere el que cubre lo que lleva; el tiempo abierto pasa a ese paquete), y
