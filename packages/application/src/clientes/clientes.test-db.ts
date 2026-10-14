@@ -277,7 +277,7 @@ describe("una mesa sin cuenta no la abre nadie más que sentar (B6-9)", () => {
 
   test("vincular pulseras a una mesa libre, tampoco", async () => {
     const familia = await familiaDePrueba(l, monitora, AHORA - 10 * MIN);
-    const r = rechazo(await l.app.mesas.vincular(mesero, { idempotencyKey: randomUUID(), tableId: "mesa-6", sessionIds: familia.sessionIds }, AHORA));
+    const r = rechazo(await l.app.mesas.vincular(mesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-6", sessionIds: familia.sessionIds }, AHORA));
     assert.equal(r.problemas?.[0]?.message, "MESA_SIN_CUENTA", JSON.stringify(r));
   });
 });

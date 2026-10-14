@@ -577,7 +577,7 @@ describe("salir antes de tiempo (B4-6, M-18)", () => {
   test("vinculado a una mesa: el ajuste se hace en la cuenta de la mesa", async () => {
     const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
     const id = r.sessions[0]!.id;
-    const { mesa } = valor(await local.app.mesas.vincular(ctxMesero, { idempotencyKey: randomUUID(), tableId: "mesa-11", sessionIds: [id] }, AHORA + 5 * MIN));
+    const { mesa } = valor(await local.app.mesas.vincular(ctxMesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-11", sessionIds: [id] }, AHORA + 5 * MIN));
     const cmd = salida([id]);
     const s = valor(await local.app.parque.salir(ctxMonitora, cmd, AHORA + 25 * MIN));
     assert.deepEqual(s.lines[0]!.porUso, { paquete: "30 minutos", precio: usd("300") });
@@ -609,7 +609,7 @@ describe("la pulsera vinculada sale a su mesa (B4-14)", () => {
     await vaciarSala(AHORA);
     const r = await entrar(entrada([{ packageId: "pkg-60" }]));
     const id = r.sessions[0]!.id;
-    const { mesa } = valor(await local.app.mesas.vincular(ctxMesero, { idempotencyKey: randomUUID(), tableId: "mesa-10", sessionIds: [id] }, AHORA + 5 * MIN));
+    const { mesa } = valor(await local.app.mesas.vincular(ctxMesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-10", sessionIds: [id] }, AHORA + 5 * MIN));
     // 80 minutos con un paquete de 60: un bloque de más, después de la gracia.
     const s = valor(await local.app.parque.salir(ctxMonitora, salida([id]), AHORA + 80 * MIN));
     assert.equal(s.lines[0]!.penaltyBlocks, 1);
@@ -622,7 +622,7 @@ describe("la pulsera vinculada sale a su mesa (B4-14)", () => {
     await vaciarSala(AHORA + 90 * MIN);
     const r = await entrar(entrada([{}, {}]), ctxMonitora, AHORA + 90 * MIN);
     const [a, b] = r.sessions.map((x) => x.id) as [string, string];
-    valor(await local.app.mesas.vincular(ctxMesero, { idempotencyKey: randomUUID(), tableId: "mesa-10", sessionIds: [a] }, AHORA + 91 * MIN));
+    valor(await local.app.mesas.vincular(ctxMesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-10", sessionIds: [a] }, AHORA + 91 * MIN));
     const mezcla = await local.app.parque.salir(ctxMonitora, salida([a, b]), AHORA + 100 * MIN);
     assert.equal(mezcla.ok, false);
     assert.match((mezcla as { mensaje: string }).mensaje, /por separado/);

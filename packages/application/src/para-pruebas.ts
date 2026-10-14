@@ -335,14 +335,15 @@ export async function sentarDePrueba(
   ctx: Contexto,
   tableId: string | undefined,
   ahora: number,
-  extra: Readonly<{ nombre?: string; comensales?: number; vistas?: number }> = {},
+  extra: Readonly<{ nombre?: string; comensales?: number; vistas?: number; cliente?: { nombre: string; cedula: string; telefono: string } }> = {},
 ): Promise<import("@l2/contracts").FamilyAccountDto> {
   const r = await local.app.mesas.abrir(
     ctx,
     {
       cuentaId: randomUUID(),
       ...(tableId ? { tableId } : {}),
-      cliente: clienteDePrueba(extra.nombre),
+      // El representante de los niños que se vinculan (B6-20): sin él, la mesa es de otro cliente.
+      cliente: extra.cliente ?? clienteDePrueba(extra.nombre),
       comensales: extra.comensales ?? 2,
       vistas: extra.vistas ?? 0,
     },

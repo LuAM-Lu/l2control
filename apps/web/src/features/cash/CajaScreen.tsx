@@ -2651,13 +2651,16 @@ export function CajaScreen({
     }
     if (cuenta.status !== "POR_COBRAR") {
       avisar.info(
-        `${nombreDeCuenta(cuenta)}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`,
+        // Vinculado a una mesa (B6-20): «En la mesa 2», con su cuenta.
+        suMesa && cuenta.status !== "COBRADA"
+          ? `En la mesa ${suMesa.tableLabel ?? "?"}: la cuenta sigue abierta`
+          : `${nombreDeCuenta(cuenta)}: ${cuenta.status === "COBRADA" ? "la cuenta ya está cobrada" : "la cuenta sigue abierta"}`,
         {
           detalle:
             cuenta.status === "COBRADA"
               ? `Orden ${numeroDeOrden(cuenta)}`
               : suMesa
-                ? "Ese niño está vinculado a esta mesa: se cobra con ella cuando pida la cuenta."
+                ? `Ese niño está vinculado a ${nombreDeCuenta(cuenta)} (${numeroDeOrden(cuenta)}): se cobra con ella cuando pida la cuenta.`
                 : "Pasa a caja cuando salgan los niños.",
         },
       );

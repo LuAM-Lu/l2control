@@ -492,6 +492,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Buscar cliente»: por su nombre, su cédula o su teléfono, dice dónde está sentado (toca su cuenta para abrir su mesa), sus niños en la sala y si debe algo de antes.",
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
       "Quien pide sin mesa: «De pie», con sus mismos datos.",
+      "Al vincular, pasar la pulsera de un niño marca también a sus hermanos que están en la sala (desmarca al que se siente en otra mesa); «Toda la familia» los marca a todos. Va todo lo de cada niño: su paquete, sus medias y su «Más tiempo». Si el niño es de otra familia que la de la mesa, pregunta «¿vincular igual?», y queda anotado.",
       "«Niños vinculados» → «Vincular»: los niños de la familia que juegan en el parque pagan su tiempo con la mesa. Si fue un error o se cambian de mesa, «Desvincular» en el niño: vuelve a la cuenta de su familia o pasa a otra mesa (u otra familia de una mesa compartida), con lo que se debe de él, y su salida del parque va ahí. Lo hace quien vincula, sin PIN; lo ya cobrado no se mueve.",
       "«Tomar pedido», elige de la carta y «Revisar y enviar a cocina»: sale un papel por área, la comanda de cocina y la de barra, con el mismo número y «1 de 2». Lo que se sirve sin papel no sale.",
       "Si la misma cuenta pidió lo mismo hace menos de 2 minutos (un toque doble, u otra tablet o la caja), pregunta «¿Pedirlo otra vez?» con quién y desde dónde: «Sí, otra vez» lo envía; si no, no sale nada.",

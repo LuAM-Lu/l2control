@@ -232,7 +232,7 @@ describe("quién está aquí (T-23)", () => {
       ),
     );
     assert.equal(mesa.cliente?.clienteId, e.guardianId);
-    valor(await l.app.mesas.vincular(mesero, { idempotencyKey: randomUUID(), tableId: "mesa-3", sessionIds: familia.sessionIds }, AHORA - 4 * MIN));
+    valor(await l.app.mesas.vincular(mesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-3", sessionIds: familia.sessionIds }, AHORA - 4 * MIN));
     const suyo = valor(await l.app.clientes.deAqui(mesero, AHORA)).clientes.filter((a) => a.cliente.clienteId === e.guardianId);
     assert.deepEqual(
       suyo.map((a) => [a.motivo, a.detalle, a.estancias]),

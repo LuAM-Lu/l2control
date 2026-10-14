@@ -75,7 +75,8 @@ import { AnularPedidoDialog } from "./AnularPedidoDialog.tsx";
 import { useHora, useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { conSuHora, duracion, transcurrido } from "./tiempo.ts";
 import { usePedidos } from "./PedidosProvider.tsx";
-import { abrirCuentaDelSalon, liberarMesa, vincularPulseras } from "./mesas.acciones.ts";
+import { abrirCuentaDelSalon, liberarMesa } from "./mesas.acciones.ts";
+import { usePreguntaOtraFamilia, vincularPreguntando } from "./OtraFamilia.tsx";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 import type { ClienteElegido } from "../clientes/CampoDelCliente.tsx";
@@ -193,6 +194,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const operador = useOperador();
   /** B3-25: el mismo pedido de hace un momento, esperando «Sí, otra vez». */
   const [repetido, setRepetido] = useState<{ cuenta: FamilyAccountDto; mensaje: string } | null>(null);
+  /** B6-20: vincular a la mesa de otra familia se pregunta. */
+  const otraFamilia = usePreguntaOtraFamilia();
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
   const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
@@ -334,7 +337,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    */
   async function vincular(c: FamilyAccountDto, ids: string[]): Promise<boolean> {
     if (!c.tableId || ids.length === 0) return false;
-    const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId: c.tableId, cuentaId: c.id, sessionIds: ids });
+    const r = await vincularPreguntando({ idempotencyKey: crypto.randomUUID(), tableId: c.tableId, cuentaId: c.id, sessionIds: ids }, otraFamilia.preguntar);
+    if (r === null) return false;
     if (!r.ok) {
       avisar.error(r.mensaje);
       return false;
@@ -744,6 +748,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               onVincular={(ids) => vincular(cuenta, ids)}
             />
           )}
+          {otraFamilia.dialogo}
           <Confirmacion
             abierto={liberando !== null}
             onCerrar={() => setLiberando(null)}
