@@ -393,12 +393,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       return;
     }
     const { pedido } = r.valor;
-    // Un papel por área (B6-10): dónde sale cada uno.
+    // Un papel por área (B6-10): dónde sale cada uno. Si la cuenta estaba en la cola de la caja, volvió a la mesa (B6-18).
+    const papeles =
+      pedido.comandas.length === 0
+        ? "Todo se sirve sin comanda: no sale papel."
+        : pedido.comandas.map((p) => `${p.area ? `${AREA[p.area].nombre}: ` : ""}sale en «${p.impresora ?? "la impresora de comandas"}»`).join(" · ") + ".";
     avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · ${rotuloDePedido(pedido)}`, {
-      detalle:
-        pedido.comandas.length === 0
-          ? "Todo se sirve sin comanda: no sale papel."
-          : pedido.comandas.map((c) => `${c.area ? `${AREA[c.area].nombre}: ` : ""}sale en «${c.impresora ?? "la impresora de comandas"}»`).join(" · ") + ".",
+      detalle: c.status === "POR_COBRAR" ? `Volvió de la caja a la mesa: cuando terminen, «Pide la cuenta» otra vez. ${papeles}` : papeles,
     });
     setEnvios((e) => {
       const { [c.id]: _, ...resto } = e;
@@ -628,7 +629,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                 Pide la cuenta
               </Button>
             ) : (
-              <p className="text-center text-[12.5px] text-ink-3">Pagan en caja. El mesero no cobra (DEC-14).</p>
+              <p className="text-center text-[12.5px] text-ink-3">En la cola de la caja: pagan ahí. Si piden algo más, el pedido la trae de vuelta.</p>
             )}
             {/* B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o
                 no consumió / fue un error (se anula todo). */}

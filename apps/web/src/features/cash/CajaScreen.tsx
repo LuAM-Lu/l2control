@@ -2451,6 +2451,20 @@ export function CajaScreen({
   // B3-24: en la caja de un día anterior no se elige sola la primera: lo primero que se ve es que hay que cerrarla.
   const actual =
     porCobrar.find((c) => c.id === elegida) ?? (deOtroDia ? null : porCobrar[0]) ?? null;
+  // B6-18: la cuenta que la caja tenía a la vista volvió a pedir en el salón. El servidor la devolvió a la mesa y descartó
+  // lo tecleado sin cobrar; aquí se dice, para que no parezca que se cambió de cuenta sola.
+  const alaVista = useRef<string | null>(null);
+  useEffect(() => {
+    const antes = alaVista.current;
+    alaVista.current = actual?.id ?? null;
+    if (antes === null || antes === actual?.id) return;
+    const volvio = cuentas.find((c) => c.id === antes);
+    if (volvio?.status !== "ABIERTA" || (volvio.kind !== "MESA" && !volvio.dePie)) return;
+    avisar.info(`${nombreDeCuenta(volvio)} volvió a pedir: salió de la cola`, {
+      detalle: "Lo tecleado sin cobrar se descartó. Vuelve a la cola cuando pida la cuenta.",
+    });
+    if (elegida === antes) setElegida(null);
+  }, [actual?.id, cuentas, elegida]);
   const lineas = useMemo(
     () => (actual ? lineasParaCobrar(actual) : []),
     [actual],

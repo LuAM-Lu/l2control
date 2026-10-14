@@ -68,6 +68,7 @@ import { asentarExistencias, comprobarExistencias } from "../inventario/existenc
 import { impresoraDe } from "../impresion/impresion.ts";
 import { NOMBRE_DE_AREA, areaSinImpresora, areasDeProductos, oficioDe, sinImpresoraPara, type LineaGuardada } from "./comandas.ts";
 import { encolarComanda } from "./comanda.ts";
+import { borrarBorradorEn } from "../caja/borrador.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
 import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva, mesaSinCuenta } from "./plano.ts";
 
@@ -157,6 +158,18 @@ export function casosPedidos(base: Base): CasosPedidos {
           if ("ok" in destino) return destino;
           const { actual, tableId, mesa } = destino;
 
+          // Una cuenta que la caja cobra en partes iguales y ya cobró alguna no recibe más: cambiaría lo que vale cada parte
+          // (B6-18). Lo nuevo va en otra cuenta de la mesa, o se pide cuando termine el cobro.
+          const enPartes = actual?.cuenta.split;
+          if (enPartes && enPartes.paid > 0) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `La caja está cobrando esta cuenta en partes (${enPartes.paid} de ${enPartes.parts} cobradas): pide lo nuevo en otra cuenta de la mesa, o cuando termine el cobro.`,
+              problemas: [{ path: ["cuentaId"], message: "COBRO_EN_PARTES" }],
+            };
+          }
+
           // El mismo pedido de hace menos de 2 minutos para esta cuenta (B3-25, M-39 X-2): casi siempre un toque doble o dos
           // equipos pidiendo lo mismo. Se pregunta; con «Sí, otra vez» (`repetir`), sale.
           if (actual && cmd.repetir !== true) {
@@ -215,9 +228,19 @@ export function casosPedidos(base: Base): CasosPedidos {
 
           // Todo comprobado: se escribe.
           const quien = await nombreDe(tx, ctx);
+          // Volver a pedir con la cuenta en la cola de la caja (B6-18, M-39 X-3) la devuelve a la mesa: sale de la cola (sin
+          // su espera ni sus partes sin cobrar), y lo que la caja tecleaba sin cobrar se descarta. Lo cobrado sigue cobrado.
+          const volvio = actual?.cuenta.status === "POR_COBRAR";
+          const deLaMesa = (c: FamilyAccountDto): FamilyAccountDto => {
+            if (!volvio) return c;
+            const { pendingSince: _espera, split: _partes, ...enLaMesa } = c;
+            return { ...enLaMesa, status: "ABIERTA" };
+          };
           const cuenta: FamilyAccountDto = actual
-            ? FamilyAccountSchema.parse({ ...actual.cuenta, lines: [...actual.cuenta.lines, ...nuevas], version: actual.version + 1 })
+            ? FamilyAccountSchema.parse({ ...deLaMesa(actual.cuenta), lines: [...actual.cuenta.lines, ...nuevas], version: actual.version + 1 })
             : await crearCuentaDeMesa(tx, ctx, { tableId: tableId!, label: mesa, lines: nuevas, ahora, quien: quien.nombre });
+          const cobroDescartado = volvio && (await tx.chargeDraft.count({ where: { accountId: cuenta.id } })) > 0;
+          if (volvio) await borrarBorradorEn(tx, cuenta.id);
           await guardarVersion(tx, ctx, cuenta, { cause: "PEDIDO", operationKey: cmd.pedidoId, ahora, quien: quien.nombre });
           await asentarExistencias(tx, ctx, existencias, { accountId: cuenta.id, version: cuenta.version!, ahora, quien: quien.nombre });
 
@@ -255,6 +278,8 @@ export function casosPedidos(base: Base): CasosPedidos {
               ...(fila.accountLabel ? { nombreCuenta: fila.accountLabel } : {}),
               cuenta: { id: cuenta.id, orden: cuenta.orderNumber ?? null, version: cuenta.version ?? null },
               lineas: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad, area: l.area })),
+              // Volvió de la cola de la caja (B6-18), y si se descartó un cobro en curso.
+              ...(volvio ? { volvioDeLaCaja: true, cobroEnCursoDescartado: cobroDescartado } : {}),
             },
           });
           // Un papel por área, en su impresora.

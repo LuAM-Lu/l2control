@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.132.0 en `main` (publicada, la 0.131.0) · 132 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.133.0 en `main` (publicada, la 0.131.0) · 133 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3303,11 +3303,17 @@ antes del cobro en servidor (orden de ejecución).
   y 800×1280 en los dos temas: tres platos en 7 toques (la mesa, «Tomar pedido», tres platos, enviar y confirmar), nada
   desplaza; con la impresora de mentira sin papel, la píldora «3 no salieron» y su hoja con «Reimprimir cocina».*
 
-- [~] **B6-18 · Volver a pedir con la cuenta pedida** (M-39, X-3). *A cargo: LuAMi (Claude), en `feat/b6-18`.*
+- [x] **B6-18 · Volver a pedir con la cuenta pedida** (M-39, X-3).
+  *Hecho el 2026-10-13 (v0.133.0), en `feat/b6-18`.*
   → Un pedido nuevo a una cuenta que está en la cola de la caja la devuelve a la mesa (sale de la cola). Si la caja la
   tenía abierta, la suelta sola: lo tecleado sin cobrar se descarta y la caja ve «Mesa 4 volvió a pedir: salió de la
   cola». Lo cobrado en partes sigue cobrado. Criterio: pedir la cuenta, volver a pedir y ver que la caja ya no la tiene; con
   la caja cobrándola sin terminar, el pedido sale igual y la caja lo dice.
+  *B6-18: `pedidos.enviar` devuelve a ABIERTA una cuenta POR_COBRAR (sin `pendingSince` ni `split` sin cobrar), borra su
+  borrador de cobro y lo anota en la auditoría (`volvioDeLaCaja`, `cobroEnCursoDescartado`); con una parte cobrada,
+  `COBRO_EN_PARTES`. En la caja, el aviso cuando la cuenta a la vista vuelve a la mesa; en la tablet, el aviso al enviar
+  y el texto de la cuenta en la cola. `cuentas.test-db.ts` (3 nuevas). Visto en el navegador en los dos temas, con la
+  caja y la tablet en dos equipos a la vez.*
 - [ ] **B6-20 · Vincular la familia entera** (M-39, X-14 y X-15).
   → Pasar la pulsera de un niño para vincularlo ofrece a toda su familia: sus hermanos que están en la sala, marcados (se
   puede desmarcar al que se sienta en otra mesa). Va todo lo de cada niño (paquete, medias, «Más tiempo» y tiempo de más,
