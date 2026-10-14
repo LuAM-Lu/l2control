@@ -3443,7 +3443,7 @@ antes del cobro en servidor (orden de ejecución).
   aforo con `reservaProblem` bajo el candado de eventos, asiento `evento.cambiar_fecha`, tema eventos); `reservasDe` trae
   los `cambios`. En la web, `MesYCambioDeFecha.tsx` (el mes y el diálogo). `eventos.test-db.ts` (2 nuevas). Visto en el
   navegador en los dos temas: el mes, la vista recordada al recargar y un cambio con su motivo y su línea de historia.*
-- [ ] **B10-4 · El aforo del cumpleaños y el exclusivo** (M-39, X-12).
+- [~] **B10-4 · El aforo del cumpleaños y el exclusivo** (M-39, X-12). *A cargo: LuAMi (Claude), en `feat/b10-4`.*
   → Desde 30 minutos antes y hasta su fin, el parque guarda el lugar de los invitados que no han llegado: las visitas
   normales tienen el aforo menos esos lugares, y la entrada lo dice («Quedan 8 lugares: 7 guardados para el cumpleaños de
   Sofía»). Un paquete puede ser «Exclusivo»: en su horario no entran visitas normales y no se reserva otro cumpleaños
