@@ -36,7 +36,10 @@ before(async () => {
   cajera = await contextoDe(local, await crearEquipo(local, "Caja 1"), c, "7391");
   supervisora = await contextoDe(local, await crearEquipo(local, "Oficina", true, false), s, "5937");
   const FONDO = { fondos: [{ currency: "USD", amount: usd("2000") }, { currency: "VES", amount: { minor: "0", currency: "VES" } }] };
-  valor(await local.app.turnos.abrir(cajera, FONDO, undefined, AHORA - 10 * MIN));
+  // El día de negocio cambia a las 4:00 am (Caracas, UTC−4): la caja se abre después del último corte, o entre las 4:00 y
+  // las 4:10 cobrar diría «Esta caja es del …» (pasó en el CI).
+  const corte = Math.floor((AHORA - 8 * 3_600_000) / 86_400_000) * 86_400_000 + 8 * 3_600_000;
+  valor(await local.app.turnos.abrir(cajera, FONDO, undefined, Math.max(AHORA - 10 * MIN, corte)));
   for (const cmd of [
     { impuesto: "IVA", code: "GENERAL", basisPoints: 1600, dia: DIA },
     { impuesto: "IGTF", code: null, basisPoints: 0, dia: DIA },
