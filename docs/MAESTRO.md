@@ -45,7 +45,8 @@ once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
 una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 entregado entero (2026-10-14, la
 visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.132.0 a v0.143.0, publicados juntos con la etiqueta
-v0.143.0.** M-28 y M-29
+v0.143.0. B8-4 preparado (2026-10-14): la 1.0.0 espera el sí del usuario si el día 4 de la operación termina sin
+novedades.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -3837,9 +3838,18 @@ F9-05).
   F11-06). *Hecho por el usuario el 2026-10-10; de lo visto salió M-38.* *A cargo: LuAMi, en el local, desde el 2026-10-09 (M-36), sobre el VPS con los datos reales. Lo que salga se
   corrige como PATCH y no se publica mientras se prueba.*
   → Los totales de los dos sistemas coinciden todos los días del período.
-- [ ] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10).
+- [~] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10). *A cargo: LuAMi
+  (Claude). Preparado el 2026-10-14, día 4 de la operación con la 0.143.0: listo para pasar a producción si el día
+  termina sin novedades; falta el sí del usuario, B8-1 confirmado y la hora de D-ENT.*
   → (M-36) Sobre la base del VPS, sin corrida limpia: antes, la lista de lo que quedó de prueba (solo leyendo) y lo que
   el usuario decida; con el VPS en modo producción (D-ENT).
+  → Lo que quedó de prueba (leído el 2026-10-14): nada con nombre de prueba entre productos (101), familias (38) y
+  cumpleaños. Por decidir: la solicitud de equipo pendiente «Linux Home andruwXOX» (aprobar o rechazar) y qué es el
+  equipo aprobado «T an lwt». La cuenta de soporte «Electro Shop» y su «Samsung S25 Soporte» se quedan: en producción no
+  mueven dinero. «Tablet x17 ultra» ya está revocada y la impresora «CAJA» (red), apagada.
+  → Después de la 1.0.0 se sigue mejorando (diseño, rendimiento, lo que se vea en el uso): correcciones como 1.0.x y
+  mejoras como 1.x.0, cada una con su PR y su CI; en producción las pone administración desde Ajustes → Sistema
+  («al cierre»), no solas.
 
 ---
 
