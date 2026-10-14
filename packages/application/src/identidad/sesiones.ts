@@ -88,6 +88,11 @@ export interface CasosSesiones {
   }): Promise<ResultadoEntrada>;
   /** La sesión de esta credencial, si sigue viva. La refresca; si caducó, la cierra. */
   consultar(credencial: string | undefined | null, ahora: number): Promise<SesionActiva | null>;
+  /**
+   * Por qué se cerró la sesión de esta credencial (B1-7): su motivo y, si la persona entró en otro equipo, cuál. `null`
+   * si sigue abierta o no es una sesión.
+   */
+  porQueSeCerro(credencial: string | undefined | null): Promise<Readonly<{ motivo: string; equipo: string | null }> | null>;
   salir(credencial: string | undefined | null, motivo: "SALIDA" | "CORTE_Z", ip: string | null): Promise<void>;
   /**
    * Cambiar el PIN propio desde «Mi cuenta» (T-14, M-27, P-17): el actual y el nuevo. El actual cuenta para el mismo
@@ -246,6 +251,15 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
           where: { deviceId: d.id, closedAt: null },
           data: { closedAt: new Date(ahora), closedReason: "OTRA_SESION" },
         });
+        // Una persona, un equipo (B1-7, M-39 X-7): la sesión que tuviera abierta en otro se cierra, y ese equipo lo dice por
+        // el canal. Administración y la cuenta de soporte no tienen límite.
+        if (u.role !== "ADMIN" && !u.supportLogin) {
+          const enOtros = await tx.staffSession.findMany({ where: { userId: u.id, closedAt: null, deviceId: { not: d.id } }, select: { id: true } });
+          for (const otra of enOtros) {
+            await tx.staffSession.update({ where: { id: otra.id }, data: { closedAt: new Date(ahora), closedReason: "OTRO_EQUIPO" } });
+            await auditar(tx, ctxPersona, { action: "sesion.cerrar", entityType: "staff_session", entityId: otra.id, reason: `Entró en «${d.label}»` });
+          }
+        }
         await tx.staffUser.update({
           where: { id: u.id },
           data: { pinFailures: 0, pinLastFailureAt: null, ...(pinPropio ? { pinHash: pinPropio, pinMustChange: false } : {}) },
@@ -291,6 +305,18 @@ export function casosSesiones(base: Base, dispositivos: CasosDispositivos): Caso
           elevadaHasta: null,
         },
       };
+    },
+
+    async porQueSeCerro(texto) {
+      const cred = leerCredencial(texto);
+      if (!cred) return null;
+      return base.conTenant(cred.tenantId, async (tx) => {
+        const s = await tx.staffSession.findUnique({ where: { id: cred.id }, select: { userId: true, closedAt: true, closedReason: true, tokenHash: true } });
+        if (!s || !s.closedAt || !coincide(cred.secreto, s.tokenHash)) return null;
+        if (s.closedReason !== "OTRO_EQUIPO") return { motivo: s.closedReason ?? "SALIDA", equipo: null };
+        const nueva = await tx.staffSession.findFirst({ where: { userId: s.userId, closedAt: null }, orderBy: { openedAt: "desc" }, include: { device: true } });
+        return { motivo: "OTRO_EQUIPO", equipo: nueva?.device.label ?? null };
+      });
     },
 
     async consultar(texto, ahora) {
