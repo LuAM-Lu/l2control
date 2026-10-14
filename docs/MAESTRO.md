@@ -2067,7 +2067,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   `fondo-fijo.test-db.ts` (5): apagado de fábrica, de un punto de cobro, el criterio, lo que quedó del último Z, apagarlo,
   solo agregar y el aislamiento.*
 
-- [ ] **B3-25 · Anular un ítem por su estado** (M-39, X-2).
+- [~] **B3-25 · Anular un ítem por su estado** (M-39, X-2). *A cargo: LuAMi (Claude), en `feat/b3-25`.*
   → Lo que no salió a cocina ni a barra se quita sin más, en la caja y en la tablet (v0.131.1 deja igual la regla del
   servidor y la de la pantalla). Lo que salió se anula con su motivo, ahora también desde el ticket de la caja (la misma pieza
   que en Mesas, con su papel «ANULAR»): sin PIN si lo anula quien lo pidió y en los primeros 2 minutos; después, o si es
