@@ -37,6 +37,11 @@ export const PaqueteEventoSchema = z.object({
   minInvitados: z.number().int().min(1, "Al menos un invitado").max(MAX_INVITADOS),
   maxInvitados: z.number().int().min(1, "Al menos un invitado").max(MAX_INVITADOS),
   incluye: z.array(IncluidoEnPaqueteSchema).max(30, "Hasta 30 productos por paquete"),
+  /**
+   * Exclusivo (B10-4, M-39 X-12): en su horario el parque es solo del cumpleaños. No entran visitas normales y no se
+   * reserva otro cumpleaños encima. Los paquetes de antes no lo son.
+   */
+  exclusivo: z.boolean().default(false),
   /** Un paquete se retira, no se borra (regla 5): las reservas de ayer lo nombran. */
   active: z.boolean(),
 });

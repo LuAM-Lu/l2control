@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type Ref } from "react";
-import { Baby, Check, CircleCheckBig, CircleDollarSign, HandHeart, Phone, TriangleAlert, X } from "lucide-react";
+import { Baby, Cake, Check, CircleCheckBig, CircleDollarSign, HandHeart, Lock, Phone, TriangleAlert, X } from "lucide-react";
 import type { ClienteEncontradoDto, PricePackageDto, RepresentanteEncontradoDto } from "@l2/contracts";
 import { money, sum, toMajor, type Money } from "@l2/domain-money";
 import { Badge, Initial, Input, Marquesina, MoneyDisplay, cn, formatMoneyVE } from "@l2/ui";
@@ -407,7 +407,16 @@ export function TotalDeEntrada({
   aforo,
 }: {
   /** El aforo de la sala con esta entrada (B4-18: al pie, junto a cuántos niños, para que la capa no desplace). */
-  aforo?: Readonly<{ activos: number; limite: number; lleno: boolean; pocos: boolean }>;
+  aforo?: Readonly<{
+    activos: number;
+    limite: number;
+    lleno: boolean;
+    pocos: boolean;
+    /** B10-4: «Quedan 8 lugares: 7 guardados para el cumpleaños de Sofía». */
+    guardados?: string | null;
+    /** B10-4: el cumpleaños exclusivo en curso: no entran visitas normales. */
+    exclusivo?: string | null;
+  }>;
   total: Money;
   ninos: number;
   /** Cuántos entran con tiempo abierto (B4-17): su tiempo no está en el total, se cobra al salir. */
@@ -445,6 +454,19 @@ export function TotalDeEntrada({
           </span>
         )}
       </p>
+      {aforo?.exclusivo ? (
+        <p className="mt-1 flex items-center gap-1.5 text-[12.5px] font-semibold text-state-crit">
+          <Lock size={14} aria-hidden="true" />
+          {aforo.exclusivo}: no entran visitas normales
+        </p>
+      ) : (
+        aforo?.guardados && (
+          <p className="tnum mt-1 flex items-center gap-1.5 text-[12.5px] font-medium text-state-warn">
+            <Cake size={14} aria-hidden="true" />
+            {aforo.guardados}
+          </p>
+        )
+      )}
     </div>
   );
 }

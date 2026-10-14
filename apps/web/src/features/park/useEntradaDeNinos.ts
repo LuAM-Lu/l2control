@@ -14,7 +14,8 @@ import {
   type RepresentanteEncontradoDto,
 } from "@l2/contracts";
 import { sum, zero, type Money } from "@l2/domain-money";
-import { computeCapacity, contactKey, documentKey } from "@l2/domain-park";
+import { computeCapacity, contactKey, documentKey, fraseDeGuardados, lugaresDeCumpleanos } from "@l2/domain-park";
+import { horaDelDia } from "../eventos/formato.ts";
 import { problemaDelDocumento } from "../clientes/escritura.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { productosALaVenta, type ProductoALaVenta } from "../inventario/catalogo.ts";
@@ -124,6 +125,39 @@ export function useEntradaDeNinos({
   const { adoptar: adoptarCuenta } = useCuentas();
 
   const capacidad = computeCapacity(activeSessions + entradas.length, capacityLimit);
+
+  /**
+   * B10-4 (M-39, X-12): desde 30 minutos antes de un cumpleaños y hasta su fin, el lugar de sus invitados que no han
+   * llegado está guardado; un exclusivo en curso cierra la puerta a las visitas normales. Con la hora de este equipo: la
+   * ventana se abre sola, sin esperar a que el servidor avise.
+   */
+  const { formatoHora } = useSucursal().ajustes;
+  const lugares = useMemo(
+    () =>
+      lugaresDeCumpleanos(
+        (sala?.cumpleanos ?? []).map((c) => ({
+          id: c.id,
+          nombre: c.cumpleanero,
+          empiezaEn: Date.parse(c.empiezaEn),
+          terminaEn: Date.parse(c.terminaEn),
+          invitados: c.invitados,
+          entraron: c.entraron,
+          exclusivo: c.exclusivo,
+        })),
+        ahoraMedias,
+      ),
+    [sala, ahoraMedias],
+  );
+  const finDelExclusivo = lugares.exclusivo ? (sala?.cumpleanos.find((c) => c.id === lugares.exclusivo!.id)?.fin ?? null) : null;
+  const puerta = {
+    /** «Quedan 8 lugares: 7 guardados para el cumpleaños de Sofía», o `null` si nadie guarda nada. */
+    guardados: lugares.guardados > 0 ? `Quedan ${Math.max(0, capacityLimit - activeSessions)} lugares: ${fraseDeGuardados(lugares)}` : null,
+    /** Cuántos más caben en una visita normal. */
+    libres: Math.max(0, capacityLimit - activeSessions - lugares.guardados),
+    /** «Cumpleaños exclusivo de Mateo hasta las 1:00 pm», si hay uno en curso. */
+    exclusivo:
+      lugares.exclusivo && finDelExclusivo !== null ? `Cumpleaños exclusivo de ${lugares.exclusivo.nombre} hasta las ${horaDelDia(finDelExclusivo, formatoHora)}` : null,
+  };
 
   /* ----------------------------------------------------- representante */
 
@@ -274,14 +308,18 @@ export function useEntradaDeNinos({
 
   const telefonoValido = GuardianSchema.shape.contactReference.safeParse(telefono).success;
   const representanteListo = encontrado ? !faltaSuCedula : esNuevo && cedulaValida && telefonoValido && nombreNuevo.trim().length >= 2;
-  const puedeEnviar = entradas.length > 0 && representanteListo && !capacidad.isFull && !enviando;
+  const puedeEnviar = entradas.length > 0 && representanteListo && !capacidad.isFull && puerta.exclusivo === null && entradas.length <= puerta.libres && !enviando;
   /** §8.7: el motivo por el que el botón está deshabilitado se dice, no se deja adivinar. */
   const porQueNo =
     puedeEnviar || enviando || entradas.length === 0
       ? null
       : capacidad.isFull
         ? "Aforo completo"
-        : faltaSuCedula
+        : puerta.exclusivo
+          ? `${puerta.exclusivo}: no entran visitas`
+          : entradas.length > puerta.libres && puerta.guardados
+            ? puerta.guardados
+            : faltaSuCedula
           ? `Falta la cédula de ${encontrado!.fullName}`
           : !cedula.trim()
             ? "Falta la cédula del representante"
@@ -394,6 +432,7 @@ export function useEntradaDeNinos({
     ninosConTiempoAbierto,
     capacityLimit,
     capacidad,
+    puerta,
     medias,
     entradas,
     setEntradas,

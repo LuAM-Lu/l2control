@@ -115,6 +115,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Si su familia ya tiene niños en la sala, sale marcado «Sumar a la familia …»: el que llega entra en esa cuenta, con su tiempo desde que entra, y sale con ella. Desmárcalo si va aparte.",
       "Elige cómo paga: ahora (prepago, no se devuelve si sale antes) o todo al salir (cuenta abierta, por lo que usó), y registra.",
       "«Tiempo abierto» (al final de los paquetes): entra sin límite y al salir se cobra lo que vale su tiempo con la tarifa, la combinación más barata de paquetes (1 h 20 = 1 hora + 30 minutos). Va siempre en cuenta abierta.",
+      "Los cumpleaños guardan su lugar: desde 30 minutos antes de uno con el anticipo cobrado y hasta su fin, los invitados que no han llegado tienen el suyo, y la entrada lo dice al pie («Quedan 18 lugares: 15 guardados para el cumpleaños de Sofía»). Una visita normal entra en lo que queda; cada invitado que llega deja de guardarse.",
+      "Con un cumpleaños exclusivo en curso no entran visitas normales: el pie lo dice y el botón no registra. Sus invitados entran por su botón de «Entran a».",
     ],
     problemas: [
       {
@@ -146,6 +148,16 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«Un niño sin pulsera se reconoce por su nombre»",
         solucion: "Escribe el nombre del niño en su fila antes de registrar.",
         reconoce: ["se reconoce por su nombre"],
+      },
+      {
+        sintoma: "«Quedan N lugares: … guardados para el cumpleaños de …»",
+        solucion: "Esos lugares son de los invitados que no han llegado. Entra la visita si cabe en lo que queda; si no, espera a que salga alguien o a que lleguen los invitados.",
+        reconoce: ["guardados para el cumpleanos", "guardado para el cumpleanos"],
+      },
+      {
+        sintoma: "«Ahora es el cumpleaños exclusivo de …: no entran visitas normales»",
+        solucion: "Mientras dura un cumpleaños exclusivo el parque es solo suyo. Al terminar se puede entrar otra vez.",
+        reconoce: ["cumpleanos exclusivo"],
       },
       {
         sintoma: "«Aforo completo»",
@@ -608,6 +620,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Nueva reserva»: el día, el horario, el paquete, los invitados, quién cumple y su familia. El anticipo queda en la cola de la caja; el saldo se cobra el día del evento.",
       "Tres vistas: «Próximas» (la lista por día, con lo que falta por cobrar), «Mes» (el calendario: cada día con la hora y quién cumple; las flechas pasan de mes) y «Canceladas». La que elijas se recuerda en este equipo.",
       "«Cambiar fecha» (en la fila, o tocando el cumpleaños en el mes): el día y el horario nuevos con su motivo. Vale con el anticipo cobrado, hasta que empiece; el aforo del nuevo horario se comprueba como al reservar. La fila dice de qué fecha venía, el motivo y quién lo cambió.",
+      "Un paquete «Exclusivo» (Ajustes → Cumpleaños) tiene el parque para él solo en su horario: no se reserva otro cumpleaños encima y la entrada no admite visitas normales mientras dura. Los demás comparten el parque: desde 30 minutos antes la entrada guarda el lugar de sus invitados.",
       "Con el anticipo por cobrar, «Cancelar» la quita de la agenda. Con el anticipo cobrado no se cancela aquí: devolverlo es anular su cobro en la caja.",
     ],
     problemas: [
@@ -615,6 +628,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«Con los otros cumpleaños de ese horario se pasa del aforo» al cambiar la fecha",
         solucion: "El nuevo horario se cruza con otros cumpleaños y juntos pasan del aforo del parque. Elige otra hora u otro día; el calendario del mes dice qué hay cada día.",
         reconoce: ["se pasa del aforo"],
+      },
+      {
+        sintoma: "«Un cumpleaños exclusivo no comparte el parque»",
+        solucion: "Ese horario se cruza con un cumpleaños exclusivo, o el que reservas es exclusivo y ya hay otro. Elige otra hora u otro día.",
+        reconoce: ["exclusivo no comparte el parque"],
       },
       ...GENERALES,
     ],

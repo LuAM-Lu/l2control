@@ -325,6 +325,25 @@ export const AvisosDeSalaSchema = z.object({
 });
 export type AvisosDeSalaDto = z.infer<typeof AvisosDeSalaSchema>;
 
+/**
+ * Un cumpleaños de hoy con el anticipo cobrado, como lo mira la puerta (B10-4): su horario, cuántos invitados se
+ * reservaron y cuántos entraron. Desde 30 minutos antes y hasta su fin guarda el lugar de los que no han llegado; si es
+ * exclusivo, en su horario no entran visitas normales.
+ */
+export const CumpleanosEnLaPuertaSchema = z.object({
+  id: IdSchema,
+  cumpleanero: z.string(),
+  /** Minutos desde la medianoche del local: la hora como se dice. */
+  inicio: z.number().int().min(0).max(1440),
+  fin: z.number().int().min(0).max(1440),
+  empiezaEn: TimestampSchema,
+  terminaEn: TimestampSchema,
+  invitados: z.number().int().min(1),
+  entraron: z.number().int().min(0),
+  exclusivo: z.boolean(),
+});
+export type CumpleanosEnLaPuertaDto = z.infer<typeof CumpleanosEnLaPuertaSchema>;
+
 export const MonitorSnapshotSchema = z.object({
   serverNow: TimestampSchema,
   policy: ParkPolicySchema,
@@ -338,6 +357,8 @@ export const MonitorSnapshotSchema = z.object({
    */
   huerfanas: z.array(EstanciaSchema),
   shiftLabel: z.string(),
+  /** Los cumpleaños de hoy con el anticipo cobrado (B10-4): la entrada dice cuántos lugares guardan. */
+  cumpleanos: z.array(CumpleanosEnLaPuertaSchema).default([]),
 });
 export type MonitorSnapshotDto = z.infer<typeof MonitorSnapshotSchema>;
 

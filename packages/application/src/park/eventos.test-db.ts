@@ -8,7 +8,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CatalogoEventosPublicadoDto, FamilyAccountDto, ReservaEventoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { abrirLocalDePrueba, cedulaDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-10-03T14:00:00.000Z");
@@ -545,5 +545,99 @@ describe("cambiar la fecha de un cumpleaños (B10-3, M-39)", () => {
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.eventReservation.update({ where: { id: r.id }, data: { eventDate: new Date("2026-12-27") } })));
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.eventReservation.update({ where: { id: r.id }, data: { guests: 19 } })));
     await assert.rejects(local.base.conTenant(local.sistema.tenantId, (tx) => tx.eventReservation.delete({ where: { id: r.id } })));
+  });
+});
+
+describe("el aforo del cumpleaños y el exclusivo (B10-4, M-39)", () => {
+  // El sábado 7 de noviembre, 10:40 am en Caracas: el cumpleaños de Sofía empieza en 20 minutos.
+  const DIA = "2026-11-07";
+  const LUEGO = Date.parse("2026-11-07T14:40:00.000Z");
+  let n = 0;
+  const pulseras = (k: number) => Array.from({ length: k }, () => `AK-${String(8000 + ++n)}`);
+  const visita = (k: number, ahora = LUEGO) => {
+    const tel = `0412-${String(2_000_000 + ++n)}`;
+    return local.app.parque.entrar(
+      ctxMonitora,
+      {
+        idempotencyKey: randomUUID(),
+        paymentMode: "PREPAGO",
+        entries: pulseras(k).map((wristbandCode) => ({ wristbandCode, kid: {}, packageId: "pkg-60" })),
+        guardian: { fullName: "María Pérez", contactReference: tel },
+        guardianDocument: cedulaDePrueba(tel),
+      },
+      ahora,
+    );
+  };
+  const confirmada = async (cmd: Record<string, unknown>, anticipo: string) => {
+    const r = await reservar(reserva(cmd));
+    valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(await cuentaDe(r.cuenta.id), anticipo), AHORA + MIN));
+    return r;
+  };
+
+  before(async () => {
+    const vigente = await local.app.eventos.leerCatalogo(ctxCajera);
+    const paquetes = vigente.catalogo!.paquetes.map((p) => ({ ...p, incluye: p.incluye.map(({ productId, quantity }) => ({ productId, quantity })) }));
+    valor(
+      await local.app.eventos.publicarCatalogo(
+        ctxAdmin,
+        {
+          sobre: vigente.version,
+          catalogo: {
+            anticipoBps: 5000,
+            paquetes: [...paquetes, { id: "exclusivo", name: "Exclusivo", price: usd("20000"), minInvitados: 5, maxInvitados: 30, incluye: [], exclusivo: true, active: true }],
+          },
+        },
+        AHORA,
+      ),
+    );
+  });
+
+  test("con aforo 30 y un cumpleaños de 15 que empieza en 20 minutos, la entrada normal admite 15, y lo dice", async () => {
+    const sofia = await confirmada({ fecha: DIA, inicio: 11 * 60, fin: 14 * 60, invitados: 15, cumpleanero: "Sofía" }, "8700");
+    // Uno sin el anticipo cobrado no guarda nada: sin él no empieza.
+    await reservar(reserva({ fecha: DIA, inicio: 11 * 60, fin: 13 * 60, invitados: 10, cumpleanero: "Pedro" }));
+    const sala = valor(await local.app.parque.sala(ctxMonitora, LUEGO));
+    assert.deepEqual(
+      sala.cumpleanos.map((c) => [c.cumpleanero, c.invitados, c.entraron, c.exclusivo]),
+      [["Sofía", 15, 0, false]],
+    );
+    valor(await visita(10));
+    const seis = await visita(6);
+    assert.equal(!seis.ok && seis.problemas?.[0]?.message, "LUGARES_GUARDADOS");
+    assert.match(!seis.ok ? seis.mensaje : "", /Quedan 20 lugares: 15 guardados para el cumpleaños de Sofía\. Esta entrada trae 6 y caben 5\./);
+    valor(await visita(5));
+    const otra = await visita(1);
+    assert.match(!otra.ok ? otra.mensaje : "", /Quedan 15 lugares: 15 guardados para el cumpleaños de Sofía\. No entra nadie más hasta que lleguen\./);
+
+    // Sus invitados entran a sus lugares; los que llegan dejan de guardarse.
+    valor(await local.app.eventos.entrarInvitados(ctxMonitora, { idempotencyKey: randomUUID(), reservaId: sofia.id, pulseras: pulseras(3) }, LUEGO + MIN));
+    const despues = valor(await local.app.parque.sala(ctxMonitora, LUEGO + MIN));
+    assert.equal(despues.cumpleanos[0]?.entraron, 3);
+    assert.equal(!(await visita(1, LUEGO + MIN)).ok, true, "18 dentro y 12 guardados: el aforo justo");
+  });
+
+  test("antes de los 30 minutos no se guarda nada", async () => {
+    const temprano = Date.parse("2026-11-21T14:00:00.000Z"); // 10:00 am; el de las 11:00 está a una hora
+    await confirmada({ fecha: "2026-11-21", inicio: 11 * 60, fin: 13 * 60, invitados: 20, cumpleanero: "Lucía" }, "8700");
+    for (const k of [10, 10, 5]) valor(await visita(k, temprano));
+  });
+
+  test("con uno exclusivo en curso no entra ninguna visita normal; sus invitados, sí", async () => {
+    const exclusivo = await confirmada({ fecha: "2026-11-14", inicio: 11 * 60, fin: 13 * 60, invitados: 10, paqueteId: "exclusivo", cumpleanero: "Mateo" }, "11600");
+    const enCurso = Date.parse("2026-11-14T15:30:00.000Z"); // 11:30 am
+    const r = await visita(1, enCurso);
+    assert.equal(!r.ok && r.problemas?.[0]?.message, "CUMPLEANOS_EXCLUSIVO");
+    assert.match(!r.ok ? r.mensaje : "", /Ahora es el cumpleaños exclusivo de Mateo, hasta las 1:00 pm: no entran visitas normales\./);
+    valor(await local.app.eventos.entrarInvitados(ctxMonitora, { idempotencyKey: randomUUID(), reservaId: exclusivo.id, pulseras: pulseras(4) }, enCurso));
+    // Al terminar, la puerta se abre otra vez.
+    valor(await visita(1, Date.parse("2026-11-14T17:00:00.000Z")));
+  });
+
+  test("un exclusivo no comparte el horario: no se reserva encima de otro, ni otro encima de él", async () => {
+    const encima = await local.app.eventos.reservar(ctxCajera, reserva({ fecha: "2026-11-14", inicio: 12 * 60, fin: 14 * 60, invitados: 10 }), AHORA);
+    assert.equal(!encima.ok && encima.problemas?.[0]?.message, "HORARIO_EXCLUSIVO");
+    const exclusivo = await local.app.eventos.reservar(ctxCajera, reserva({ fecha: DIA, inicio: 13 * 60, fin: 15 * 60, invitados: 10, paqueteId: "exclusivo" }), AHORA);
+    assert.equal(!exclusivo.ok && exclusivo.problemas?.[0]?.message, "HORARIO_EXCLUSIVO");
+    valor(await local.app.eventos.reservar(ctxCajera, reserva({ fecha: "2026-11-14", inicio: 13 * 60, fin: 15 * 60, invitados: 10 }), AHORA));
   });
 });

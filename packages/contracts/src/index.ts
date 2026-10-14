@@ -60,6 +60,8 @@ export {
   type RecargaResult,
   type CierreHuerfanaCommand,
   MonitorSnapshotSchema,
+  CumpleanosEnLaPuertaSchema,
+  type CumpleanosEnLaPuertaDto,
   AvisosDeSalaSchema,
   type AvisosDeSalaDto,
   CheckInCommandSchema,

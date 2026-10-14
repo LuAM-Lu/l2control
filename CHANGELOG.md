@@ -16,6 +16,17 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.142.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-12: el aforo del cumpleaños y el paquete exclusivo.
+
+### Añadido
+- **El parque guarda el lugar de los invitados.** Desde 30 minutos antes de un cumpleaños con el anticipo cobrado y
+  hasta su fin, las visitas normales tienen el aforo menos los invitados que no han llegado, y la entrada lo dice al pie
+  («Quedan 18 lugares: 15 guardados para el cumpleaños de Sofía»). Cada invitado que llega deja de guardarse.
+- **Paquete «Exclusivo»** (Ajustes → Cumpleaños): en su horario no entran visitas normales y no se reserva otro
+  cumpleaños encima (ni uno exclusivo encima de otro). Sus invitados entran como siempre.
+
 ## [0.141.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-11: el calendario de los cumpleaños y cambiarles la fecha.

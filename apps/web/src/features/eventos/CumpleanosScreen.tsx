@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
-import { Archive, Cake, Info, Pencil, Percent, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
+import { Archive, Cake, Info, Lock, Pencil, Percent, Plus, RotateCcw, Trash2, Users, X } from "lucide-react";
 import type { CatalogoDto, CatalogoEventosPublicadoDto, PaqueteEventoDto } from "@l2/contracts";
 import { ANTICIPO_POR_DEFECTO_BPS } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
@@ -32,7 +32,7 @@ const CAMPO =
 const enDolares = (m: { minor: string }) => money(BigInt(m.minor), "USD");
 const incluyeTexto = (p: PaqueteEventoDto) => p.incluye.map((x) => (x.quantity > 1 ? `${x.quantity} × ${x.name}` : x.name)).join(", ");
 
-type Borrador = { id: string | null; nombre: string; precio: string; min: string; max: string; incluye: { productId: string; quantity: string }[] };
+type Borrador = { id: string | null; nombre: string; precio: string; min: string; max: string; exclusivo: boolean; incluye: { productId: string; quantity: string }[] };
 
 export function CumpleanosScreen({ publicado, productos }: { publicado: CatalogoEventosPublicadoDto; productos: CatalogoDto | null }) {
   const router = useRouter();
@@ -94,9 +94,10 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
             precio: toMajor(enDolares(p.price)).replace(".", ","),
             min: String(p.minInvitados),
             max: String(p.maxInvitados),
+            exclusivo: p.exclusivo,
             incluye: p.incluye.map((x) => ({ productId: x.productId, quantity: String(x.quantity) })),
           }
-        : { id: null, nombre: "", precio: "", min: "10", max: String(Math.min(20, publicado.aforo ?? 20)), incluye: [] },
+        : { id: null, nombre: "", precio: "", min: "10", max: String(Math.min(20, publicado.aforo ?? 20)), exclusivo: false, incluye: [] },
     );
   };
 
@@ -125,6 +126,7 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
       price: { minor: String(precio!.amount), currency: "USD" },
       minInvitados: min,
       maxInvitados: max,
+      exclusivo: borrador.exclusivo,
       // El nombre lo pone el servidor desde el catálogo de productos.
       incluye: incluye.map((x) => ({ ...x, name: vendibles.find((p) => p.id === x.productId)?.nombre ?? "—" })),
       active: true,
@@ -144,6 +146,11 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
               {p.minInvitados} a {p.maxInvitados}
             </span>
           </Badge>
+          {p.exclusivo && (
+            <Badge tone="brand" icon={<Lock size={12} aria-hidden="true" />}>
+              Exclusivo
+            </Badge>
+          )}
         </p>
         <p className="truncate text-[12.5px] text-ink-2">{p.incluye.length > 0 ? `Incluye ${incluyeTexto(p)}` : "Sin productos incluidos"}</p>
       </div>
@@ -322,6 +329,21 @@ export function CumpleanosScreen({ publicado, productos }: { publicado: Catalogo
                 }}
               />
             </div>
+
+            {/* B10-4 (M-39, X-12): en su horario el parque es solo del cumpleaños. */}
+            <label htmlFor="paquete-exclusivo" className="flex min-h-10 cursor-pointer items-start gap-2.5 rounded-[var(--radius-control)] border border-line px-3 py-2">
+              <input
+                id="paquete-exclusivo"
+                type="checkbox"
+                className="mt-0.5 size-4 accent-[var(--color-brand)]"
+                checked={borrador.exclusivo}
+                onChange={(e) => setBorrador({ ...borrador, exclusivo: e.target.checked })}
+              />
+              <span className="flex flex-col">
+                <span className="text-[13.5px] font-semibold text-ink">Exclusivo</span>
+                <span className="text-[12px] text-ink-3">En su horario no entran visitas normales y no se reserva otro cumpleaños encima.</span>
+              </span>
+            </label>
 
             <div className="flex flex-col gap-1.5">
               <span className={ETIQUETA}>Incluye</span>
