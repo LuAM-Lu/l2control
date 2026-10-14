@@ -2,6 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  ArrowRightLeft,
   Ban,
   Baby,
   Check,
@@ -77,6 +78,7 @@ import { conSuHora, duracion, transcurrido } from "./tiempo.ts";
 import { usePedidos } from "./PedidosProvider.tsx";
 import { abrirCuentaDelSalon, liberarMesa } from "./mesas.acciones.ts";
 import { usePreguntaOtraFamilia, vincularPreguntando } from "./OtraFamilia.tsx";
+import { CambiarDeMesa } from "./CambiarDeMesa.tsx";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 import type { ClienteElegido } from "../clientes/CampoDelCliente.tsx";
@@ -196,6 +198,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const [repetido, setRepetido] = useState<{ cuenta: FamilyAccountDto; mensaje: string } | null>(null);
   /** B6-20: vincular a la mesa de otra familia se pregunta. */
   const otraFamilia = usePreguntaOtraFamilia();
+  /** B6-21: la cuenta que se cambia de mesa. */
+  const [cambiandoMesa, setCambiandoMesa] = useState<FamilyAccountDto | null>(null);
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
   const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
@@ -635,6 +639,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             ) : (
               <p className="text-center text-[12.5px] text-ink-3">En la cola de la caja: pagan ahí. Si piden algo más, el pedido la trae de vuelta.</p>
             )}
+            {/* B6-21: se cambiaron de mesa: la cuenta entera va a la nueva. */}
+            {lugar.tipo === "MESA" && (
+              <Button variant="ghost" onClick={() => setCambiandoMesa(cuenta)} className="w-full" aria-haspopup="dialog">
+                <ArrowRightLeft size={16} aria-hidden="true" />
+                Cambiar de mesa
+              </Button>
+            )}
             {/* B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o
                 no consumió / fue un error (se anula todo). */}
             {cierraSinCobrar && chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
@@ -749,6 +760,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             />
           )}
           {otraFamilia.dialogo}
+          <CambiarDeMesa cuenta={cambiandoMesa} onCerrar={() => setCambiandoMesa(null)} onHecho={(r) => elegir(r.cuenta.tableId!, r.cuenta.id)} />
           <Confirmacion
             abierto={liberando !== null}
             onCerrar={() => setLiberando(null)}

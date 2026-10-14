@@ -115,7 +115,7 @@ before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
   impresora = await impresoraDePrueba(local);
-  await planoDePrueba(local, 16);
+  await planoDePrueba(local, 22);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -869,5 +869,81 @@ describe("liberar una mesa sin consumo (B6-5, M-18)", () => {
     assert.equal(!cocina.ok && cocina.motivo, "NO_PERMITIDO");
     const ajeno = await otro.app.cuentas.liberarMesa(otro.sistema, { idempotencyKey: randomUUID(), accountId: c.id, version: c.version }, AHORA);
     assert.equal(!ajeno.ok && ajeno.motivo, "NO_DISPONIBLE", JSON.stringify(ajeno));
+  });
+});
+
+describe("cambiar de mesa (B6-21, M-39)", () => {
+  const pedirEn = async (tableId: string, ahora = AHORA) => {
+    await sentadaEn(tableId);
+    return valor(
+      await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: agua, cantidad: 1, precioMinor: "100" }], repetir: true }, ahora),
+    );
+  };
+  const cambiar = (ctx: Contexto, c: FamilyAccountDto, tableId: string, ahora = AHORA + MIN, idempotencyKey: string = randomUUID()) =>
+    local.app.mesas.cambiar(ctx, { idempotencyKey, accountId: c.id, version: c.version, tableId }, ahora);
+  const papelesDeCambio = () =>
+    local.base.conTenant(local.sistema.tenantId, (tx) => tx.printJob.findMany({ where: { kind: "CAMBIO_MESA" }, orderBy: { createdAt: "asc" } }));
+
+  test("con un plato por servir, de la 17 a la 18: la cocina recibe su papel, el siguiente pedido sale con la 18, la 17 queda por limpiar y la caja cobra en la 18", async () => {
+    const { cuenta, pedido } = await pedirEn("mesa-17");
+    const antes = (await papelesDeCambio()).length;
+    const r = valor(await cambiar(ctxMesero, cuenta, "mesa-18"));
+    assert.deepEqual([r.desde, r.a, r.papeles], ["17", "18", ["COCINA"]]);
+    assert.deepEqual([r.cuenta.id, r.cuenta.tableId, r.cuenta.tableLabel], [cuenta.id, "mesa-18", "18"]);
+    assert.deepEqual(r.cuenta.lines, cuenta.lines, "la cuenta entera, con sus pedidos");
+    const papeles = await papelesDeCambio();
+    assert.equal(papeles.length, antes + 1);
+    assert.equal(papeles.at(-1)!.title, "Cambio de mesa · 17 → 18 · Cocina");
+    assert.equal(papeles.at(-1)!.area, "COCINA");
+    assert.match(JSON.stringify(papeles.at(-1)!.content), /MESA 17 -> MESA 18/);
+    assert.match(JSON.stringify(papeles.at(-1)!.content), /1 x Agua mineral/);
+
+    // El pedido de antes sigue siendo de esta cuenta; el siguiente, con la mesa nueva, entra en ella y su comanda dice 18.
+    const siguiente = valor(
+      await local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId: "mesa-18", lineas: [{ productId: agua, cantidad: 1, precioMinor: "100" }], repetir: true }, AHORA + 2 * MIN),
+    );
+    assert.equal(siguiente.cuenta.id, cuenta.id);
+    assert.equal(siguiente.pedido.mesa, "18");
+    assert.equal(pedido.cuentaId, cuenta.id);
+
+    const porLimpiar = valor(await local.app.mesas.porLimpiar(ctxMesero, AHORA + 2 * MIN)).mesas.map((m) => m.tableId);
+    assert.ok(porLimpiar.includes("mesa-17"), "la mesa vieja queda por limpiar");
+    assert.ok(!porLimpiar.includes("mesa-18"));
+
+    const enCaja = valor(await local.app.cuentas.guardar(ctxMesero, { cuenta: { ...siguiente.cuenta, status: "POR_COBRAR" } }, AHORA + 3 * MIN));
+    const { cuenta: cobrada } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(enCaja, "500", "247"), AHORA + 4 * MIN));
+    assert.deepEqual([cobrada.status, cobrada.tableLabel], ["COBRADA", "18"]);
+
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "account", entityId: cuenta.id });
+    const suyo = asientos.find((x) => x.action === "mesa.cambiar");
+    assert.deepEqual([(suyo?.before as { mesa: string }).mesa, (suyo?.after as { mesa: string }).mesa, suyo?.authorizedBy ?? null], ["17", "18", null]);
+  });
+
+  test("lo ya servido no saca papel; reenviar el mismo cambio no mueve nada otra vez", async () => {
+    const { cuenta, pedido } = await pedirEn("mesa-19");
+    valor(await local.app.pedidos.servir(ctxMesero, { pedidoId: pedido.id }, AHORA + MIN));
+    const antes = (await papelesDeCambio()).length;
+    const clave = randomUUID();
+    const r = valor(await cambiar(ctxMesero, cuenta, "mesa-20", AHORA + 2 * MIN, clave));
+    assert.deepEqual(r.papeles, []);
+    assert.equal((await papelesDeCambio()).length, antes);
+    const otraVez = valor(await cambiar(ctxMesero, cuenta, "mesa-20", AHORA + 2 * MIN, clave));
+    assert.deepEqual([otraVez.cuenta.version, otraVez.desde, otraVez.a], [r.cuenta.version, "19", "20"]);
+  });
+
+  test("a una mesa con gente queda como mesa compartida; la misma mesa, una versión vieja, fuera del plano o sin permiso, no", async () => {
+    const { cuenta } = await pedirEn("mesa-21");
+    const vecina = await sentadaEn("mesa-22");
+    assert.equal(!((await cambiar(ctxMesero, cuenta, "mesa-21")).ok) && "MISMA_MESA", "MISMA_MESA");
+    const monitora = await cambiar(ctxMonitora, cuenta, "mesa-22");
+    assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+    const fuera = await cambiar(ctxMesero, cuenta, "mesa-99");
+    assert.equal(!fuera.ok && fuera.problemas?.[0]?.message, "MESA_FUERA_DEL_PLANO");
+    const vieja = await cambiar(ctxMesero, { ...cuenta, version: cuenta.version! - 1 }, "mesa-22");
+    assert.equal(!vieja.ok && vieja.motivo, "CONFLICTO");
+
+    const r = valor(await cambiar(ctxCajera, cuenta, "mesa-22"));
+    const enLa22 = valor(await local.app.cuentas.leer(ctxCajera, AHORA + MIN)).cuentas.filter((c) => c.tableId === "mesa-22" && c.status === "ABIERTA");
+    assert.deepEqual(enLa22.map((c) => c.id).sort(), [vecina.id, r.cuenta.id].sort(), "mesa compartida");
   });
 });
