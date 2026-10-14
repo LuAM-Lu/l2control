@@ -234,10 +234,10 @@ describe("vincular en una mesa compartida", () => {
   test("con varias cuentas hay que elegir una; elegida, el parque del niño va a esa", async () => {
     const familia = await familiaDePrueba(l, monitora, AHORA, "CUENTA_ABIERTA");
     const sessionId = familia.sessionIds[0]!;
-    const sin = rechazo(await l.app.mesas.vincular(mesero, { idempotencyKey: randomUUID(), tableId: "mesa-1", sessionIds: [sessionId] }, AHORA));
+    const sin = rechazo(await l.app.mesas.vincular(mesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-1", sessionIds: [sessionId] }, AHORA));
     assert.equal(sin.problemas?.[0]?.message, "ELIGE_CUENTA");
     const perez = valor(await l.app.cuentas.leer(mesero, AHORA)).cuentas.find((c) => c.kind === "MESA" && c.family === "Familia Pérez")!;
-    const { mesa } = valor(await l.app.mesas.vincular(mesero, { idempotencyKey: randomUUID(), tableId: "mesa-1", cuentaId: perez.id, sessionIds: [sessionId] }, AHORA + MIN));
+    const { mesa } = valor(await l.app.mesas.vincular(mesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-1", cuentaId: perez.id, sessionIds: [sessionId] }, AHORA + MIN));
     assert.equal(mesa.id, perez.id);
     assert.deepEqual(mesa.sessionIds, [sessionId]);
   });

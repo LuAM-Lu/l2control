@@ -33,8 +33,9 @@ let monitora: Contexto;
 let cocinero: Contexto;
 let otroMesero: Contexto;
 
+// Las mesas las sienta un cliente de prueba y los niños son de otro representante: se confirma (B6-20).
 const vincular = (ctx: Contexto, tableId: string, sessionIds: string[], ahora = AHORA, idempotencyKey = randomUUID()) =>
-  l.app.mesas.vincular(ctx, { idempotencyKey, tableId, sessionIds }, ahora);
+  l.app.mesas.vincular(ctx, { otraFamilia: true, idempotencyKey, tableId, sessionIds }, ahora);
 const desvincular = (
   ctx: Contexto,
   desdeCuentaId: string,
@@ -171,7 +172,7 @@ describe("vincular pulseras a una mesa", () => {
 
   test("otro local no vincula estancias que no son suyas", async () => {
     const k = await familiaDePrueba(l, monitora, AHORA + 10 * MIN, "CUENTA_ABIERTA");
-    const r = await otro.app.mesas.vincular(otroMesero, { idempotencyKey: randomUUID(), tableId: "mesa-1", sessionIds: [k.sessionIds[0]!] }, AHORA + 10 * MIN);
+    const r = await otro.app.mesas.vincular(otroMesero, { otraFamilia: true, idempotencyKey: randomUUID(), tableId: "mesa-1", sessionIds: [k.sessionIds[0]!] }, AHORA + 10 * MIN);
     assert.equal(!r.ok && r.motivo, "NO_DISPONIBLE");
   });
 });

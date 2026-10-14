@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.133.0 en `main` (publicada, la 0.131.0) · 133 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.134.0 en `main` (publicada, la 0.131.0) · 134 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3314,7 +3314,8 @@ antes del cobro en servidor (orden de ejecución).
   `COBRO_EN_PARTES`. En la caja, el aviso cuando la cuenta a la vista vuelve a la mesa; en la tablet, el aviso al enviar
   y el texto de la cuenta en la cola. `cuentas.test-db.ts` (3 nuevas). Visto en el navegador en los dos temas, con la
   caja y la tablet en dos equipos a la vez.*
-- [~] **B6-20 · Vincular la familia entera** (M-39, X-14 y X-15). *A cargo: LuAMi (Claude), en `feat/b6-20`.*
+- [x] **B6-20 · Vincular la familia entera** (M-39, X-14 y X-15).
+  *Hecho el 2026-10-14 (v0.134.0), en `feat/b6-20`.*
   → Pasar la pulsera de un niño para vincularlo ofrece a toda su familia: sus hermanos que están en la sala, marcados (se
   puede desmarcar al que se sienta en otra mesa). Va todo lo de cada niño (paquete, medias, «Más tiempo» y tiempo de más,
   como deja la corrección v0.131.1). La cuenta de la familia sale de la cola si no le queda nada y, en la caja y en el
@@ -3322,6 +3323,12 @@ antes del cobro en servidor (orden de ejecución).
   pide confirmar («Este niño es de Yenua Akvini y la mesa 4 es de Real Parra: ¿vincular igual?»), y queda en la
   auditoría. Criterio: una familia de cuatro niños con medias, en prepago sin cobrar, se vincula de una vez a su mesa y
   queda una sola cuenta con todo; vincular a uno a la mesa de otra familia lo pregunta.
+  *B6-20: `mesas.vincular` compara el representante de cada estancia con el cliente de la mesa (`account_customer`: su
+  ficha o su cédula) y, sin `otraFamilia`, responde `OTRA_FAMILIA`; confirmado, la auditoría de `mesa.vincular` lleva
+  `otraFamilia`. En la web, `OtraFamilia.tsx` (`usePreguntaOtraFamilia`, `vincularPreguntando`) en Mesas y en la sala; en
+  `VincularPulseras`, los hermanos al pasar la pulsera y «Toda la familia»; en la caja, «En la mesa N». `sentarDePrueba`
+  sienta a un cliente dado; las pruebas que sientan a otro cliente confirman. `vincular-todo.test-db.ts` (2 nuevas).
+  Visto en el navegador en los dos temas: tablet, sala y caja.*
 - [ ] **B6-21 · Cambiar de mesa** (M-39, X-16).
   → «Cambiar de mesa» en la tablet y en la caja: la cuenta entera pasa a otra mesa del salón con sus pedidos, sus niños
   vinculados y su historia (un mando propio, no un «guardar»: la mesa sigue sin cambiar por ahí). Lo que falta servir

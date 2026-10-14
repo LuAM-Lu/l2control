@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Baby, Link2, TriangleAlert } from "lucide-react";
+import { Baby, Link2, TriangleAlert, Users } from "lucide-react";
 import { WristbandCodeSchema, type FamilyAccountDto } from "@l2/contracts";
 import { Button, ScannerField, Sheet, cn } from "@l2/ui";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
@@ -18,6 +18,9 @@ import { nombreDeEstancia } from "../park/view-model.ts";
  *
  * Dos formas de elegir, porque en la mesa pasan las dos: pasar las pulseras
  * por el lector, o tocar a los niños de la familia en la lista.
+ *
+ * B6-20 (M-39, X-14): pasar la pulsera de un niño marca también a sus hermanos que están en la sala (se desmarca al que
+ * se sienta en otra mesa), y cada familia tiene «Toda la familia».
  */
 export function VincularPulseras({
   abierto,
@@ -38,6 +41,8 @@ export function VincularPulseras({
 }) {
   const [elegidos, setElegidos] = useState<string[]>([]);
   const [aviso, setAviso] = useState<string | null>(null);
+  /** Con quién vinieron marcados sus hermanos al pasar su pulsera (B6-20). */
+  const [hermanos, setHermanos] = useState<string | null>(null);
   const [vinculando, setVinculando] = useState(false);
 
   const grupos = ninosSinMesa(estado, cuentas);
@@ -64,15 +69,20 @@ export function VincularPulseras({
         setAviso(otra.id === cuenta.id ? `${quien} ya está en esta cuenta` : `${quien} ya está en ${nombreDeCuenta(otra)}`);
         return;
       }
-      setElegidos((prev) => (prev.includes(sesion.id) ? prev : [...prev, sesion.id]));
+      // Sus hermanos en la sala, sin mesa, van marcados con él (B6-20).
+      const suyos = ninosSinMesa(estado, cuentas).find((g) => g.ninos.some((n) => n.id === sesion.id))?.ninos ?? [];
+      const otros = suyos.filter((n) => n.id !== sesion.id);
+      setElegidos((prev) => [...new Set([...prev, sesion.id, ...otros.map((n) => n.id)])]);
+      setHermanos(otros.length > 0 ? `Con ${quien} van ${otros.map(nombreDeEstancia).join(", ")}: desmarca al que se siente en otra mesa.` : null);
       setAviso(null);
     },
-    [estado.sesiones, cuentas, cuenta.id],
+    [estado, cuentas, cuenta.id],
   );
 
   const cerrar = () => {
     setElegidos([]);
     setAviso(null);
+    setHermanos(null);
     onCerrar();
   };
 
@@ -121,6 +131,13 @@ export function VincularPulseras({
         </p>
       )}
 
+      {hermanos && (
+        <p role="status" className="mt-3 flex items-center gap-2 text-detalle text-ink-2">
+          <Users size={15} aria-hidden="true" className="shrink-0 text-ink-3" />
+          {hermanos}
+        </p>
+      )}
+
       {yaAqui.length > 0 && (
         <p className="mt-4 text-[13px] text-ink-2">
           Ya en esta cuenta: <span className="font-medium text-ink">{yaAqui.map(nombre).join(", ")}</span>
@@ -136,8 +153,17 @@ export function VincularPulseras({
         <div className="mt-4 flex flex-col gap-4">
           {grupos.map((g) => (
             <fieldset key={g.familia}>
-              <legend className="mb-1.5 text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">
-                {g.familia}
+              <legend className="mb-1.5 flex w-full items-center justify-between gap-2">
+                <span className="text-[11px] font-semibold tracking-[0.07em] text-ink-3 uppercase">{g.familia}</span>
+                {g.ninos.length > 1 && (
+                  <button
+                    type="button"
+                    onClick={() => setElegidos((prev) => [...new Set([...prev, ...g.ninos.map((n) => n.id)])])}
+                    className="min-h-8 cursor-pointer rounded-[var(--radius-control)] px-2 text-detalle font-semibold text-brand hover:bg-brand/10 focus-visible:outline-2 focus-visible:outline-brand"
+                  >
+                    Toda la familia
+                  </button>
+                )}
               </legend>
               <ul className="flex flex-col gap-1.5">
                 {g.ninos.map((n) => {

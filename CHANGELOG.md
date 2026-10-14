@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.134.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-14 y X-15: vincular a la familia entera, y avisar si la mesa es de otra.
+
+### Añadido
+- **Pasar la pulsera de un niño para vincularlo marca a sus hermanos** que están en la sala («Con Ana van Luis y
+  Sofía»; se desmarca al que se siente en otra mesa), y cada familia tiene «Toda la familia». Va todo lo de cada niño:
+  su paquete, sus medias y su «Más tiempo»; la cuenta de la familia sale de la cola si no le queda nada.
+- **Vincular a la mesa de otra familia pregunta:** si el representante del niño no es el cliente de la mesa (por su
+  ficha o su cédula), «Este niño es de Yenua Akvini y la mesa 4 es de Real Parra: ¿vincular igual?», en la tablet y en
+  la sala. Confirmado, queda en la auditoría.
+- **En la caja, la pulsera de un niño vinculado dice «En la mesa 2»**, con la cuenta en la que se cobra.
+
 ## [0.133.0] — 2026-10-13 · Hacia la puesta en marcha
 
 M-39, X-3: la mesa que pidió la cuenta y vuelve a pedir.

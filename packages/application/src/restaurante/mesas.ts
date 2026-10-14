@@ -243,6 +243,31 @@ export function casosMesas(base: Base): CasosMesas {
           const label = mesaVigente.cuenta.tableLabel ?? "?";
           const mesaAccountId = mesaVigente.cuenta.id;
 
+          // ¿De otra familia? (B6-20, M-39 X-15): el representante de un niño no es el cliente de la mesa (ni por su ficha
+          // ni por su cédula). En el local pasó: el parque de un niño terminó en la cuenta de otra familia. Se dice y se pide
+          // confirmar; confirmado, queda en la auditoría.
+          const clienteDeLaMesa = await tx.accountCustomer.findFirst({
+            where: { accountId: mesaAccountId },
+            orderBy: { setAt: "desc" },
+            select: { guardianId: true, fullName: true, documentKey: true },
+          });
+          const representantes = await tx.guardian.findMany({
+            where: { id: { in: [...new Set(sesiones.map((s) => s.guardianId))] } },
+            select: { id: true, fullName: true, documentKey: true },
+          });
+          const ajenos = clienteDeLaMesa
+            ? representantes.filter((g) => g.id !== clienteDeLaMesa.guardianId && (g.documentKey === null || g.documentKey !== clienteDeLaMesa.documentKey))
+            : [];
+          if (ajenos.length > 0 && cmd.otraFamilia !== true) {
+            const suyos = sesiones.filter((s) => ajenos.some((g) => g.id === s.guardianId)).length;
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `${suyos === 1 ? "Este niño es" : "Estos niños son"} de ${[...new Set(ajenos.map((g) => g.fullName))].join(" y ")} y la mesa ${label} es de ${clienteDeLaMesa!.fullName}: ¿vincular igual?`,
+              problemas: [{ path: ["sessionIds"], message: "OTRA_FAMILIA" }],
+            };
+          }
+
           // Por cuenta de familia: cada estancia mueve lo pendiente de su propia cuenta.
           const porCuenta = new Map<string, string[]>();
           for (const s of sesiones) porCuenta.set(s.accountId, [...(porCuenta.get(s.accountId) ?? []), s.id]);
@@ -281,6 +306,8 @@ export function casosMesas(base: Base): CasosMesas {
               pulseras: sesiones.map((s) => s.wristbandCode),
               movido: { minor: String(movido.amount), currency: movido.currency },
               version: mesa.version ?? null,
+              // Confirmado a la mesa de otra familia (B6-20): de quién son los niños y de quién es la mesa.
+              ...(ajenos.length > 0 ? { otraFamilia: { de: ajenos.map((g) => g.fullName), mesaDe: clienteDeLaMesa!.fullName } } : {}),
             },
           });
           return { mesa, familias };

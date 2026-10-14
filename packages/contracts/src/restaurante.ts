@@ -371,6 +371,11 @@ export const VincularPulserasCommandSchema = z.strictObject({
     .min(1, "Elige al menos un niño")
     .max(30, "Demasiados niños de una vez")
     .refine((ids) => new Set(ids).size === ids.length, "Un niño se vincula una vez"),
+  /**
+   * Confirmado: la mesa es de otra familia (B6-20, M-39 X-15). Sin él, si el representante de un niño no es el cliente de
+   * la mesa, el servidor lo dice y no vincula (`OTRA_FAMILIA`).
+   */
+  otraFamilia: z.literal(true).optional(),
 });
 export type VincularPulserasCommand = z.infer<typeof VincularPulserasCommandSchema>;
 

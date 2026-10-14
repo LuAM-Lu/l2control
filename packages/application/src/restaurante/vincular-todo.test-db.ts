@@ -34,9 +34,11 @@ let pulsera = 0;
 
 const cuenta = async (id: string): Promise<FamilyAccountDto> => valor(await l.app.cuentas.leer(l.sistema)).cuentas.find((c) => c.id === id)!;
 const existencia = async (id: string) => (await l.app.productos.leer(l.sistema)).productos.find((p) => p.id === id)!.existencia;
+/** Una familia en prepago, cada niño con su par de medias; `cliente` es su representante, para sentarlo en su mesa. */
 const familiaConMedias = async (ninos: number, ahora: number) => {
   const tel = `0414-${String(7_100_000 + ++pulsera)}`;
-  return valor(
+  const cliente = { nombre: "Prueba Yenua Akvini", cedula: cedulaDePrueba(tel), telefono: tel };
+  const r = valor(
     await l.app.parque.entrar(
       monitora,
       {
@@ -49,6 +51,7 @@ const familiaConMedias = async (ninos: number, ahora: number) => {
       ahora,
     ),
   );
+  return { ...r, cliente };
 };
 const vincular = (sessionIds: string[], tableId: string, ahora: number) =>
   l.app.mesas.vincular(mesero, { idempotencyKey: randomUUID(), tableId, sessionIds }, ahora);
@@ -83,7 +86,7 @@ before(async () => {
   }
   const v = await l.app.ajustes.leer(l.sistema);
   valor(await l.app.ajustes.publicar(l.sistema, { versionBase: v.version, ajustes: { ...v.ajustes, productoMedias: medias } }));
-  await planoDePrueba(l, 4);
+  await planoDePrueba(l, 6);
   adminId = await crearPersona(l, { nombre: "Abigail Karam", role: "ADMIN", pin: "1970" });
   const eglee = await crearPersona(l, { nombre: "Eglee Bonito", role: "MONITOR_PARQUE", pin: "6284" });
   const emily = await crearPersona(l, { nombre: "Emily Escalona", role: "MESERO", pin: "5173" });
@@ -108,7 +111,7 @@ describe("lo de cada niño va a su mesa (v0.131.1)", () => {
       r.sessions.map((s) => s.id),
       "el par nace con la estancia de su niño",
     );
-    const mesa = await sentarDePrueba(l, mesero, "mesa-1", AHORA - 9 * MIN, { nombre: "Prueba Yenua Akvini" });
+    const mesa = await sentarDePrueba(l, mesero, "mesa-1", AHORA - 9 * MIN, { cliente: r.cliente });
     const v = valor(await vincular(r.sessions.map((s) => s.id), "mesa-1", AHORA - 8 * MIN));
     const familia = v.familias[0]!;
     assert.equal(familia.status, "ABIERTA", "sale de la cola de la caja");
@@ -119,7 +122,7 @@ describe("lo de cada niño va a su mesa (v0.131.1)", () => {
 
   test("el «Más tiempo» de un niño vinculado va a su mesa, no a la cuenta de su familia", async () => {
     const r = await familiaConMedias(1, AHORA - 7 * MIN);
-    const mesa = await sentarDePrueba(l, mesero, "mesa-2", AHORA - 6 * MIN);
+    const mesa = await sentarDePrueba(l, mesero, "mesa-2", AHORA - 6 * MIN, { cliente: r.cliente });
     valor(await vincular([r.sessions[0]!.id], "mesa-2", AHORA - 5 * MIN));
     const recarga = valor(await l.app.parque.recargar(monitora, { idempotencyKey: randomUUID(), sessionId: r.sessions[0]!.id, packageId: "pkg-60" }, AHORA - 4 * MIN));
     assert.equal(recarga.account.id, mesa.id);
@@ -131,7 +134,7 @@ describe("lo de cada niño va a su mesa (v0.131.1)", () => {
 
   test("anular la entrada de un niño vinculado lo anula en su mesa, y sus medias vuelven al estante", async () => {
     const r = await familiaConMedias(2, AHORA - 7 * MIN);
-    const mesa = await sentarDePrueba(l, mesero, "mesa-3", AHORA - 6 * MIN);
+    const mesa = await sentarDePrueba(l, mesero, "mesa-3", AHORA - 6 * MIN, { cliente: r.cliente });
     valor(await vincular(r.sessions.map((s) => s.id), "mesa-3", AHORA - 5 * MIN));
     const antes = await existencia(medias);
     const uno = r.sessions[0]!.id;
@@ -166,5 +169,39 @@ describe("lo de cada niño va a su mesa (v0.131.1)", () => {
     const uno = valor(await l.app.cuentas.guardar(cajera, { cuenta: { ...dos, lines: dos.lines.slice(0, 1) } }, AHORA + MIN));
     assert.equal(uno.lines.length, 1);
     assert.equal(await existencia(refresco), antes! - 1, "el que se quitó vuelve al estante");
+  });
+});
+
+describe("vincular la familia entera (B6-20, M-39)", () => {
+  test("una familia de cuatro niños con medias, en prepago sin cobrar, se vincula de una vez: una sola cuenta con todo", async () => {
+    const r = await familiaConMedias(4, AHORA - 5 * MIN);
+    assert.equal(r.account.status, "POR_COBRAR");
+    await sentarDePrueba(l, mesero, "mesa-5", AHORA - 4 * MIN, { cliente: r.cliente });
+    const v = valor(await vincular(r.sessions.map((x) => x.id), "mesa-5", AHORA - 3 * MIN));
+    assert.equal(v.familias.length, 1);
+    assert.equal(v.familias[0]!.status, "ABIERTA", "la familia sale de la cola");
+    assert.equal(v.familias[0]!.lines.filter((x) => !x.movedTo && !x.paid).length, 0, "no le queda nada");
+    assert.deepEqual(
+      v.mesa.lines.map((x) => x.concept.split(" · ")[0]).sort(),
+      [...Array(4).fill("Paquete 30 minutos"), ...Array(4).fill("Par de medias")].sort(),
+    );
+    assert.deepEqual([...v.mesa.sessionIds].sort(), r.sessions.map((x) => x.id).sort());
+    const cola = valor(await l.app.cuentas.leer(cajera)).cuentas.filter((c) => c.status === "POR_COBRAR").map((c) => c.id);
+    assert.ok(!cola.includes(r.account.id), "en la cola queda solo la mesa, cuando pida la cuenta");
+  });
+
+  test("a la mesa de otra familia pregunta; confirmado, vincula y queda en la auditoría", async () => {
+    const r = await familiaConMedias(1, AHORA - 5 * MIN);
+    const mesa = await sentarDePrueba(l, mesero, "mesa-6", AHORA - 4 * MIN, { nombre: "Prueba Real Parra" });
+    const sin = await vincular([r.sessions[0]!.id], "mesa-6", AHORA - 3 * MIN);
+    assert.equal(!sin.ok && sin.problemas?.[0]?.message, "OTRA_FAMILIA", JSON.stringify(sin));
+    assert.equal(!sin.ok && sin.mensaje, "Este niño es de Prueba Yenua Akvini y la mesa 6 es de Prueba Real Parra: ¿vincular igual?");
+    assert.equal((await cuenta(mesa.id)).sessionIds.length, 0, "sin confirmar, no se vinculó");
+
+    const v = valor(await l.app.mesas.vincular(mesero, { idempotencyKey: randomUUID(), tableId: "mesa-6", sessionIds: [r.sessions[0]!.id], otraFamilia: true }, AHORA - 2 * MIN));
+    assert.deepEqual(v.mesa.sessionIds, [r.sessions[0]!.id]);
+    const asientos = await l.app.auditoria.listar(l.sistema, { entityType: "account", entityId: mesa.id });
+    const suyo = asientos.find((a) => a.action === "mesa.vincular");
+    assert.deepEqual((suyo?.after as { otraFamilia?: unknown }).otraFamilia, { de: ["Prueba Yenua Akvini"], mesaDe: "Prueba Real Parra" });
   });
 });

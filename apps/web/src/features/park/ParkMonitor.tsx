@@ -32,7 +32,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { PonerNombre } from "./PonerNombre.tsx";
 import { VincularAMesa } from "./VincularAMesa.tsx";
 import { DesvincularNino } from "../mesas/DesvincularNino.tsx";
-import { vincularPulseras } from "../mesas/mesas.acciones.ts";
+import { usePreguntaOtraFamilia, vincularPreguntando } from "../mesas/OtraFamilia.tsx";
 import { formatDuration } from "@l2/domain-park";
 
 /**
@@ -82,6 +82,8 @@ export function ParkMonitor({
 
   const [poniendoNombre, setPoniendoNombre] = useState(false);
   const [vinculandoAMesa, setVinculandoAMesa] = useState(false);
+  /** B6-20: vincular a la mesa de otra familia se pregunta. */
+  const otraFamilia = usePreguntaOtraFamilia();
   /** Desvincular al niño de la ficha de su mesa (B6-15). */
   const [desvinculando, setDesvinculando] = useState(false);
 
@@ -642,7 +644,11 @@ export function ParkMonitor({
           estado={op.estado}
           cuentas={cuentas}
           onVincular={async (cuenta, sessionIds) => {
-            const r = await vincularPulseras({ idempotencyKey: crypto.randomUUID(), tableId: cuenta.tableId!, cuentaId: cuenta.id, sessionIds });
+            const r = await vincularPreguntando(
+              { idempotencyKey: crypto.randomUUID(), tableId: cuenta.tableId!, cuentaId: cuenta.id, sessionIds },
+              otraFamilia.preguntar,
+            );
+            if (r === null) return false;
             if (!r.ok) {
               avisar.error(r.mensaje);
               return false;
@@ -656,6 +662,7 @@ export function ParkMonitor({
           }}
         />
       )}
+      {otraFamilia.dialogo}
     </div>
   );
 }
