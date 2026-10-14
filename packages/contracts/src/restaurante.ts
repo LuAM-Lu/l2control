@@ -386,6 +386,26 @@ export const VincularPulserasResultSchema = z.object({
 });
 export type VincularPulserasResultDto = z.infer<typeof VincularPulserasResultSchema>;
 
+/* ─────────────────────────────── cambiar de mesa (B6-21, M-39) */
+
+/** La cuenta entera pasa a otra mesa del salón (B6-21), con la versión que se tenía a la vista. */
+export const CambiarDeMesaCommandSchema = z.strictObject({
+  idempotencyKey: IdSchema,
+  accountId: IdSchema,
+  version: z.number().int().positive(),
+  tableId: IdSchema,
+});
+export type CambiarDeMesaCommand = z.infer<typeof CambiarDeMesaCommandSchema>;
+
+/** Cómo quedó: la cuenta en su mesa nueva, de cuál a cuál, y las áreas a las que les salió el papel «CAMBIO DE MESA». */
+export const CambioDeMesaSchema = z.object({
+  cuenta: FamilyAccountSchema,
+  desde: z.string(),
+  a: z.string(),
+  papeles: z.array(AreaDeComandaSchema),
+});
+export type CambioDeMesaDto = z.infer<typeof CambioDeMesaSchema>;
+
 /* ─────────────────────────────── desvincular una pulsera (B6-15, M-37) */
 
 /**

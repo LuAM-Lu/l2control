@@ -72,6 +72,7 @@ const ACCIONES: Readonly<Record<string, Clase>> = {
   "evento.cancelar": { categoria: "PARQUE", que: "Canceló un cumpleaños" },
   "mesa.vincular": { categoria: "MESAS", que: "Vinculó una pulsera" },
   "mesa.desvincular": { categoria: "MESAS", que: "Desvinculó una pulsera" },
+  "mesa.cambiar": { categoria: "MESAS", que: "Cambió de mesa" },
   "pedido.enviar": { categoria: "MESAS", que: "Pedido" },
   "pedido.anular": { categoria: "MESAS", que: "Anuló un pedido" },
   "pedido.servir": { categoria: "MESAS", que: "Sirvió" },

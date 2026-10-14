@@ -36,6 +36,7 @@ import {
   type Resultado,
   type VincularPulserasResultDto,
   type DesvincularPulseraResultDto,
+  type CambioDeMesaDto,
 } from "@l2/contracts";
 import { moveSessionLines, receiveSession, unlinkProblem, unlinkSession, type AccountLineDoc, type UnlinkProblem } from "@l2/domain-cash";
 import { add, money } from "@l2/domain-money";
@@ -48,8 +49,9 @@ import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identid
 import { zonaDe } from "../sucursal/ajustes.ts";
 import { claveSecundaria, crearCuentaDeMesa, crearCuentaDePie, guardarVersion, vigenteDe } from "../caja/cuentas.ts";
 import { anotarCliente, resolverCliente } from "../clientes/clientes.ts";
-import { candadoDeMesas, cuentaDeMesaPara, cuentasDePieEn, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "./plano.ts";
+import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, cuentasDePieEn, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "./plano.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
+import { cambiarDeMesa } from "./cambiar-mesa.ts";
 
 export interface CasosMesas {
   /**
@@ -74,10 +76,14 @@ export interface CasosMesas {
   porLimpiar(ctx: Contexto, ahora?: number): Promise<Resultado<MesasPorLimpiarDto>>;
   /** Deja limpia una mesa (`MarcarMesaLimpiaCommandSchema`, B6-14): el mesero, y la caja y supervisión de respaldo. */
   marcarLimpia(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<MesasPorLimpiarDto>>;
+  /** Cambia una cuenta de mesa entera (B6-21): con sus pedidos, sus niños y el papel «CAMBIO DE MESA». */
+  cambiar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<CambioDeMesaDto>>;
 }
 
 export function casosMesas(base: Base): CasosMesas {
   return {
+    cambiar: (ctx, entrada, ahora = Date.now()) => cambiarDeMesa(base, ctx, entrada, ahora),
+
     async porLimpiar(ctx, ahora = Date.now()) {
       return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<MesasPorLimpiarDto>> => {
         if (!(await puedeAlgunaDe(tx, ctx, VEN_EL_SALON))) return rechazoDePermiso("DENEGADO");
@@ -454,25 +460,39 @@ async function puedeAlgunaDe(tx: Transaccion, ctx: Contexto, acciones: readonly 
 export async function mesasPorLimpiar(tx: Transaccion, branchId: string, ahora: number): Promise<MesasPorLimpiarDto> {
   const zona = await zonaDe(tx, branchId);
   const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona));
+  // Cada mesa con su última cuenta de hoy (abierta, o cerrada y cuándo) y, desde B6-21, las mesas de las que una cuenta se
+  // cambió a otra: quedaron sin nadie, por limpiar, desde el cambio.
   const filas = await tx.$queryRaw<{ table_id: string; abierta: boolean; cerrada: Date | null }[]>`
-    SELECT u.table_id,
-           bool_or(u.status IN ('ABIERTA', 'POR_COBRAR')) AS abierta,
-           max(u.saved_at) FILTER (WHERE u.status NOT IN ('ABIERTA', 'POR_COBRAR')) AS cerrada
+    SELECT t.table_id, bool_or(t.abierta) AS abierta, max(t.cerrada) AS cerrada
     FROM (
-      SELECT DISTINCT ON (v.account_id) v.status, v.saved_at, v.content->>'tableId' AS table_id
+      SELECT u.table_id,
+             u.status IN ('ABIERTA', 'POR_COBRAR') AS abierta,
+             CASE WHEN u.status NOT IN ('ABIERTA', 'POR_COBRAR') THEN u.saved_at END AS cerrada
+      FROM (
+        SELECT DISTINCT ON (v.account_id) v.status, v.saved_at, v.content->>'tableId' AS table_id
+        FROM account_version v
+        JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
+        WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA' AND a.opened_at >= ${desde}
+        ORDER BY v.account_id, v.version DESC
+      ) u
+      WHERE u.table_id IS NOT NULL
+      UNION ALL
+      SELECT p.content->>'tableId' AS table_id, false AS abierta, v.saved_at AS cerrada
       FROM account_version v
+      JOIN account_version p ON p.tenant_id = v.tenant_id AND p.account_id = v.account_id AND p.version = v.version - 1
       JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
-      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA' AND a.opened_at >= ${desde}
-      ORDER BY v.account_id, v.version DESC
-    ) u
-    WHERE u.table_id IS NOT NULL
-    GROUP BY u.table_id`;
+      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA' AND v.saved_at >= ${desde} AND v.cause = 'CAMBIAR_MESA'
+    ) t
+    WHERE t.table_id IS NOT NULL
+    GROUP BY t.table_id`;
   const limpias = new Map(
     (await tx.diningTableCleaned.groupBy({ by: ["tableId"], where: { branchId, cleanedAt: { gte: desde } }, _max: { cleanedAt: true } })).map((g) => [g.tableId, g._max.cleanedAt!.getTime()]),
   );
+  // Una mesa con una cuenta abierta, de hoy o de antes, está ocupada: no está por limpiar.
+  const ocupadas = await cuentasDeLasMesas(tx, branchId);
   return MesasPorLimpiarSchema.parse({
     mesas: filas
-      .filter((f) => !f.abierta && f.cerrada !== null && f.cerrada.getTime() > (limpias.get(f.table_id) ?? 0))
+      .filter((f) => !f.abierta && !ocupadas.has(f.table_id) && f.cerrada !== null && f.cerrada.getTime() > (limpias.get(f.table_id) ?? 0))
       .map((f) => ({ tableId: f.table_id, desde: f.cerrada!.toISOString() }))
       .sort((a, b) => a.desde.localeCompare(b.desde)),
   });

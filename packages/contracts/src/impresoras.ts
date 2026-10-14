@@ -102,7 +102,7 @@ export type DatosImpresoraDto = z.infer<typeof DatosImpresoraSchema>;
 export const EstadoTrabajoSchema = z.enum(["PENDIENTE", "ENVIADO", "CONFIRMADO", "FALLIDO", "DESCARTADO"]);
 export type EstadoTrabajo = z.infer<typeof EstadoTrabajoSchema>;
 
-export const TipoTrabajoSchema = z.enum(["RECIBO", "CORTE", "COMANDA", "ANULACION", "PRUEBA", "MOVIMIENTO"]);
+export const TipoTrabajoSchema = z.enum(["RECIBO", "CORTE", "COMANDA", "ANULACION", "PRUEBA", "MOVIMIENTO", "CAMBIO_MESA"]);
 export type TipoTrabajo = z.infer<typeof TipoTrabajoSchema>;
 
 /** Cómo está una impresora según lo último que dijo su agente (B5-6). */

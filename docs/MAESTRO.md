@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.134.0 en `main` (publicada, la 0.131.0) · 134 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.135.0 en `main` (publicada, la 0.131.0) · 135 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3329,7 +3329,8 @@ antes del cobro en servidor (orden de ejecución).
   `VincularPulseras`, los hermanos al pasar la pulsera y «Toda la familia»; en la caja, «En la mesa N». `sentarDePrueba`
   sienta a un cliente dado; las pruebas que sientan a otro cliente confirman. `vincular-todo.test-db.ts` (2 nuevas).
   Visto en el navegador en los dos temas: tablet, sala y caja.*
-- [~] **B6-21 · Cambiar de mesa** (M-39, X-16). *A cargo: LuAMi (Claude), en `feat/b6-21`.*
+- [x] **B6-21 · Cambiar de mesa** (M-39, X-16).
+  *Hecho el 2026-10-14 (v0.135.0), en `feat/b6-21`.*
   → «Cambiar de mesa» en la tablet y en la caja: la cuenta entera pasa a otra mesa del salón con sus pedidos, sus niños
   vinculados y su historia (un mando propio, no un «guardar»: la mesa sigue sin cambiar por ahí). Lo que falta servir
   saca un papel «CAMBIO DE MESA · 3 → 7» en la cocina y en la barra, con lo que va; las comandas que salgan después dicen
@@ -3337,6 +3338,13 @@ antes del cobro en servidor (orden de ejecución).
   Lo hace quien toma pedidos, sin PIN (no mueve dinero), y queda en la auditoría. Criterio: una mesa con un plato por
   servir se cambia de la 3 a la 7; la cocina recibe el papel, el siguiente pedido sale con la 7, la 3 queda libre y la
   caja cobra la cuenta en la 7.
+  *B6-21: migración `20261207000000_cambiar_de_mesa` (solo expande: la causa `CAMBIAR_MESA` y el papel `CAMBIO_MESA`, con
+  su área). `mesas.cambiar` (`restaurante/cambiar-mesa.ts`): permiso de tomar pedidos, la versión a la vista, la mesa
+  nueva con las reglas de la mesa compartida, `porServir` por área y su papel (`documentoDeCambioDeMesa`), auditoría
+  `mesa.cambiar` (temas cuentas y mesas). `mesasPorLimpiar` cuenta la mesa de la que se cambió una cuenta y no da por
+  limpiar una mesa ocupada. En la web, `CambiarDeMesa.tsx` en Mesas y en la caja, y «Cambios de mesa» en el historial de
+  impresión. `cuentas.test-db.ts` (3 nuevas). Visto en el navegador en los dos temas, con el papel en la impresora de
+  prueba.*
 - [ ] **B6-19 · De pie en el plano** (M-39, X-10).
   → Cada cuenta de pie es un icono en el plano del mesero, con su nombre: se arrastra a donde está la gente y un candado lo
   fija (solo a ese icono). Moverlo no cambia la cuenta (no le sube la versión ni choca con la caja): va en su propio

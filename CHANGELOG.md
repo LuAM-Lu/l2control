@@ -16,6 +16,20 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.135.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-16: la familia que se cambió de mesa.
+
+### Añadido
+- **«Cambiar de mesa»** en la tablet y en la caja: la cuenta pasa entera a otra mesa del salón, con sus pedidos, sus
+  niños vinculados y su historia. Sin PIN (no mueve dinero), y queda en la auditoría.
+- **El papel «CAMBIO DE MESA · 3 → 7»** sale en la cocina y en la barra con lo que falta servir (lo servido no); lo que
+  se pida después ya dice la mesa nueva. Sin la impresora de un área, no se cambia: la cocina no sabría a dónde llevarlo.
+- **La mesa vieja queda por limpiar.** Si la nueva tiene gente, queda como mesa compartida, cada cuenta aparte.
+
+### Corregido
+- Una mesa con una cuenta abierta desde un día anterior ya no sale «por limpiar».
+
 ## [0.134.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-14 y X-15: vincular a la familia entera, y avisar si la mesa es de otra.

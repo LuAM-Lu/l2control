@@ -425,6 +425,43 @@ export function documentoDeAnulacion(
 }
 
 /**
+ * El papel «CAMBIO DE MESA» (B6-21, M-39): sale en la cocina y en la barra cuando una cuenta se cambia de mesa con platos
+ * por servir, para que los lleven a la nueva. La mesa vieja y la nueva en grande, a quién va, cuándo, quién lo cambió y lo
+ * que falta servir de esa área. Sin precios, como la comanda.
+ */
+export function documentoDeCambioDeMesa(
+  c: AreaDelPapel &
+    Readonly<{
+      desde: string;
+      a: string;
+      nombreCuenta: string | null;
+      en: number;
+      por: string;
+      lineas: readonly Readonly<{ nombre: string; cantidad: number; nota: string | null }>[];
+    }>,
+  local: AjustesSucursalDto,
+): Documento {
+  const renglones: Renglon[] = [
+    { tipo: "TEXTO", texto: "CAMBIO DE MESA", alinear: "CENTRO", negrita: true, grande: true },
+    ...rotuloDeArea({ area: c.area ?? null }),
+    { tipo: "TEXTO", texto: `MESA ${c.desde} -> MESA ${c.a}`, alinear: "CENTRO", negrita: true, grande: true },
+    ...(c.nombreCuenta ? [{ tipo: "TEXTO", texto: c.nombreCuenta, alinear: "CENTRO", negrita: true } as const] : []),
+    { tipo: "TEXTO", texto: `${fechaYHora(c.en, local.formatoHora, local.zonaHoraria)} · ${c.por}`, alinear: "CENTRO" },
+    { tipo: "LINEA", caracter: "=" },
+  ];
+  for (const l of c.lineas) {
+    renglones.push({ tipo: "TEXTO", texto: `${l.cantidad} x ${l.nombre}`, negrita: true, grande: true });
+    if (l.nota) renglones.push({ tipo: "TEXTO", texto: `   > ${l.nota}` });
+  }
+  const unidades = c.lineas.reduce((n, l) => n + l.cantidad, 0);
+  renglones.push(
+    { tipo: "LINEA", caracter: "=" },
+    { tipo: "TEXTO", texto: `${unidades} ${unidades === 1 ? "plato" : "platos"} por servir: a la mesa ${c.a}`, alinear: "CENTRO", negrita: true },
+  );
+  return { renglones };
+}
+
+/**
  * El comprobante de un movimiento de efectivo (B3-21): qué fue (entrada, salida o retiro, y su motivo), cuánto (y, en
  * bolívares, cuánto en dólares a la tasa del momento), la nota, quién lo hizo y quién lo autorizó. El adelanto lo firma
  * la persona que lo recibe; el retiro, quien se lo lleva a resguardo. Se queda en la caja.
