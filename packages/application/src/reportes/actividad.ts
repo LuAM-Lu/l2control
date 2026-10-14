@@ -64,6 +64,8 @@ const ACCIONES: Readonly<Record<string, Clase>> = {
   "parque.salida": { categoria: "PARQUE", que: "Salida del parque" },
   "parque.recarga": { categoria: "PARQUE", que: "Recarga" },
   "parque.pagar_ahora": { categoria: "PARQUE", que: "Pagó el parque antes de salir" },
+  "personal.descontar": { categoria: "CAJA", que: "Descontado en la quincena" },
+  "personal.anular_vale": { categoria: "CAJA", que: "Anuló un vale del personal" },
   "parque.pausar": { categoria: "PARQUE", que: "Pausa por comida" },
   "parque.reanudar": { categoria: "PARQUE", que: "Volvió de comer" },
   "parque.anular_entrada": { categoria: "PARQUE", que: "Anuló una entrada" },

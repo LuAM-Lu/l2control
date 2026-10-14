@@ -1,12 +1,13 @@
-import { PersonalScreen } from "../../../src/features/personal/PersonalScreen";
-import { valesDelPeriodo, type ConsultaEnLaDireccion } from "../../../src/features/reportes/reportes.servidor";
+import { redirect } from "next/navigation";
+import type { ConsultaEnLaDireccion } from "../../../src/features/reportes/reportes.servidor";
 
 /**
- * Caja → Personal (B3-17, M-37): los vales del consumo del personal de la quincena de la dirección. Lee en el servidor;
- * a quien no ve los de todos, la pantalla le ofrece ver los suyos con su PIN.
+ * Caja → Personal se mudó a Caja → Deudas → Personal (B3-26, M-39): un enlace guardado lleva a su sitio nuevo, con la
+ * quincena que pedía.
  */
-export const dynamic = "force-dynamic";
-
 export default async function PersonalPage({ searchParams }: { searchParams: Promise<ConsultaEnLaDireccion> }) {
-  return <PersonalScreen {...await valesDelPeriodo(await searchParams)} />;
+  const consulta = await searchParams;
+  const resto = new URLSearchParams(Object.entries(consulta).filter((e): e is [string, string] => typeof e[1] === "string"));
+  resto.set("vista", "personal");
+  redirect(`/deudas?${resto.toString()}`);
 }

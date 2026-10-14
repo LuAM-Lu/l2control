@@ -14,6 +14,7 @@ import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { can } from "@l2/domain-identity";
 import { cobrarDeuda, devolverDeuda, leerDeudas, perderDeuda } from "./deudas.acciones";
+import { PestanasDeDeudas } from "./PestanasDeDeudas.tsx";
 
 /**
  * Caja → Deudas — B3-11 (M-33). Lo que los clientes dejaron sin pagar: las pendientes, con su cliente (nombre, cédula y
@@ -61,6 +62,7 @@ export function DeudasScreen({ datos }: { datos: DeudasDto | null }) {
             <h1 className="font-display text-xl leading-none font-bold tracking-tight text-ink">Deudas de clientes</h1>
             <p className="mt-1 text-detalle text-ink-3">Lo que dejaron sin pagar quienes se fueron: se cobra cuando vuelvan.</p>
           </div>
+          <PestanasDeDeudas activa="CLIENTES" />
           <p className="flex items-baseline gap-2 text-detalle text-ink-2">
             <span className="tnum font-semibold text-ink">{pendientes.length}</span> {pendientes.length === 1 ? "pendiente" : "pendientes"} ·
             <MoneyDisplay value={toMajor(total)} currency="USD" />

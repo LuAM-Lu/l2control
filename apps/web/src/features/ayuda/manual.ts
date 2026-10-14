@@ -324,15 +324,17 @@ export const MANUAL: readonly EntradaDelManual[] = [
   {
     id: "personal",
     ruta: "/personal",
-    titulo: "Consumo del personal",
+    titulo: "Deudas del personal",
     roles: CAJA,
-    proposito: "Los vales de lo que consumió el equipo, por quincena, con «Reimprimir vale». El descuento del sueldo se hace fuera del sistema.",
+    proposito: "Caja → Deudas → «Personal»: los vales de lo que consumió el equipo y sus adelantos, por quincena. El descuento del sueldo se hace fuera del sistema; administración lo marca «Descontado en la quincena».",
     pasos: [
       "El consumo se cobra en la caja con «Personal»: quien consumió escribe su PIN y sale su vale para que lo firme. El vale se queda en la caja.",
       "Supervisión y administración ven aquí los vales de todos: lo de cada persona en la quincena y cada vale, con lo consumido, quién lo cobró y si se anuló o se devolvió algo.",
       "Cada persona del equipo ve los suyos: «¿Quién eres?», su PIN y «Ver mis vales». Al terminar, «Listo» los quita de la pantalla.",
       "«Esta quincena» va del 1 al 15 o del 16 al último día del mes; «Quincena anterior», la de antes.",
       "«Reimprimir vale» saca una copia en la impresora de recibos (dice «COPIA»).",
+      "«Descontado en la quincena» (administración, con su PIN): cuando se le descontó del sueldo, se marca por persona y quincena; deja de estar pendiente y Reportes → Personal dice cuándo y quién. No toca la gaveta.",
+      "«Anular vale» (administración, con su PIN), de cualquier día: no se le descuenta, y cada cosa vuelve al estante o sale como merma.",
       "Un vale anulado no cuenta; lo devuelto se resta. Anular o devolver un consumo pide el PIN de administración, como cualquier venta, y vuelve a su vale: no sale dinero.",
       "Los adelantos en efectivo (Turno → «Mover efectivo» → Salida → Adelanto al personal, con el PIN de la persona) salen en su quincena, junto a sus vales: en «Por persona» y en «Adelantos», con su comprobante, para qué fue y quién lo entregó.",
     ],
@@ -357,10 +359,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
   {
     id: "deudas",
     ruta: "/deudas",
-    titulo: "Deudas de clientes",
+    titulo: "Deudas: clientes y personal",
     roles: CAJA,
     proposito: "Lo que dejaron sin pagar quienes se fueron: a nombre de su cliente, con lo que deben, quién los atendió y quién lo autorizó.",
     pasos: [
+      "Arriba, «Clientes» o «Personal»: lo que dejaron los clientes, y los vales y adelantos del equipo en su quincena.",
       "Una deuda nace con «Se fue sin pagar» en la caja, en Mesas («Cerrar la mesa sin cobrar…», de supervisión) o al cerrar el turno, con el PIN de supervisión. La cuenta sale de la cola y del cierre y la mesa queda libre.",
       "Cuando el cliente vuelve: «Cobrar» pasa a la caja una cuenta con lo que consumió, a su nombre, y se cobra con la tasa de hoy. Cobrada entera, la deuda queda cobrada.",
       "Si vino pero no pagó: «Devolver a deudas» saca su cuenta de la caja y la deuda sigue pendiente.",

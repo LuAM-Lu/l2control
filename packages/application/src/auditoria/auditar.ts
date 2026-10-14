@@ -110,6 +110,8 @@ export type AccionAuditada =
   | "parque.reanudar"
   | "parque.recarga"
   | "parque.pagar_ahora"
+  | "personal.descontar"
+  | "personal.anular_vale"
   | "parque.cierre_administrativo"
   | "representante.corregir"
   | "representante.consultar"

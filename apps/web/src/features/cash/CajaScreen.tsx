@@ -2805,11 +2805,11 @@ export function CajaScreen({
           : { texto: "Ver recibo", alPulsar: () => setViendoRecibo(true) },
       },
     );
-    // El vale del consumo del personal no salió (B3-17): el cobro está hecho; el vale se reimprime en Caja → Personal.
+    // El vale del consumo del personal no salió (B3-17): el cobro está hecho; el vale se reimprime en Caja → Deudas → Personal.
     if (r.valeNoImpreso) {
       avisar.aviso("El vale no se imprimió", {
-        detalle: `${r.valeNoImpreso} El consumo sí quedó cobrado: reimprime el vale en Caja → Personal.`,
-        accion: { texto: "Ir a Personal", alPulsar: () => router.push("/personal" as Route) },
+        detalle: `${r.valeNoImpreso} El consumo sí quedó cobrado: reimprime el vale en Caja → Deudas → Personal.`,
+        accion: { texto: "Ir a Personal", alPulsar: () => router.push("/deudas?vista=personal" as Route) },
       });
     }
     // Se pidió el recibo y no salió (B3-8): el cobro está hecho; el recibo se imprime desde aquí o desde Ventas.

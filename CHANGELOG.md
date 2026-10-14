@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.137.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-6: lo que debe el personal, junto a lo que deben los clientes.
+
+### Añadido
+- **Caja → Deudas con «Clientes» y «Personal»:** lo del personal es lo de su quincena, sus vales y sus adelantos, con lo que
+  suman. La pestaña Personal se fue (su dirección vieja lleva a la nueva).
+- **«Descontado en la quincena»** (administración, con su PIN): el personal paga fuera del sistema, en su quincena; se
+  marca por persona y deja de estar pendiente, sin tocar la gaveta. Lo registrado después de la marca sigue pendiente
+  («faltan $ …») y se descuenta con otra. Reportes → Personal dice qué se descontó, cuándo y quién.
+- **«Anular vale»** (administración, con su PIN), de cualquier día: no se le descuenta, y cada cosa vuelve al estante o
+  sale como merma.
+
 ## [0.136.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-4: la familia que quiere pagar el parque antes de irse.

@@ -8,15 +8,19 @@
  *  · los vales de un periodo (la quincena): supervisión y administración, los de todos (`reportes.verSucursal`); cada
  *    persona, los suyos con su PIN, desde la caja.
  * Lo consumido y el total salen de la venta; su anulación (B3-18) y sus devoluciones (B3-14), también: un vale anulado
- * no cuenta, y lo devuelto se resta. Sin tope ni «descontado»: el descuento del sueldo se hace fuera del sistema. Los
- * adelantos de efectivo (B3-21) van en la quincena de su persona, aparte de lo consumido.
+ * no cuenta, y lo devuelto se resta. El descuento del sueldo se hace fuera del sistema, en su quincena: la administración
+ * lo marca «Descontado en la quincena» por persona y periodo (B3-26) y deja de estar pendiente. Los adelantos de efectivo
+ * (B3-21) van en la quincena de su persona, aparte de lo consumido. Un vale se anula de cualquier día (B3-26): no movió
+ * dinero; lo suyo vuelve al estante o sale como merma.
  */
 import {
   ConsultaDeValesSchema,
+  DescuentoDeQuincenaSchema,
   ReimprimirValeCommandSchema,
   ValesDelPersonalSchema,
   ValeSchema,
   problemasDe,
+  type DescuentoDeQuincenaDto,
   type PersonaDelLocalDto,
   type Rechazo,
   type Resultado,
@@ -35,8 +39,8 @@ import { ajustesDe } from "../sucursal/ajustes.ts";
 import { CON_TODO, ventaDe } from "./ventas.ts";
 import { movimientoDto } from "./efectivo.ts";
 
-const USD = (minor: bigint) => ({ minor: String(minor), currency: "USD" as const });
-const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
+export const USD = (minor: bigint) => ({ minor: String(minor), currency: "USD" as const });
+export const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
 
 export interface CasosPersonal {
   /** Quiénes pueden consumir: las personas activas del local en esta sucursal, sin la cuenta de soporte. */
@@ -50,14 +54,16 @@ export interface CasosPersonal {
   reimprimir(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ValeDto>>;
 }
 
-const CON_LA_VENTA = { sale: { include: CON_TODO } } as const;
+export const CON_LA_VENTA = { sale: { include: CON_TODO } } as const;
 type ValeConVenta = StaffConsumption & { sale: Sale & { prints: SalePrint[]; voids: SaleVoid[]; returns: SaleReturn[] } };
+export type AnulacionDeVale = Readonly<{ voidedAt: Date; voidedByName: string; content: unknown }>;
 
 /** Un vale en la forma del contrato: lo consumido de su venta, y lo que cuenta (sin lo devuelto; nada si se anuló). */
-function valeDe(c: ValeConVenta, cifrador: Cifrador | null): ValeDto {
+export function valeDe(c: ValeConVenta, cifrador: Cifrador | null, anulacion: AnulacionDeVale | null = null): ValeDto {
   const v = ventaDe(c.sale, cifrador);
   const devuelto = v.devoluciones.reduce((n, d) => n + BigInt(d.total.minor), 0n);
-  const anulado = v.voided !== null;
+  // Anulado con su venta (B3-18) o, de cualquier día, como vale (B3-26).
+  const anulado = v.voided !== null || anulacion !== null;
   return ValeSchema.parse({
     id: c.id,
     saleId: c.saleId,
@@ -71,7 +77,19 @@ function valeDe(c: ValeConVenta, cifrador: Cifrador | null): ValeDto {
     anulado,
     devuelto: USD(devuelto),
     neto: USD(anulado ? 0n : c.totalMinor - devuelto),
+    anulacion: anulacion
+      ? { en: anulacion.voidedAt.toISOString(), por: anulacion.voidedByName, merma: (anulacion.content as { destino: string }[]).some((x) => x.destino === "MERMA") }
+      : null,
   });
+}
+
+export const dia = (f: string) => new Date(`${f}T00:00:00.000Z`);
+
+/** Las anulaciones de vales (B3-26) de estos consumos, por consumo. */
+export async function anulacionesDe(tx: Transaccion, ids: readonly string[]): Promise<Map<string, AnulacionDeVale>> {
+  if (ids.length === 0) return new Map();
+  const filas = await tx.staffConsumptionVoid.findMany({ where: { consumptionId: { in: [...ids] } }, select: { consumptionId: true, voidedAt: true, voidedByName: true, content: true } });
+  return new Map(filas.map((f) => [f.consumptionId, f]));
 }
 
 /**
@@ -130,7 +148,8 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
           include: CON_LA_VENTA,
           orderBy: [{ at: "asc" }, { id: "asc" }],
         });
-        const vales = filas.map((f) => valeDe(f, cifrador));
+        const anulados = await anulacionesDe(tx, filas.map((f) => f.id));
+        const vales = filas.map((f) => valeDe(f, cifrador, anulados.get(f.id) ?? null));
         // Los adelantos de efectivo del periodo (B3-21), de su día de negocio, como los vales.
         const adelantos = (
           await tx.cashMovement.findMany({
@@ -156,6 +175,21 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
           p.adelantado += BigInt(a.enDolares.minor);
           porPersona.set(a.persona.id, p);
         }
+        // «Descontado en la quincena» (B3-26): la última marca de esta quincena (la que empieza donde el pedido) y lo que se
+        // registró después de ella, que sigue pendiente.
+        const descuentos = await tx.staffPayrollDeduction.findMany({
+          where: { branchId: ctx.branchId, periodFrom: dia(q.desde), periodTo: { lte: dia(q.hasta) }, ...(soloDe ? { staffUserId: soloDe } : {}) },
+          orderBy: { markedAt: "desc" },
+        });
+        const descontadoDe = (id: string) => {
+          const d = descuentos.find((x) => x.staffUserId === id);
+          if (!d) return null;
+          const tras = d.markedAt.getTime();
+          const despues =
+            vales.filter((x) => x.persona.id === id && Date.parse(x.en) > tras).reduce((n, x) => n + BigInt(x.neto.minor), 0n) +
+            adelantos.filter((a) => a.persona?.id === id && Date.parse(a.en) > tras).reduce((n, a) => n + BigInt(a.enDolares.minor), 0n);
+          return { ...descuentoDto(d), despues: USD(despues) };
+        };
         const quien = await nombreDe(tx, ctx);
         const ajustes = await ajustesDe(tx, ctx.branchId);
         return ValesDelPersonalSchema.parse({
@@ -164,7 +198,7 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
           alcance: soloDe ? "PERSONA" : "TODOS",
           porPersona: [...porPersona]
             .sort(([, a], [, b]) => a.nombre.localeCompare(b.nombre, "es"))
-            .map(([id, p]) => ({ persona: { id, nombre: p.nombre }, vales: p.vales, neto: USD(p.neto), adelantado: USD(p.adelantado) })),
+            .map(([id, p]) => ({ persona: { id, nombre: p.nombre }, vales: p.vales, neto: USD(p.neto), adelantado: USD(p.adelantado), descontado: descontadoDe(id) })),
           vales,
           total: USD(vales.reduce((n, x) => n + BigInt(x.neto.minor), 0n)),
           adelantos,
@@ -184,7 +218,7 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
         const impreso = await imprimirValeEn(tx, ctx, c.saleId, cifrador, true, ahora);
         if ("ok" in impreso) return impreso;
         await auditar(tx, ctx, { action: "personal.reimprimir_vale", entityType: "staff_consumption", entityId: c.id, after: { orden: c.sale.orderNumber, persona: c.staffName } });
-        return valeDe(c, cifrador);
+        return valeDe(c, cifrador, (await anulacionesDe(tx, [c.id])).get(c.id) ?? null);
       });
       if ("ok" in r) {
         if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "personal.reimprimir_vale", reason: r.mensaje });
@@ -193,4 +227,16 @@ export function casosPersonal(base: Base, cifrador: Cifrador | null): CasosPerso
       return { ok: true, valor: r };
     },
   };
+}
+
+
+export function descuentoDto(d: Readonly<{ periodFrom: Date; periodTo: Date; markedAt: Date; markedByName: string; consumedMinor: bigint; advancedMinor: bigint }>): DescuentoDeQuincenaDto {
+  return DescuentoDeQuincenaSchema.parse({
+    desde: d.periodFrom.toISOString().slice(0, 10),
+    hasta: d.periodTo.toISOString().slice(0, 10),
+    en: d.markedAt.toISOString(),
+    por: d.markedByName,
+    consumido: USD(d.consumedMinor),
+    adelantado: USD(d.advancedMinor),
+  });
 }

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.136.0 en `main` (publicada, la 0.131.0) · 136 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.137.0 en `main` (publicada, la 0.131.0) · 137 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2082,7 +2082,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cualquiera). En la caja, `onAnularPedido` y la fila por pedido; en Mesas, la confirmación en la vista del pedido.
   `pedidos.test-db.ts` (4 nuevas). Visto en el navegador en los dos temas: el repetido pregunta, la supervisora anula sin
   PIN lo suyo y la caja anula 1 de 2 con su PIN.*
-- [~] **B3-26 · Deudas: clientes y personal en una pestaña** (M-39, X-6). *A cargo: LuAMi (Claude), en `feat/b3-26`.*
+- [x] **B3-26 · Deudas: clientes y personal en una pestaña** (M-39, X-6).
+  *Hecho el 2026-10-14 (v0.137.0), en `feat/b3-26`.*
   → Caja → Deudas con «Clientes» (lo de B3-11) y «Personal»: por persona y en la quincena, sus vales y sus adelantos
   (B3-21), con lo que suman. El personal paga fuera del sistema, en su quincena: administración marca «Descontado en la
   quincena» por persona y periodo (sin tocar la gaveta, auditado) y deja de salir como pendiente. «Anular vale»
@@ -2090,6 +2091,13 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   pestaña Personal se va (su dirección vieja lleva a la nueva) y Reportes → Personal dice qué se descontó y cuándo.
   Criterio: un vale y un adelanto de una persona salen juntos; al marcar la quincena descontada dejan de estar pendientes y
   el reporte lo dice; anular un vale devuelve lo elegido al estante.
+  *B3-26: migración `20261209000000_deudas_del_personal` (solo expande: `staff_payroll_deduction` y
+  `staff_consumption_void`, de solo agregar). `personal.descontar` (lo de después de la marca anterior, de una en una por
+  persona) y `personal.anularVale` (las líneas del vale anuladas en su cuenta, el estante o la merma por línea) con el
+  PIN de administración (`cobro.anular`), auditados; `personal.vales` dice el descuento de cada persona y lo de después
+  (`descontado.despues`), y si un vale se anuló así. En la web, `PestanasDeDeudas`, `AccionesDelPersonal.tsx` y la
+  columna «Quincena» de `seccionesDelPersonal` (pantalla y PDF); `/personal` redirige a `/deudas?vista=personal`.
+  `personal.test-db.ts` (2 nuevas). Visto en el navegador en los dos temas, con administración.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 

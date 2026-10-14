@@ -192,7 +192,7 @@ describe("el consumo del personal (B3-17)", () => {
     assert.equal(anulado.neto.minor, "0");
     assert.deepEqual(
       i.porPersona.find((p) => p.persona.id === pedro)!,
-      { persona: { id: pedro, nombre: "Pedro Salas" }, vales: 1, neto: usd("232"), adelantado: usd("0") },
+      { persona: { id: pedro, nombre: "Pedro Salas" }, vales: 1, neto: usd("232"), adelantado: usd("0"), descontado: null },
       "el anulado no suma",
     );
     const copia = valor(await local.app.personal.reimprimir(cajera, { valeId: i.vales[0]!.id }, AHORA + 6 * MIN));
@@ -217,5 +217,67 @@ describe("el consumo del personal (B3-17)", () => {
     const r = await local.app.cuentas.cobrar(cajera, consumo(await dosRefrescos(), { staffUserId: pedro, pin: "5173" }), AHORA + 8 * MIN);
     assert.equal(!r.ok && r.motivo, "INVALIDO");
     valor(await local.app.medios.aplicar(local.sistema, { kind: "ACTIVAR", code: "CONSUMO_PERSONAL", activo: true }));
+  });
+});
+
+describe("deudas del personal (B3-26, M-39)", () => {
+  const conPin = (autorizadorId: string, pin: string) => ({ autorizadorId, pin, motivo: "Quincena del personal" });
+
+  test("un vale y un adelanto de una persona salen juntos; descontada la quincena, dejan de estar pendientes y el reporte lo dice", async () => {
+    const rosa = await crearPersona(local, { nombre: "Rosa Díaz", role: "COCINA", pin: "2468" });
+    valor(await local.app.cuentas.cobrar(cajera, consumo(await dosRefrescos(), { staffUserId: rosa, pin: "2468" }), AHORA + 10 * MIN));
+    valor(
+      await local.app.efectivo.mover(
+        cajera,
+        { idempotencyKey: randomUUID(), tipo: "SALIDA", motivo: "ADELANTO", monto: usd("1000"), nota: "Adelanto de quincena", persona: { staffUserId: rosa, pin: "2468" } },
+        undefined,
+        AHORA + 11 * MIN,
+      ),
+    );
+    const antes = valor(await local.app.personal.vales(supervisora, QUINCENA, AHORA + 12 * MIN)).porPersona.find((p) => p.persona.id === rosa)!;
+    assert.deepEqual([antes.neto.minor, antes.adelantado.minor, antes.descontado], ["232", "1000", null]);
+
+    const cmd = { idempotencyKey: randomUUID(), persona: rosa, ...QUINCENA };
+    const sinPin = await local.app.personal.descontar(cajera, cmd, undefined, AHORA + 13 * MIN);
+    assert.equal(!sinPin.ok && sinPin.motivo, "NO_PERMITIDO");
+    const deSupervision = await local.app.personal.descontar(cajera, cmd, conPin(supervisora.quien!.userId!, "5937"), AHORA + 13 * MIN);
+    assert.equal(deSupervision.ok, false, "lo marca administración");
+    const d = valor(await local.app.personal.descontar(cajera, cmd, conPin(admin, "4826"), AHORA + 13 * MIN));
+    assert.deepEqual([d.consumido.minor, d.adelantado.minor, d.desde, d.hasta], ["232", "1000", QUINCENA.desde, QUINCENA.hasta]);
+    assert.deepEqual(valor(await local.app.personal.descontar(cajera, cmd, conPin(admin, "4826"), AHORA + 13 * MIN)), d, "un doble toque no la marca dos veces");
+    const otraVez = await local.app.personal.descontar(cajera, { ...cmd, idempotencyKey: randomUUID() }, conPin(admin, "4826"), AHORA + 14 * MIN);
+    assert.equal(!otraVez.ok && otraVez.problemas?.[0]?.message, "YA_DESCONTADA");
+
+    const despues = valor(await local.app.personal.vales(supervisora, QUINCENA, AHORA + 15 * MIN)).porPersona.find((p) => p.persona.id === rosa)!;
+    assert.equal(despues.descontado?.por, "Marisol Prieto");
+    assert.equal(despues.descontado?.consumido.minor, "232");
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "staff_payroll_deduction" });
+    assert.ok(asientos.some((a) => a.action === "personal.descontar" && a.authorizedBy === admin));
+
+    // Lo que consume después de la marca sigue pendiente, y se descuenta con otra (solo eso).
+    valor(await local.app.cuentas.cobrar(cajera, consumo(await dosRefrescos(), { staffUserId: rosa, pin: "2468" }), AHORA + 16 * MIN));
+    const conAlgoDespues = valor(await local.app.personal.vales(supervisora, QUINCENA, AHORA + 17 * MIN)).porPersona.find((p) => p.persona.id === rosa)!;
+    assert.equal(conAlgoDespues.descontado?.despues.minor, "232");
+    const segunda = valor(await local.app.personal.descontar(cajera, { idempotencyKey: randomUUID(), persona: rosa, ...QUINCENA }, conPin(admin, "4826"), AHORA + 18 * MIN));
+    assert.deepEqual([segunda.consumido.minor, segunda.adelantado.minor], ["232", "0"]);
+    const alDia = valor(await local.app.personal.vales(supervisora, QUINCENA, AHORA + 19 * MIN)).porPersona.find((p) => p.persona.id === rosa)!;
+    assert.equal(alDia.descontado?.despues.minor, "0");
+  });
+
+  test("anular un vale de cualquier día devuelve lo elegido al estante y lo demás sale como merma", async () => {
+    const c = await dosRefrescos();
+    const { venta } = valor(await local.app.cuentas.cobrar(cajera, consumo(c, { staffUserId: pedro, pin: "5173" }), AHORA + 20 * MIN));
+    const vale = (await vales()).find((x) => x.saleId === venta.id)!;
+    const antes = await existencia();
+    const cmd = { idempotencyKey: randomUUID(), valeId: vale.id, aMerma: [1] };
+    const sinPin = await local.app.personal.anularVale(cajera, cmd, undefined, AHORA + 21 * MIN);
+    assert.equal(!sinPin.ok && sinPin.motivo, "NO_PERMITIDO");
+    const r = valor(await local.app.personal.anularVale(cajera, cmd, conPin(admin, "4826"), AHORA + 21 * MIN));
+    assert.deepEqual([r.anulado, r.neto.minor, r.anulacion?.merma], [true, "0", true]);
+    assert.equal(await existencia(), antes! + 1, "uno al estante; el otro, merma");
+    const otraVez = await local.app.personal.anularVale(cajera, { ...cmd, idempotencyKey: randomUUID() }, conPin(admin, "4826"), AHORA + 22 * MIN);
+    assert.equal(!otraVez.ok && otraVez.problemas?.[0]?.message, "YA_ANULADO");
+    const enLaQuincena = valor(await local.app.personal.vales(supervisora, QUINCENA, AHORA + 23 * MIN)).vales.find((x) => x.id === vale.id)!;
+    assert.equal(enLaQuincena.anulado, true);
   });
 });
