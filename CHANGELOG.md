@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.143.0] — 2026-10-14 · Hacia la puesta en marcha
+
+M-39, X-13: el cumpleaños en la caja, el parque y el salón.
+
+### Añadido
+- **La caja y el parque ven el cumpleaños de hoy**: su hora, cuántos invitados entraron y su mesa, arriba de la cola
+  de la caja y junto a las cifras de la sala. Tocándolo, los de hoy y los de los próximos seis días con el anticipo
+  cobrado o por cobrar. El parque avisa 30 minutos antes de que empiece.
+- **El cumpleaños toma su mesa del plano.** «Empezar en una mesa» (en ese detalle o en la agenda) elige una libre, o el
+  mesero «Sienta el cumpleaños» en una mesa libre: lo que piden va a la cuenta del cumpleaños, que sigue en la cola de la
+  caja con su saldo, y el representante paga una sola vez (el saldo y lo extra; lo incluido a $ 0). Se cambia de mesa
+  como cualquier cuenta.
+
 ## [0.142.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-12: el aforo del cumpleaños y el paquete exclusivo.

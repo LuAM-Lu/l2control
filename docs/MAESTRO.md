@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.142.0 en `main` (publicada, la 0.131.0) · 142 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.143.0 en `main` (publicada, la 0.131.0) · 143 de 148 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3457,11 +3457,20 @@ antes del cobro en servidor (orden de ejecución).
   entran a sus lugares. La sala se relee también con el tema eventos. Pruebas: dominio (7 nuevas) y `eventos.test-db.ts`
   (4 nuevas). Visto en el navegador en los dos temas: la caja cobra el anticipo, la entrada dice los lugares guardados y
   el editor marca el paquete exclusivo.*
-- [~] **B10-5 · El cumpleaños en la caja, el parque y el salón** (M-39, X-13). *A cargo: LuAMi (Claude), en `feat/b10-5`.*
+- [x] **B10-5 · El cumpleaños en la caja, el parque y el salón** (M-39, X-13).
+  *Hecho el 2026-10-14 (v0.143.0), en `feat/b10-5`.*
   → La caja y el parque ven el cumpleaños de hoy (hora, invitados reservados y cuántos entraron) y, en su detalle, los de la
   semana con el anticipo cobrado o no; el parque avisa 30 minutos antes. Al empezar, el cumpleaños toma su mesa del plano:
   el mesero pide a su cuenta y el representante paga una sola (el saldo y lo extra); lo incluido sigue sin cobrarse.
   Criterio: un pedido del mesero para la mesa del cumpleaños entra en su cuenta y la caja cobra saldo y extras juntos.
+  *B10-5: sin migración. La cuenta del día de un cumpleaños puede llevar mesa (el contrato lo permite solo con
+  `eventDay`); `cuentasDeLasMesas` y «por limpiar» la cuentan como de su mesa, así el pedido del mesero va a ella; volver
+  a pedir no la saca de la cola (B6-18 la exceptúa). `eventos.empezar` acepta `mesaId` y `eventos.sentar` (quien reserva
+  o quien atiende el salón) le da una mesa libre, empezándolo si hacía falta; asiento `evento.mesa` (temas eventos,
+  cuentas y mesas). `reservasDe` dice la mesa del día. En la web, `CumpleanosDelDia.tsx` (el aviso, el detalle de la
+  semana, el selector de mesa y «Sentar el cumpleaños» en el salón). `eventos.test-db.ts` (2 nuevas, con el criterio).
+  Visto en el navegador en los dos temas: el parque lo empieza en la mesa 5, la supervisora pide unas papas a esa mesa y
+  la caja cobra saldo y papas juntos ($ 91,06).*
 
 ### Etapa 11 · Reportes (F9, M-29)
 

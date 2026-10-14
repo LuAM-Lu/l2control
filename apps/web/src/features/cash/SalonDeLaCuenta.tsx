@@ -2,7 +2,7 @@
 
 import { Baby, HandPlatter, Receipt } from "lucide-react";
 import type { EstanciaDto, FamilyAccountDto } from "@l2/contracts";
-import { ninosDeLaMesa } from "../cuentas/cuentas.ts";
+import { esMesaDelCumpleanos, ninosDeLaMesa } from "../cuentas/cuentas.ts";
 import { platosSinServir, textoDePlatos } from "../mesas/mesas.ts";
 import { usePedidos } from "../mesas/PedidosProvider.tsx";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
@@ -10,7 +10,7 @@ import { useSala } from "../park/SalaProvider.tsx";
 
 /** Una cuenta del salón (B6-14): la de una mesa o la de pie. Las del parque y del mostrador no tienen mesa que contar. */
 export function esDelSalon(cuenta: FamilyAccountDto): boolean {
-  return cuenta.kind === "MESA" || cuenta.dePie === true;
+  return cuenta.kind === "MESA" || cuenta.dePie === true || esMesaDelCumpleanos(cuenta);
 }
 
 /** El nombre de un niño en la sala: su apodo, su nombre o, si no lo dieron, su pulsera. */

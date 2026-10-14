@@ -806,6 +806,8 @@ export {
   CatalogoEventosPublicadoSchema,
   CatalogoEventosSchema,
   EmpezarEventoCommandSchema,
+  SentarEventoCommandSchema,
+  type SentarEventoCommand,
   EntradaEventoCommandSchema,
   EstadoReservaSchema,
   IncluidoEnPaqueteSchema,

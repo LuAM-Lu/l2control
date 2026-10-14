@@ -89,7 +89,8 @@ export async function cambiarDeMesa(base: Base, ctx: Contexto, entrada: unknown,
       const vigente = fila?.branchId === ctx.branchId ? await vigenteDe(tx, cmd.accountId) : null;
       if (!vigente) return { ok: false, motivo: "NO_DISPONIBLE", mensaje: "Esa cuenta no existe en esta sucursal." };
       const cuenta = vigente.cuenta;
-      if (cuenta.kind !== "MESA" || !cuenta.tableId) {
+      // La del día de un cumpleaños con su mesa (B10-5) también se cambia de mesa.
+      if ((cuenta.kind !== "MESA" && !(cuenta.kind === "EVENTO" && cuenta.eventDay)) || !cuenta.tableId) {
         return { ok: false, motivo: "INVALIDO", mensaje: "Solo una cuenta de mesa se cambia de mesa.", problemas: [{ path: ["accountId"], message: "NO_ES_DE_MESA" }] };
       }
       if (cuenta.status !== "ABIERTA" && cuenta.status !== "POR_COBRAR") {

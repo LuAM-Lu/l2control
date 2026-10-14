@@ -51,6 +51,14 @@ export function lineasDeCortesia(
   return c.lines.filter((l) => l.cortesia);
 }
 
+/**
+ * La cuenta del día de un cumpleaños que tomó una mesa del plano (B10-5): el mesero la atiende como la de una mesa y
+ * pide a ella; la caja la cobra con su saldo.
+ */
+export function esMesaDelCumpleanos(c: Readonly<{ kind: FamilyAccountDto["kind"]; eventDay?: true | undefined; tableId?: string | undefined }>): boolean {
+  return c.kind === "EVENTO" && c.eventDay === true && Boolean(c.tableId);
+}
+
 /** Una cuenta del salón (una mesa, o de pie desde B6-7): se cobra cuando la piden (F6-05). */
 export function esDeMesa(c: FamilyAccountDto): boolean {
   return c.kind === "MESA" || c.dePie === true;
@@ -180,6 +188,8 @@ export function partesQueFaltan(c: FamilyAccountDto): number {
  * de la mesa la abre el servidor al sentar a la familia (`abrirCuentaDelSalon`), no la pantalla.
  */
 export function nombreDeCuenta(c: Readonly<{ kind: FamilyAccountDto["kind"]; family: string; tableLabel?: string | null | undefined; dePie?: true | undefined }>): string {
+  // El cumpleaños en su mesa (B10-5): «Mesa 3 · Carmen Rivas».
+  if (c.kind === "EVENTO" && c.tableLabel) return `Mesa ${c.tableLabel} · ${c.family}`;
   if (c.kind === "MESA") {
     const mesa = `Mesa ${c.tableLabel ?? "?"}`;
     return c.family === mesa ? mesa : `${mesa} · ${c.family}`;
@@ -191,7 +201,7 @@ export function nombreDeCuenta(c: Readonly<{ kind: FamilyAccountDto["kind"]; fam
 
 /** ¿Es una cuenta del salón que sigue abierta (una mesa o de pie)? Lo que el mesero atiende (B6-7). */
 export function esDelSalonAbierta(c: FamilyAccountDto): boolean {
-  return (c.kind === "MESA" || (c.kind === "MOSTRADOR" && c.dePie === true)) && (c.status === "ABIERTA" || c.status === "POR_COBRAR");
+  return (c.kind === "MESA" || esMesaDelCumpleanos(c) || (c.kind === "MOSTRADOR" && c.dePie === true)) && (c.status === "ABIERTA" || c.status === "POR_COBRAR");
 }
 
 /**

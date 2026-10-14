@@ -2,6 +2,7 @@
  * Cómo se leen los cumpleaños en pantalla (B10-1). El horario viaja en minutos desde la medianoche
  * del local; aquí se pinta con el formato de hora de la sucursal, nunca con el del navegador.
  */
+import { Banknote, CircleCheck, Hourglass, TriangleAlert, XCircle, type LucideIcon } from "lucide-react";
 import type { EstadoReserva } from "@l2/contracts";
 import type { Tone } from "@l2/ui";
 import type { TimeFormat } from "../park/time-format.ts";
@@ -48,6 +49,16 @@ export const ESTADO: Readonly<Record<EstadoReserva, { texto: string; tono: Tone 
   EN_CURSO: { texto: "En curso · saldo por cobrar", tono: "warn" },
   SALDADA: { texto: "Saldada", tono: "ok" },
   SALDO_INCOBRABLE: { texto: "Saldo incobrable", tono: "crit" },
+};
+
+/** El icono de cada estado, junto a su color y su texto. */
+export const ICONO_ESTADO: Readonly<Record<EstadoReserva, LucideIcon>> = {
+  ANTICIPO_POR_COBRAR: Hourglass,
+  CONFIRMADA: CircleCheck,
+  CANCELADA: XCircle,
+  EN_CURSO: Banknote,
+  SALDADA: CircleCheck,
+  SALDO_INCOBRABLE: TriangleAlert,
 };
 
 /** Las que tienen algo en la cola de la caja: el anticipo o el saldo. */

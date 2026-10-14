@@ -8,6 +8,7 @@ import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/c
 import { Button, Marquesina, MoneyDisplay, ScannerField, cn, formatMoneyVE } from "@l2/ui";
 import { esDeMesa, esVentaDirecta, nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
+import { CumpleanosDeHoy } from "../eventos/CumpleanosDelDia.tsx";
 
 /**
  * La cola de cuentas por cobrar — DEC-21, UX-MEJORAS §9 (C1, C2, C5).
@@ -308,6 +309,8 @@ export function ColaCuentas({
       </div>
 
       <div className="flex flex-col gap-2 border-b border-line/40 p-2">
+        {/* B10-5: el cumpleaños de hoy, con sus invitados y su mesa; el detalle trae los de la semana. */}
+        <CumpleanosDeHoy />
         {/* Neutros: son acciones secundarias de la cola, no la acción principal de la pantalla, que es cobrar. Lado a
             lado donde la cola es ancha; una sobre otra en la columna estrecha de escritorio. */}
         <div className={cn("grid gap-2", onEntrada && "grid-cols-2 lg:grid-cols-1 lg:bajo:grid-cols-2 xl:bajo:grid-cols-1")}>

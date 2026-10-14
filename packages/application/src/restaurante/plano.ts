@@ -59,7 +59,8 @@ export type CuentaEnMesa = Readonly<{ id: string; nombre: string }>;
 
 /**
  * Las cuentas abiertas (o por cobrar) de cada mesa de la sucursal: su id → sus cuentas, de la más antigua
- * a la más nueva. Una mesa compartida tiene varias (B6-7). Lee la última versión de cada cuenta de mesa.
+ * a la más nueva. Una mesa compartida tiene varias (B6-7). Lee la última versión de cada cuenta de mesa, y la del día de
+ * un cumpleaños que tomó una mesa (B10-5): el mesero pide a ella.
  */
 export async function cuentasDeLasMesas(tx: Transaccion, branchId: string): Promise<Map<string, CuentaEnMesa[]>> {
   const filas = await tx.$queryRaw<{ table_id: string | null; account_id: string; family: string | null }[]>`
@@ -67,7 +68,7 @@ export async function cuentasDeLasMesas(tx: Transaccion, branchId: string): Prom
       SELECT DISTINCT ON (v.account_id) v.account_id, v.content, v.status, a.opened_at
       FROM account_version v
       JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
-      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA'
+      WHERE a.branch_id = ${branchId}::uuid AND a.kind IN ('MESA', 'EVENTO')
       ORDER BY v.account_id, v.version DESC
     ) ultima
     WHERE ultima.status IN ('ABIERTA', 'POR_COBRAR')

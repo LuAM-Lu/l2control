@@ -167,6 +167,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import {
   esLineaDeMostrador,
+  esMesaDelCumpleanos,
   esVentaDirecta,
   nombreDeCuenta,
   dividirEn,
@@ -1180,8 +1181,8 @@ function CobroCuenta({
               <span className="hidden @lg/ticket:inline">Se fue sin pagar</span>
             </button>
           )}
-          {/* B6-21: se cambiaron de mesa (la caja también lo hace, sin PIN: no mueve dinero). */}
-          {cuenta.kind === "MESA" && (
+          {/* B6-21: se cambiaron de mesa (la caja también lo hace, sin PIN: no mueve dinero). También un cumpleaños (B10-5). */}
+          {(cuenta.kind === "MESA" || esMesaDelCumpleanos(cuenta)) && (
             <button
               type="button"
               onClick={() => setCambiandoMesa(true)}

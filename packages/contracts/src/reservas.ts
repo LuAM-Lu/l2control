@@ -218,6 +218,8 @@ export const ReservaEventoSchema = z.object({
     .object({
       cuenta: z.object({ id: IdSchema, orderNumber: z.number().int().positive(), status: AccountStatusSchema }),
       empezadoEn: TimestampSchema,
+      /** La mesa del plano que tomó (B10-5); `null` si todavía no tiene. */
+      mesa: z.object({ id: IdSchema, label: z.string() }).nullable().default(null),
       entraron: z.number().int().min(0),
       dentro: z.number().int().min(0),
     })
@@ -252,8 +254,21 @@ export type AgendaEventosDto = z.infer<typeof AgendaEventosSchema>;
 export const EmpezarEventoCommandSchema = z.strictObject({
   idempotencyKey: IdempotencyKeySchema,
   reservaId: IdSchema,
+  /** La mesa del plano que toma (B10-5): el mesero pide a la cuenta del cumpleaños. Libre. */
+  mesaId: IdSchema.optional(),
 });
 export type EmpezarEventoCommand = z.infer<typeof EmpezarEventoCommandSchema>;
+
+/**
+ * El cumpleaños toma una mesa del plano (B10-5, M-39 X-13): si no había empezado, empieza con ella; si empezó sin mesa
+ * (con la entrada del primer invitado) o en otra, pasa a esta. La mesa tiene que estar libre.
+ */
+export const SentarEventoCommandSchema = z.strictObject({
+  idempotencyKey: IdempotencyKeySchema,
+  reservaId: IdSchema,
+  mesaId: IdSchema,
+});
+export type SentarEventoCommand = z.infer<typeof SentarEventoCommandSchema>;
 
 /**
  * La entrada de los invitados de un cumpleaños (B10-2): solo sus pulseras. El representante es quien reservó,
