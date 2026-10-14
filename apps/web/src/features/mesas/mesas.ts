@@ -11,7 +11,7 @@ import { atencionDeCuentas, type PedidoParaAtencion, type UmbralesDeAtencion } f
 import { multiply, sum, type Money } from "@l2/domain-money";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
-import { esDelSalonAbierta, nombreDeCuenta } from "../cuentas/cuentas.ts";
+import { esDelSalonAbierta, esMesaDelCumpleanos, nombreDeCuenta } from "../cuentas/cuentas.ts";
 import { duracion } from "./tiempo.ts";
 
 /**
@@ -43,7 +43,8 @@ const porAntiguedad = (a: FamilyAccountDto, b: FamilyAccountDto) => Date.parse(a
 
 /** Las cuentas abiertas de una mesa, de la más antigua a la más nueva. */
 export function cuentasDeLaMesa(cuentas: readonly FamilyAccountDto[], tableId: string): FamilyAccountDto[] {
-  return cuentas.filter((c) => c.kind === "MESA" && c.tableId === tableId && esDelSalonAbierta(c)).sort(porAntiguedad);
+  // También la del cumpleaños que tomó la mesa (B10-5).
+  return cuentas.filter((c) => (c.kind === "MESA" || esMesaDelCumpleanos(c)) && c.tableId === tableId && esDelSalonAbierta(c)).sort(porAntiguedad);
 }
 
 /** Las cuentas de pie abiertas (B6-7), de la más antigua a la más nueva. */

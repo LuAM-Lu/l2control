@@ -49,7 +49,7 @@ import { DESHACER_SERVIDO_MS, anularSinPin } from "@l2/domain-orders";
 import { useOperador } from "../identity/operador.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
-import { ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
+import { esMesaDelCumpleanos, ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
 import {
   EN_VERTICAL,
   loQuePideAtencion,
@@ -88,6 +88,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { usePorLimpiar } from "./porLimpiar.ts";
 import { AvisosDelSalon } from "./AvisosDelSalon.tsx";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
+import { SentarCumpleanosAqui } from "../eventos/CumpleanosDelDia.tsx";
 
 /**
  * Estación del mesero: mesas, cuentas y pedidos — F6-01, F6-02, F6-05, DEC-22, B6-7.
@@ -426,7 +427,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         ? "Todo se sirve sin comanda: no sale papel."
         : pedido.comandas.map((p) => `${p.area ? `${AREA[p.area].nombre}: ` : ""}sale en «${p.impresora ?? "la impresora de comandas"}»`).join(" · ") + ".";
     avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · ${rotuloDePedido(pedido)}`, {
-      detalle: c.status === "POR_COBRAR" ? `Volvió de la caja a la mesa: cuando terminen, «Pide la cuenta» otra vez. ${papeles}` : papeles,
+      // La del cumpleaños (B10-5) se queda en la cola con su saldo: no vuelve a la mesa.
+      detalle: c.status === "POR_COBRAR" && c.kind !== "EVENTO" ? `Volvió de la caja a la mesa: cuando terminen, «Pide la cuenta» otra vez. ${papeles}` : papeles,
     });
     setEnvios((e) => {
       const { [c.id]: _, ...resto } = e;
@@ -618,6 +620,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                   ? `Sentar a otra familia en la mesa ${lugar.vista.mesa.label}`
                   : `Sentar en la mesa ${lugar.vista.mesa.label}`}
           </Button>
+          {lugar.tipo === "MESA" && cuentasDelLugar.length === 0 && <SentarCumpleanosAqui mesa={{ id: lugar.vista.mesa.id, label: lugar.vista.mesa.label }} />}
           {cuentasDelLugar.length > 0 && (
             <Button variant="ghost" onClick={() => setSentando(false)} className="w-full">
               <X size={16} aria-hidden="true" />
@@ -985,7 +988,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         abierto={buscandoCliente}
         onCerrar={() => setBuscandoCliente(false)}
         // El salón abre las cuentas de sus mesas y las de pie; la de una familia del parque es de la caja.
-        puedeAbrir={(c) => c.kind === "MESA" || (c.kind === "MOSTRADOR" && c.dePie === true)}
+        puedeAbrir={(c) => c.kind === "MESA" || esMesaDelCumpleanos(c) || (c.kind === "MOSTRADOR" && c.dePie === true)}
         alAbrirCuenta={(c) => {
           setBuscandoCliente(false);
           setModo("PLANO");

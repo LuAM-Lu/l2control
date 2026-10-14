@@ -230,7 +230,8 @@ export function casosPedidos(base: Base): CasosPedidos {
           const quien = await nombreDe(tx, ctx);
           // Volver a pedir con la cuenta en la cola de la caja (B6-18, M-39 X-3) la devuelve a la mesa: sale de la cola (sin
           // su espera ni sus partes sin cobrar), y lo que la caja tecleaba sin cobrar se descarta. Lo cobrado sigue cobrado.
-          const volvio = actual?.cuenta.status === "POR_COBRAR";
+          // La de un cumpleaños (B10-5) no: espera en la cola desde que empieza, con su saldo, y lo que se pide se le suma.
+          const volvio = actual?.cuenta.status === "POR_COBRAR" && actual.cuenta.kind !== "EVENTO";
           const deLaMesa = (c: FamilyAccountDto): FamilyAccountDto => {
             if (!volvio) return c;
             const { pendingSince: _espera, split: _partes, ...enLaMesa } = c;

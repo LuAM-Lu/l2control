@@ -22,6 +22,7 @@ import {
   CatalogoEventosPublicadoSchema,
   CatalogoEventosSchema,
   EmpezarEventoCommandSchema,
+  SentarEventoCommandSchema,
   EntradaEventoCommandSchema,
   FamilyAccountSchema,
   PaqueteEventoSchema,
@@ -57,6 +58,7 @@ import { catalogoEn, claveSecundaria, guardarVersion, siguienteNumero, vigenteDe
 import { asentarExistencias, comprobarExistencias } from "../inventario/existencias.ts";
 import { comprobarPulserasYAforo, entradaHecha, tarifarioDe } from "./parque.ts";
 import { zonaDe } from "../sucursal/ajustes.ts";
+import { cuentasDeLasMesas, mesaParaCuentaNueva, planoEn } from "../restaurante/plano.ts";
 import { representanteDeLaEntrada } from "./representantes.ts";
 
 export interface CasosEventos {
@@ -82,6 +84,11 @@ export interface CasosEventos {
    * la cuenta del día con el saldo y lo que incluye el paquete, que sale del estante (ADR-023).
    */
   empezar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
+  /**
+   * El cumpleaños toma una mesa libre del plano (`SentarEventoCommandSchema`, B10-5): si no había empezado, empieza con
+   * ella. Lo hace quien reserva o quien atiende el salón.
+   */
+  sentar(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<ReservaEventoDto>>;
   /**
    * Entran invitados con sus pulseras (`EntradaEventoCommandSchema`, B10-2): a la cuenta del día (si no había
    * empezado, empieza), sin paquete ni cobro, hasta los invitados reservados y dentro del aforo.
@@ -532,7 +539,14 @@ export function casosEventos(base: Base): CasosEventos {
           if (!reserva) return noExiste;
           const previo = await tx.eventDay.findFirst({ where: { operationKey: cmd.idempotencyKey } });
           if (previo && previo.reservationId !== reserva.id) return { ok: false, motivo: "CONFLICTO", mensaje: "Esa clave ya se usó para otra operación." };
-          const dia = await diaDelEvento(tx, ctx, reserva, ahora, cmd.idempotencyKey);
+          // Con su mesa (B10-5): libre y en el salón, si el día empieza ahora.
+          let mesa: MesaDelCumpleanos | undefined;
+          if (cmd.mesaId && !previo && !(await tx.eventDay.findFirst({ where: { reservationId: reserva.id } }))) {
+            const libre = await mesaLibre(tx, ctx.branchId, cmd.mesaId);
+            if ("ok" in libre) return libre;
+            mesa = libre;
+          }
+          const dia = await diaDelEvento(tx, ctx, reserva, ahora, cmd.idempotencyKey, mesa);
           if ("ok" in dia) return dia;
           return (await reservasDe(tx, { id: reserva.id }))[0]!;
         });
@@ -545,6 +559,61 @@ export function casosEventos(base: Base): CasosEventos {
         return { ok: true, valor: r };
       } catch (e) {
         // Dos toques a la vez: el segundo encuentra el día ya empezado.
+        if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
+        const r = await intentar();
+        return "ok" in r ? r : { ok: true, valor: r };
+      }
+    },
+
+    async sentar(ctx, entrada, ahora = Date.now()) {
+      const v = SentarEventoCommandSchema.safeParse(entrada);
+      if (!v.success) return { ok: false, motivo: "INVALIDO", mensaje: "El cumpleaños no tomó la mesa: hay datos que corregir.", problemas: problemasDe(v.error) };
+      const cmd = v.data;
+      const intentar = () =>
+        base.conTenant(ctx.tenantId, async (tx): Promise<ReservaEventoDto | Rechazo> => {
+          // Lo hace quien reserva (al empezarlo) o quien atiende el salón (al sentar a la familia).
+          const rechazo = await exigirPermiso(tx, ctx, "evento.reservar");
+          if (rechazo && (await exigirPermiso(tx, ctx, "pedido.tomar"))) return rechazo;
+          const reserva = await tx.eventReservation.findFirst({ where: { id: cmd.reservaId, branchId: ctx.branchId } });
+          if (!reserva) return noExiste;
+          // Un reintento (se cortó la red) devuelve lo que ya se hizo.
+          const hecho = (await tx.accountVersion.findFirst({ where: { operationKey: cmd.idempotencyKey } })) ?? (await tx.eventDay.findFirst({ where: { operationKey: cmd.idempotencyKey } }));
+          if (hecho) return (await reservasDe(tx, { id: reserva.id }))[0]!;
+
+          const libre = await mesaLibre(tx, ctx.branchId, cmd.mesaId);
+          if ("ok" in libre) return libre;
+          const quien = await nombreDe(tx, ctx);
+          const yaEmpezo = await tx.eventDay.findFirst({ where: { reservationId: reserva.id } });
+          let antes: string | null = null;
+          if (!yaEmpezo) {
+            const dia = await diaDelEvento(tx, ctx, reserva, ahora, cmd.idempotencyKey, libre);
+            if ("ok" in dia) return dia;
+          } else {
+            const actual = (await vigenteDe(tx, yaEmpezo.accountId))!;
+            if (actual.cuenta.status !== "ABIERTA" && actual.cuenta.status !== "POR_COBRAR") {
+              return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de ese cumpleaños ya está cerrada: no toma mesa." };
+            }
+            antes = actual.cuenta.tableLabel ?? null;
+            const cuenta = FamilyAccountSchema.parse({ ...actual.cuenta, tableId: libre.id, tableLabel: libre.label, version: actual.version + 1 });
+            await guardarVersion(tx, ctx, cuenta, { cause: "CAMBIAR_MESA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          }
+          await auditar(tx, ctx, {
+            action: "evento.mesa",
+            entityType: "event_reservation",
+            entityId: reserva.id,
+            ...(antes ? { before: { mesa: antes } } : {}),
+            after: { mesa: libre.label, cumpleanero: reserva.honoree, empezo: !yaEmpezo },
+          });
+          return (await reservasDe(tx, { id: reserva.id }))[0]!;
+        });
+      try {
+        const r = await intentar();
+        if ("ok" in r) {
+          if (r.motivo === "NO_PERMITIDO") await auditarRechazo(base, ctx, { action: "evento.mesa", reason: r.mensaje });
+          return r;
+        }
+        return { ok: true, valor: r };
+      } catch (e) {
         if (errorDeBase(e)?.motivo !== "DUPLICADO") throw e;
         const r = await intentar();
         return "ok" in r ? r : { ok: true, valor: r };
@@ -667,6 +736,22 @@ export function casosEventos(base: Base): CasosEventos {
 
 type FilaDeReserva = NonNullable<Awaited<ReturnType<Transaccion["eventReservation"]["findFirst"]>>>;
 
+/** La mesa del plano que toma un cumpleaños (B10-5). */
+type MesaDelCumpleanos = Readonly<{ id: string; label: string }>;
+
+/** Una mesa libre del salón para el cumpleaños: en el plano, sin retirar y sin cuentas abiertas. */
+async function mesaLibre(tx: Transaccion, branchId: string, mesaId: string): Promise<MesaDelCumpleanos | Rechazo> {
+  const ocupada = ((await cuentasDeLasMesas(tx, branchId)).get(mesaId) ?? []).length > 0;
+  if (ocupada) {
+    const { plano } = await planoEn(tx, branchId);
+    const label = plano?.tables.find((m) => m.id === mesaId)?.label ?? "?";
+    return { ok: false, motivo: "CONFLICTO", mensaje: `La mesa ${label} está ocupada: el cumpleaños toma una libre.`, problemas: [{ path: ["mesaId"], message: "MESA_OCUPADA" }] };
+  }
+  const libre = await mesaParaCuentaNueva(tx, branchId, mesaId);
+  if ("ok" in libre) return { ...libre, ...(libre.problemas ? { problemas: libre.problemas.map((p) => ({ ...p, path: ["mesaId"] })) } : {}) };
+  return { id: mesaId, label: libre.label };
+}
+
 /**
  * El día del evento de una reserva: el que ya empezó o el que empieza ahora (B10-2). Empieza solo en su día,
  * con el anticipo cobrado y antes de su hora de fin. Nace la cuenta del día con el saldo y lo que incluye el
@@ -679,6 +764,7 @@ async function diaDelEvento(
   reserva: FilaDeReserva,
   ahora: number,
   clave: string,
+  mesa?: MesaDelCumpleanos,
 ): Promise<Readonly<{ accountId: string; terminaEn: number }> | Rechazo> {
   const zona = await zonaDe(tx, ctx.branchId);
   const fecha = reserva.eventDate.toISOString().slice(0, 10);
@@ -733,6 +819,8 @@ async function diaDelEvento(
     kind: "EVENTO",
     eventId: reserva.id,
     eventDay: true,
+    // Su mesa del plano, si la tomó al empezar (B10-5).
+    ...(mesa ? { tableId: mesa.id, tableLabel: mesa.label } : {}),
     version: 1,
     family: familia.fullName,
     mode: "PREPAGO",
@@ -781,6 +869,7 @@ async function diaDelEvento(
       cuenta: orderNumber,
       saldo: { minor: String(reserva.balanceMinor), currency: "USD" },
       incluido: paquete.incluye.map((x) => `${x.quantity} × ${x.name}`),
+      ...(mesa ? { mesa: mesa.label } : {}),
     },
   });
   return { accountId, terminaEn };
@@ -850,9 +939,14 @@ export async function reservasDe(tx: Transaccion, where: Prisma.EventReservation
     where: { accountId: { in: cuentas } },
     orderBy: [{ accountId: "asc" }, { version: "desc" }],
     distinct: ["accountId"],
-    select: { accountId: true, status: true, cause: true, savedAt: true, savedByName: true },
+    select: { accountId: true, status: true, cause: true, savedAt: true, savedByName: true, content: true },
   });
   const ultima = new Map(versiones.map((x) => [x.accountId, x]));
+  /** La mesa que tomó la cuenta del día (B10-5). */
+  const mesaDe = (accountId: string) => {
+    const c = ultima.get(accountId)?.content as { tableId?: string; tableLabel?: string } | null | undefined;
+    return c?.tableId ? { id: c.tableId, label: c.tableLabel ?? "?" } : null;
+  };
   // Sus cambios de fecha (B10-3): la historia de cada una.
   const cambios = await tx.eventReschedule.findMany({ where: { reservationId: { in: filas.map((f) => f.id) } }, orderBy: { at: "asc" } });
   const dias = filas.flatMap((f) => (f.day ? [f.day.accountId] : []));
@@ -900,6 +994,7 @@ export async function reservasDe(tx: Transaccion, where: Prisma.EventReservation
               empezadoEn: f.day.startedAt.toISOString(),
               entraron: contar(f.day.accountId, false),
               dentro: contar(f.day.accountId, true),
+              mesa: mesaDe(f.day.accountId),
             }
           : null,
     });

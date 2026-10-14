@@ -536,7 +536,7 @@ export async function mesasPorLimpiar(tx: Transaccion, branchId: string, ahora: 
         SELECT DISTINCT ON (v.account_id) v.status, v.saved_at, v.content->>'tableId' AS table_id
         FROM account_version v
         JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
-        WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA' AND a.opened_at >= ${desde}
+        WHERE a.branch_id = ${branchId}::uuid AND a.kind IN ('MESA', 'EVENTO') AND a.opened_at >= ${desde}
         ORDER BY v.account_id, v.version DESC
       ) u
       WHERE u.table_id IS NOT NULL
@@ -545,7 +545,7 @@ export async function mesasPorLimpiar(tx: Transaccion, branchId: string, ahora: 
       FROM account_version v
       JOIN account_version p ON p.tenant_id = v.tenant_id AND p.account_id = v.account_id AND p.version = v.version - 1
       JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
-      WHERE a.branch_id = ${branchId}::uuid AND a.kind = 'MESA' AND v.saved_at >= ${desde} AND v.cause = 'CAMBIAR_MESA'
+      WHERE a.branch_id = ${branchId}::uuid AND a.kind IN ('MESA', 'EVENTO') AND v.saved_at >= ${desde} AND v.cause = 'CAMBIAR_MESA'
     ) t
     WHERE t.table_id IS NOT NULL
     GROUP BY t.table_id`;

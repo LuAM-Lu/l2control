@@ -1,6 +1,6 @@
 "use server";
 
-import type { CatalogoEventosPublicadoDto, CheckInResult, ReservaEventoDto, Resultado } from "@l2/contracts";
+import type { AgendaEventosDto, CatalogoEventosPublicadoDto, CheckInResult, ReservaEventoDto, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -29,6 +29,27 @@ export async function cancelarReserva(entrada: unknown): Promise<Resultado<Reser
   const r = await (await aplicacion()).eventos.cancelar(ctx, entrada);
   if (r.ok) log().info({ tenantId: ctx.tenantId, reserva: r.valor.id }, "reserva cancelada");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cancelación rechazada");
+  return r;
+}
+
+/** Los cumpleaños de hoy y de los próximos seis días (B10-5): la caja y el parque los ven, con el anticipo cobrado o no. */
+export async function leerCumpleanosDeLaSemana(): Promise<Resultado<AgendaEventosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const app = await aplicacion();
+  const hoy = await app.eventos.deHoy(ctx);
+  if (!hoy.ok) return hoy;
+  const hasta = new Date(Date.parse(`${hoy.valor.hoy}T00:00:00.000Z`) + 6 * 86_400_000).toISOString().slice(0, 10);
+  return app.eventos.agenda(ctx, { desde: hoy.valor.hoy, hasta });
+}
+
+/** El cumpleaños toma una mesa libre del plano (B10-5): si no había empezado, empieza con ella. */
+export async function sentarEvento(entrada: unknown): Promise<Resultado<ReservaEventoDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  const r = await (await aplicacion()).eventos.sentar(ctx, entrada);
+  if (r.ok) log().info({ tenantId: ctx.tenantId, reserva: r.valor.id }, "cumpleaños en su mesa");
+  else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cumpleaños sin mesa");
   return r;
 }
 

@@ -7,6 +7,7 @@ import { can } from "@l2/domain-identity";
 import { Badge, Button, Cifra, Confirmacion, Container, EmptyState, Input, PageHeader, Resumen, Tabs, avisar, cn } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
+import { esMesaDelCumpleanos } from "../cuentas/cuentas.ts";
 import { useReloj } from "../sucursal/SucursalProvider.tsx";
 import { PiezaFija, Suelo, TramaParque } from "./piezas.tsx";
 import { usePlano } from "./PlanoProvider.tsx";
@@ -57,7 +58,7 @@ export function EditorPlano() {
   const { cuentas } = useCuentas();
   // Las mesas con su cuenta abierta: no se retiran (el servidor lo vuelve a comprobar).
   const ocupadas = useMemo(
-    () => new Set(cuentas.filter((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.tableId).map((c) => c.tableId!)),
+    () => new Set(cuentas.filter((c) => (c.kind === "MESA" || esMesaDelCumpleanos(c)) && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.tableId).map((c) => c.tableId!)),
     [cuentas],
   );
 

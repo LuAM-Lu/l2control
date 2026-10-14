@@ -74,6 +74,7 @@ const ACCIONES: Readonly<Record<string, Clase>> = {
   "evento.reservar": { categoria: "PARQUE", que: "Reservó un cumpleaños" },
   "evento.cancelar": { categoria: "PARQUE", que: "Canceló un cumpleaños" },
   "evento.cambiar_fecha": { categoria: "PARQUE", que: "Cambió la fecha de un cumpleaños" },
+  "evento.mesa": { categoria: "MESAS", que: "Sentó un cumpleaños en una mesa" },
   "mesa.vincular": { categoria: "MESAS", que: "Vinculó una pulsera" },
   "mesa.desvincular": { categoria: "MESAS", que: "Desvinculó una pulsera" },
   "mesa.cambiar": { categoria: "MESAS", que: "Cambió de mesa" },

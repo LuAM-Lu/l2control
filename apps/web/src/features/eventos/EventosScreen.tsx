@@ -4,12 +4,11 @@ import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Banknote, Cake, CalendarCheck, CalendarDays, CircleCheck, Clock, Hourglass, Info, PartyPopper, Plus, TriangleAlert, Users, XCircle } from "lucide-react";
+import { Cake, CalendarCheck, CalendarDays, Hourglass, Info, PartyPopper, Plus, Users, XCircle } from "lucide-react";
 import {
   ReservarEventoCommandSchema,
   type AgendaEventosDto,
   type CatalogoEventosPublicadoDto,
-  type EstadoReserva,
   type RepresentanteEncontradoDto,
   type ReservaEventoDto,
   type Resultado,
@@ -25,9 +24,10 @@ import { useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { buscarRepresentante } from "../park/parque.acciones";
 import { CampoDelCliente, type ClienteElegido } from "../clientes/CampoDelCliente.tsx";
 import { CampoTelefono } from "../clientes/CamposDelCliente.tsx";
-import { cancelarReserva, empezarEvento, reservarEvento } from "./eventos.acciones";
-import { AL_DIA, ESTADO, POR_COBRAR, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
+import { cancelarReserva, reservarEvento } from "./eventos.acciones";
+import { AL_DIA, ESTADO, ICONO_ESTADO, POR_COBRAR, fechaCorta, fechaLarga, horaDelDia, horario } from "./formato.ts";
 import { CambiarFechaDialog, MesDeCumpleanos, cambiaDeFecha } from "./MesYCambioDeFecha.tsx";
+import { MesaDelCumpleanos } from "./CumpleanosDelDia.tsx";
 
 /** La vista elegida (lista, mes o canceladas) se recuerda en este equipo (B10-3): una preferencia, no un dato del negocio. */
 const CLAVE_VISTA = "l2.eventos.vista";
@@ -56,14 +56,6 @@ const CAMPO =
   "flex min-h-10 w-full rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[14px] text-ink " +
   "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand";
 
-const ICONO_ESTADO: Readonly<Record<EstadoReserva, typeof Clock>> = {
-  ANTICIPO_POR_COBRAR: Hourglass,
-  CONFIRMADA: CircleCheck,
-  CANCELADA: XCircle,
-  EN_CURSO: Banknote,
-  SALDADA: CircleCheck,
-  SALDO_INCOBRABLE: TriangleAlert,
-};
 const orden = (n: number) => `#${String(n).padStart(4, "0")}`;
 const enDolares = (m: { minor: string }) => money(BigInt(m.minor), "USD");
 
@@ -132,20 +124,9 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
     }
   };
 
-  const empezar = async (r: ReservaEventoDto) => {
-    setEnviando(true);
-    try {
-      const res = await empezarEvento({ idempotencyKey: crypto.randomUUID(), reservaId: r.id });
-      if (res.ok) {
-        avisar.ok(`Empezó el cumpleaños de ${r.cumpleanero}. El saldo está en la caja con la cuenta ${orden(res.valor.dia!.cuenta.orderNumber)}.`);
-        router.refresh();
-      } else avisar.error(res.mensaje);
-    } catch {
-      avisar.error("No se pudo hablar con el servidor. El cumpleaños no empezó.");
-    } finally {
-      setEnviando(false);
-    }
-  };
+  /** B10-5: al empezar, el cumpleaños toma su mesa del plano (o empieza sin ella). */
+  const [empezando, setEmpezando] = useState<ReservaEventoDto | null>(null);
+  const empezar = (r: ReservaEventoDto) => setEmpezando(r);
 
   const fila = (r: ReservaEventoDto) => {
     const Icono = ICONO_ESTADO[r.estado];
@@ -398,6 +379,11 @@ export function EventosScreen({ catalogo, agenda }: { catalogo: CatalogoEventosP
         />
       )}
 
+      <MesaDelCumpleanos
+        para={empezando ? { reserva: empezando, modo: "EMPEZAR" } : null}
+        onCerrar={() => setEmpezando(null)}
+        onHecho={() => router.refresh()}
+      />
       <CambiarFechaDialog reserva={cambiandoFecha} hoy={hoy} formato={formatoHora} onCerrar={() => setCambiandoFecha(null)} onHecho={() => router.refresh()} />
 
       <Confirmacion

@@ -189,6 +189,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "El tiempo de más, pasada la gracia, va en bloques del paquete más chico (30 minutos al precio de 30 minutos), y nunca cuesta más que la combinación de paquetes que cubre lo que estuvo.",
       "«Dar salida» abre su salida aquí mismo; «Toda la familia» trae a todos los niños de su cuenta, marcados: quita de la lista a quien se queda.",
       "«Sin pulsera» abre la entrada de un niño que no la tolera. «Buscar»: por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
+      "Junto a las cifras, el cumpleaños de hoy: su hora, cuántos de sus invitados entraron y su mesa (en verde si ya empezó, en amarillo si empieza pronto o le falta el anticipo). 30 minutos antes avisa una vez: desde ahí la entrada guarda el lugar de sus invitados. Tócalo para ver los de hoy y los de la semana, con «Empezar en una mesa».",
     ],
     problemas: [
       {
@@ -281,6 +282,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Las pestañas de la caja: en la laptop y la tablet, «Cobrar» y «Turno», y «Más» con Papel, Deudas y Personal; en una pantalla de 1440 px o más, las cinco con su número y, a la izquierda, el riel del panel (Inicio, Parque, Restaurante, Inventario, Reportes y Ajustes) a un clic. Alt+1 a Alt+5 abren cada una. El aviso de impresión dice su número (lo que no salió, al tocarlo) y, por debajo de 1440 px, el turno es solo su reloj.",
       "Arriba, la barra dice cómo está la impresora: «Impresora sin papel» o «Impresora no responde» en rojo (con sonido), «Imprime por …» en ámbar cuando sale por su respaldo. Pon el rollo y, en «N sin imprimir», «Reintentar».",
       "Si la caja quedó abierta de un día que ya terminó (pasadas las 4:00 am de fábrica), dice «Esta caja es del …: ciérrala antes de cobrar» con lo pendiente de ese día. Lo de ese día se cobra ahí; lo de hoy, no. «Cerrar la caja» lleva al cierre; después se abre la de hoy.",
+      "El cumpleaños de hoy va arriba de la cola: su hora, sus invitados y su mesa. Tócalo para ver los de hoy y los de la semana (con el anticipo cobrado o por cobrar) y «Empezar en una mesa». La cuenta del cumpleaños espera en la cola desde que empieza y se cobra de una vez: el saldo, lo que pidió su mesa y lo incluido, a $ 0.",
     ],
     problemas: [
       {
@@ -527,6 +529,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Supervisión y administración cierran una mesa sin cobrar con «Cerrar la mesa sin cobrar…» y su PIN: «Se fue sin pagar» deja lo que debe a nombre del cliente; «No consumió o fue un error» anula todo lo que pidió (al estante o a merma, con su papel «ANULAR»). La mesa queda libre. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
       "Cobrada (o cerrada) la última cuenta de una mesa, queda «Por limpiar» en todas las tablets. Al limpiarla, «Mesa limpia: dejarla libre». La caja y supervisión también pueden, por si se olvida.",
       "Los avisos suaves, sin sonido y una vez por mesa: la que lleva sentada sin pedir, la que espera su pedido y la que sigue por limpiar, pasados sus minutos (Ajustes → Sucursal).",
+      "Un cumpleaños tiene su mesa: al empezarlo se elige una libre, o aquí, en una mesa libre, «Sentar el cumpleaños de …». Lo que pidan va a su cuenta (no se abre otra), que sigue en la cola de la caja con el saldo: el representante paga una sola vez. Se cambia de mesa como cualquier cuenta.",
     ],
     problemas: [
       {
@@ -622,6 +625,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Cambiar fecha» (en la fila, o tocando el cumpleaños en el mes): el día y el horario nuevos con su motivo. Vale con el anticipo cobrado, hasta que empiece; el aforo del nuevo horario se comprueba como al reservar. La fila dice de qué fecha venía, el motivo y quién lo cambió.",
       "Un paquete «Exclusivo» (Ajustes → Cumpleaños) tiene el parque para él solo en su horario: no se reserva otro cumpleaños encima y la entrada no admite visitas normales mientras dura. Los demás comparten el parque: desde 30 minutos antes la entrada guarda el lugar de sus invitados.",
       "Con el anticipo por cobrar, «Cancelar» la quita de la agenda. Con el anticipo cobrado no se cancela aquí: devolverlo es anular su cobro en la caja.",
+      "«Empezar el cumpleaños» elige su mesa libre del plano: su cuenta del día (el saldo y lo incluido) es la de esa mesa, y el mesero pide a ella. «Empezar sin mesa» la deja para después («Darle mesa» en el detalle del cumpleaños, en la caja o en el parque).",
     ],
     problemas: [
       {
@@ -633,6 +637,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«Un cumpleaños exclusivo no comparte el parque»",
         solucion: "Ese horario se cruza con un cumpleaños exclusivo, o el que reservas es exclusivo y ya hay otro. Elige otra hora u otro día.",
         reconoce: ["exclusivo no comparte el parque"],
+      },
+      {
+        sintoma: "«La mesa N está ocupada: el cumpleaños toma una libre»",
+        solucion: "El cumpleaños tiene su propia mesa y su cuenta. Elige una libre del plano, o empiézalo sin mesa y dale una cuando se libere.",
+        reconoce: ["el cumpleanos toma una libre"],
       },
       ...GENERALES,
     ],

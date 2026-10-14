@@ -35,6 +35,7 @@ import { VincularAMesa } from "./VincularAMesa.tsx";
 import { DesvincularNino } from "../mesas/DesvincularNino.tsx";
 import { usePreguntaOtraFamilia, vincularPreguntando } from "../mesas/OtraFamilia.tsx";
 import { formatDuration } from "@l2/domain-park";
+import { CumpleanosDeHoy } from "../eventos/CumpleanosDelDia.tsx";
 
 /**
  * Monitor de parque — F5-08.
@@ -283,6 +284,8 @@ export function ParkMonitor({
             tono={counts.warning > 0 ? "warn" : "idle"}
             icono={<TimerReset size={14} aria-hidden="true" />}
           />
+          {/* B10-5: el cumpleaños de hoy (y su aviso 30 minutos antes); el detalle trae los de la semana. */}
+          <CumpleanosDeHoy avisarAntes className="ml-auto self-center max-md:col-span-3 max-md:ml-0" />
         </Container>
       </header>
 

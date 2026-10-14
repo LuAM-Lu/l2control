@@ -334,9 +334,9 @@ export const FamilyAccountSchema = z
     if (c.comensales !== undefined && c.kind !== "MESA" && !c.dePie) {
       ctx.addIssue({ code: "custom", path: ["comensales"], message: "Los comensales son de una cuenta del salón" });
     }
-    // Las cuentas de un cumpleaños (la del anticipo y la del día) son de su reserva, sin mesa. Y solo una
-    // cuenta de evento nombra un evento.
-    if (c.kind === "EVENTO" && (!c.eventId || c.tableId)) {
+    // Las cuentas de un cumpleaños (la del anticipo y la del día) son de su reserva. La del día puede tomar una mesa del
+    // plano (B10-5): el mesero pide a ella. Y solo una cuenta de evento nombra un evento.
+    if (c.kind === "EVENTO" && (!c.eventId || (c.tableId && !c.eventDay))) {
       ctx.addIssue({ code: "custom", path: ["eventId"], message: "La cuenta de un evento es de su reserva" });
     }
     // Los invitados entran el día del evento, a la cuenta del día; la del anticipo no tiene niños.

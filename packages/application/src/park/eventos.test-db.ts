@@ -8,7 +8,18 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { CatalogoEventosPublicadoDto, FamilyAccountDto, ReservaEventoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { abrirLocalDePrueba, cedulaDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import {
+  abrirLocalDePrueba,
+  cedulaDePrueba,
+  contextoDe,
+  contextoElevado,
+  crearEquipo,
+  crearPersona,
+  impresoraDePrueba,
+  planoDePrueba,
+  sentarDePrueba,
+  type LocalDePrueba,
+} from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 const AHORA = Date.parse("2026-10-03T14:00:00.000Z");
@@ -639,5 +650,66 @@ describe("el aforo del cumpleaños y el exclusivo (B10-4, M-39)", () => {
     const exclusivo = await local.app.eventos.reservar(ctxCajera, reserva({ fecha: DIA, inicio: 13 * 60, fin: 15 * 60, invitados: 10, paqueteId: "exclusivo" }), AHORA);
     assert.equal(!exclusivo.ok && exclusivo.problemas?.[0]?.message, "HORARIO_EXCLUSIVO");
     valor(await local.app.eventos.reservar(ctxCajera, reserva({ fecha: "2026-11-14", inicio: 13 * 60, fin: 15 * 60, invitados: 10 }), AHORA));
+  });
+});
+
+describe("el cumpleaños en su mesa (B10-5, M-39)", () => {
+  let pizza: string;
+  /** Una reserva de hoy a la hora dada (dos horas), con su anticipo cobrado ($ 75 + IVA). */
+  const confirmadaHoy = async (cumpleanero: string, hora: number) => {
+    const r = await reservar(reserva({ fecha: HOY, inicio: hora * 60, fin: (hora + 2) * 60, paqueteId: "basico", invitados: 10, cumpleanero }));
+    valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(await cuentaDe(r.cuenta.id), "8700"), AHORA));
+    return r;
+  };
+  const enviar = (tableId: string, cantidad: number) =>
+    local.app.pedidos.enviar(ctxMesero, { pedidoId: randomUUID(), tableId, lineas: [{ productId: pizza, cantidad, precioMinor: "800" }], repetir: true }, AHORA + 2 * MIN);
+
+  before(async () => {
+    await planoDePrueba(local, 4);
+    await impresoraDePrueba(local);
+    pizza = valor(
+      await local.app.productos.aplicar(local.sistema, { kind: "CREAR", producto: { nombre: "Pizza familiar", categoria: "Comida", taxCode: "GENERAL", tipo: "PREPARADO", precioMinor: "800" } }, AHORA - 5 * MIN),
+    ).productos.find((p) => p.nombre === "Pizza familiar")!.id;
+  });
+
+  test("al empezar toma su mesa: el pedido del mesero entra en su cuenta y la caja cobra saldo y extras juntos", async () => {
+    const r = await confirmadaHoy("Valeria", 14);
+    const empezado = valor(await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id, mesaId: "mesa-1" }, AHORA + MIN));
+    assert.deepEqual(empezado.dia?.mesa, { id: "mesa-1", label: "1" });
+    const dia = empezado.dia!.cuenta.id;
+
+    const pedido = valor(await enviar("mesa-1", 2));
+    assert.equal(pedido.cuenta.id, dia, "el pedido de la mesa 1 entra en la cuenta del cumpleaños");
+    const cuenta = await cuentaDe(dia);
+    assert.equal(cuenta.status, "POR_COBRAR", "sigue en la cola de la caja con su saldo");
+    assert.deepEqual(
+      cuenta.lines.filter((l) => !l.paid && l.amount.minor !== "0").map((l) => [l.kind, l.amount.minor]),
+      [["EVENTO", "7500"], ["RESTAURANTE", "800"], ["RESTAURANTE", "800"]],
+    );
+    // Saldo $ 75 + dos pizzas $ 16 = $ 91 + IVA 16 % = $ 105,56, de una vez.
+    const cobrada = valor(await local.app.cuentas.cobrar(ctxCajera, cobroDe(cuenta, "10556"), AHORA + 3 * MIN));
+    assert.equal(cobrada.cuenta.status, "COBRADA");
+    const despues = valor(await local.app.eventos.agenda(ctxCajera, { desde: HOY, hasta: HOY }, AHORA + 3 * MIN)).reservas.find((x) => x.id === r.id)!;
+    assert.equal(despues.estado, "SALDADA");
+  });
+
+  test("toma una mesa libre; si empezó sin mesa, la toma después; el mesero también la sienta; la monitora no", async () => {
+    const r = await confirmadaHoy("Martina", 16);
+    // Empieza sin mesa (como con la entrada del primer invitado).
+    assert.equal(valor(await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: r.id }, AHORA + MIN)).dia?.mesa, null);
+    await sentarDePrueba(local, ctxMesero, "mesa-2", AHORA + MIN);
+    const ocupada = await local.app.eventos.sentar(ctxMesero, { idempotencyKey: randomUUID(), reservaId: r.id, mesaId: "mesa-2" }, AHORA + 2 * MIN);
+    assert.equal(!ocupada.ok && ocupada.problemas?.[0]?.message, "MESA_OCUPADA");
+    const monitora = await local.app.eventos.sentar(ctxMonitora, { idempotencyKey: randomUUID(), reservaId: r.id, mesaId: "mesa-3" }, AHORA + 2 * MIN);
+    assert.equal(!monitora.ok && monitora.motivo, "NO_PERMITIDO");
+    const sentada = valor(await local.app.eventos.sentar(ctxMesero, { idempotencyKey: randomUUID(), reservaId: r.id, mesaId: "mesa-3" }, AHORA + 2 * MIN));
+    assert.deepEqual(sentada.dia?.mesa, { id: "mesa-3", label: "3" });
+    assert.equal(valor(await enviar("mesa-3", 1)).cuenta.id, sentada.dia!.cuenta.id);
+    // Otro cumpleaños no se sienta en una mesa que ya tiene uno.
+    const otro = await confirmadaHoy("Paula", 18);
+    const encima = await local.app.eventos.empezar(ctxCajera, { idempotencyKey: randomUUID(), reservaId: otro.id, mesaId: "mesa-3" }, AHORA + 3 * MIN);
+    assert.equal(!encima.ok && encima.problemas?.[0]?.message, "MESA_OCUPADA");
+    const asientos = await local.app.auditoria.listar(local.sistema, { entityType: "event_reservation", entityId: r.id });
+    assert.ok(asientos.some((a) => a.action === "evento.mesa"));
   });
 });
