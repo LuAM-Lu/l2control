@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.131.1] — 2026-10-13 · Hacia la puesta en marcha
+
+Lo que se vio el 13 de octubre en la caja y al vincular (M-39, X-1, X-5 y X-14).
+
+### Corregido
+- **La caja quita de una mesa lo que le añadió** y todavía no salió a cocina (el reporte n.º 2): con dos «Bubble Valle»
+  añadidos desde la caja, el «−» decía «Lo consumido no se quita». Lo que ya salió en una comanda se sigue anulando.
+- **Las medias van con su niño:** al vincularlo a una mesa, su par va con él, y la cuenta de la familia sale de la cola
+  (antes quedaban dos cuentas, una con las medias). Al anular su entrada, el par se anula y vuelve al estante.
+- **El «Más tiempo» de un niño vinculado va a su mesa**, no a la cuenta de su familia.
+- **Anular la entrada de un niño vinculado** anula también lo suyo en la mesa (su paquete, sus medias y su «Más
+  tiempo»); antes se seguía cobrando allá.
+
 ## [0.131.0] — 2026-10-11 · Hacia la puesta en marcha
 
 El fondo fijo, opcional (B3-22, M-38, W-9).

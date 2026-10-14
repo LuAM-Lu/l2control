@@ -55,7 +55,7 @@ import {
   type SettlementLineDto,
   type TarifarioDto,
 } from "@l2/contracts";
-import { annulEntry, chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
+import { annulEntry, annulEntryAtTable, chargeByUsage, moveSessionLines, registerExit, registerRecharge, type AccountLineDoc } from "@l2/domain-cash";
 import { add, money, type Money } from "@l2/domain-money";
 import { calendarDay, startOfDay } from "@l2/domain-rates";
 import {
@@ -399,7 +399,8 @@ export function casosParque(base: Base): CasosParque {
                       },
                     ],
               ),
-              // El par de medias de quien no las trajo: una venta del inventario, no tiempo (no lleva `sessionId`).
+              // El par de medias de quien no las trajo: una venta del inventario, no tiempo. Lleva la estancia de su niño
+              // (v0.131.1, M-39 X-5): va con él a su mesa y se anula con su entrada.
               ...(medias
                 ? sinMedias.map((i) => ({
                     id: `med-${sesiones[i]}`,
@@ -409,6 +410,7 @@ export function casosParque(base: Base): CasosParque {
                     paid: false,
                     productId: medias!.productId,
                     taxCode: medias!.taxCode,
+                    sessionId: sesiones[i],
                   }))
                 : []),
             ];
@@ -836,7 +838,9 @@ export function casosParque(base: Base): CasosParque {
           if (!p || p.duration.kind !== "fixed") {
             return invalido("Ese paquete no sirve para dar más tiempo: elige uno de tiempo fijo que esté a la venta.", ["packageId"], "PAQUETE_QUE_NO_SE_RECARGA");
           }
-          const actual = (await vigenteDe(tx, f.accountId))!;
+          // Un niño vinculado a una mesa (v0.131.1, M-39 X-14): su «Más tiempo» va a la cuenta de su mesa, como su salida.
+          const suMesa = (await sessionsVinculadas(tx, ctx.branchId)).get(f.id);
+          const actual = (await vigenteDe(tx, suMesa?.accountId ?? f.accountId))!;
           if (actual.cuenta.status === "INCOBRABLE") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de esta familia se dio por incobrable: no admite recargas." };
           }
@@ -889,7 +893,13 @@ export function casosParque(base: Base): CasosParque {
             action: "parque.recarga",
             entityType: "park_session",
             entityId: f.id,
-            after: { minutos: sube.minutos, paquete: p.name, precio: { minor: String(sube.diferencia.amount), currency: "USD" }, cuenta: nueva.orderNumber ?? null },
+            after: {
+              minutos: sube.minutos,
+              paquete: p.name,
+              precio: { minor: String(sube.diferencia.amount), currency: "USD" },
+              cuenta: nueva.orderNumber ?? null,
+              ...(suMesa ? { mesa: suMesa.label } : {}),
+            },
           });
           const recargada = await estanciaQueExiste(tx, { id: f.id });
           return { session: estanciaDe(recargada), account: nueva };
@@ -1044,6 +1054,36 @@ export function casosParque(base: Base): CasosParque {
               problemas: [{ path: ["sessionId"], message: "YA_COBRADA" }],
             };
           }
+          // Vinculado a una mesa (v0.131.1, M-39 X-14): lo suyo está allá (el paquete, sus medias, su «Más tiempo»), y se
+          // anula allá. Si ya se cobró en la mesa, se anula ese cobro primero, como en la familia.
+          await candadoDeMesas(tx, ctx.branchId);
+          const suMesa = (await sessionsVinculadas(tx, ctx.branchId)).get(f.id);
+          let mesaAnulada: FamilyAccountDto | null = null;
+          let devolucionMesa: Awaited<ReturnType<typeof devolucionDeLoAnulado>> = [];
+          if (suMesa) {
+            const deLaMesa = (await vigenteDe(tx, suMesa.accountId))!;
+            const enLaMesa = annulEntryAtTable(deLaMesa.cuenta, f.id, {
+              motivo: "ENTRADA_POR_ERROR",
+              detalle: cmd.motivo.slice(0, 120),
+              autorizadaPor: { id: autorizo.id, name: autorizo.name, role: autorizo.role },
+              en: instante,
+            });
+            if (!enLaMesa) {
+              return {
+                ok: false,
+                motivo: "CONFLICTO",
+                mensaje: `El paquete de ${nombreDeFila(f)} ya se cobró en la mesa ${suMesa.label}: anula ese cobro en la caja y después anula la entrada.`,
+                problemas: [{ path: ["sessionId"], message: "YA_COBRADA" }],
+              };
+            }
+            mesaAnulada = FamilyAccountSchema.parse({ ...enLaMesa, version: deLaMesa.version + 1 });
+            // Sus medias las sacó del estante la cuenta de su familia (vincular mueve la línea, no la existencia): vuelven a ella.
+            devolucionMesa = await devolucionDeLoAnulado(tx, ctx, deLaMesa.cuenta, enLaMesa, f.accountId);
+            if ("ok" in devolucionMesa) return devolucionMesa;
+          }
+          // Lo que se anuló y salió del estante (sus medias) vuelve a él (v0.131.1, M-39 X-5): se calcula antes de guardar.
+          const devolucion = await devolucionDeLoAnulado(tx, ctx, actual.cuenta, anulada);
+          if ("ok" in devolucion) return devolucion;
           const { pendingSince: _, ...sinEspera } = anulada;
           const nueva = FamilyAccountSchema.parse({
             ...sinEspera,
@@ -1051,6 +1091,11 @@ export function casosParque(base: Base): CasosParque {
             ...(anulada.status === "POR_COBRAR" ? { pendingSince: actual.cuenta.pendingSince ?? instante } : {}),
           });
           await guardarVersion(tx, ctx, nueva, { cause: "ANULAR_ENTRADA", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
+          await asentarExistencias(tx, ctx, devolucion, { accountId: nueva.id, version: nueva.version!, ahora, quien: quien.nombre });
+          if (mesaAnulada) {
+            await guardarVersion(tx, ctx, mesaAnulada, { cause: "ANULAR_ENTRADA", operationKey: claveSecundaria(cmd.idempotencyKey, mesaAnulada.id), ahora, quien: quien.nombre });
+            if (!("ok" in devolucionMesa)) await asentarExistencias(tx, ctx, devolucionMesa, { accountId: nueva.id, version: nueva.version!, ahora, quien: quien.nombre });
+          }
           await tx.parkSession.update({
             where: { id: f.id },
             data: {
@@ -1069,7 +1114,7 @@ export function casosParque(base: Base): CasosParque {
             entityId: f.id,
             reason: cmd.motivo,
             before: { entro: f.startedAt.toISOString(), pulsera: f.wristbandCode, paquete: f.packageName },
-            after: { cuenta: nueva.orderNumber ?? null, status: nueva.status, autorizadoPor: autorizo.name },
+            after: { cuenta: nueva.orderNumber ?? null, status: nueva.status, autorizadoPor: autorizo.name, ...(suMesa ? { mesa: suMesa.label } : {}) },
           });
           return { account: nueva };
         });
@@ -1264,6 +1309,24 @@ export async function estanciasActivas(tx: Transaccion, branchId: string, ahora:
 /** Lo contratado: el paquete y sus recargas (F5-11). */
 function duracionDe(f: FilaDeEstancia): Duration {
   return withRecharges(f.durationMinutes === null ? openEnded : fixed(f.durationMinutes), f.extensions.map((e) => e.minutes));
+}
+
+/**
+ * Lo que vuelve al estante al anular líneas de una cuenta (v0.131.1): las que ahora tienen su anulación y antes no, si
+ * eran de un producto que se cuenta. Como al anular un pedido (B6-6): la cuenta deja de tenerlas.
+ */
+async function devolucionDeLoAnulado(
+  tx: Transaccion,
+  ctx: Contexto,
+  antes: Pick<FamilyAccountDto, "id" | "lines">,
+  despues: Pick<FamilyAccountDto, "lines">,
+  /** La cuenta que sacó esa existencia del estante: la misma, o la familia de un niño vinculado. */
+  deQuien: string = antes.id,
+) {
+  const yaAnuladas = new Set(antes.lines.filter((l) => l.anulacion !== undefined).map((l) => l.id));
+  const anuladas = new Set(despues.lines.filter((l) => l.anulacion !== undefined && !yaAnuladas.has(l.id)).map((l) => l.id));
+  if (anuladas.size === 0) return [];
+  return comprobarExistencias(tx, ctx, deQuien, antes.lines, antes.lines.filter((l) => !anuladas.has(l.id)), () => ["sessionId"]);
 }
 
 /**

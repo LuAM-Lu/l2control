@@ -79,7 +79,7 @@ describe("medias en la entrada", () => {
     assert.equal(par.length, 1);
     assert.equal(par[0]!.amount.minor, "150");
     assert.match(par[0]!.concept, /Medias antideslizantes · MD-/);
-    assert.equal(par[0]!.sessionId, undefined, "es una venta, no tiempo del niño");
+    assert.equal(par[0]!.sessionId, r.sessions[0]!.id, "va con su niño (v0.131.1); sigue siendo una venta, no tiempo");
     assert.equal(await existenciaDeMedias(), 1);
   });
 
