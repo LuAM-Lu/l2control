@@ -3457,7 +3457,7 @@ antes del cobro en servidor (orden de ejecución).
   entran a sus lugares. La sala se relee también con el tema eventos. Pruebas: dominio (7 nuevas) y `eventos.test-db.ts`
   (4 nuevas). Visto en el navegador en los dos temas: la caja cobra el anticipo, la entrada dice los lugares guardados y
   el editor marca el paquete exclusivo.*
-- [ ] **B10-5 · El cumpleaños en la caja, el parque y el salón** (M-39, X-13).
+- [~] **B10-5 · El cumpleaños en la caja, el parque y el salón** (M-39, X-13). *A cargo: LuAMi (Claude), en `feat/b10-5`.*
   → La caja y el parque ven el cumpleaños de hoy (hora, invitados reservados y cuántos entraron) y, en su detalle, los de la
   semana con el anticipo cobrado o no; el parque avisa 30 minutos antes. Al empezar, el cumpleaños toma su mesa del plano:
   el mesero pide a su cuenta y el representante paga una sola (el saldo y lo extra); lo incluido sigue sin cobrarse.
