@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.149.0 en `main` (publicada, la 0.143.0) · 149 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.150.0 en `main` (publicada, la 0.143.0) · 150 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3478,14 +3478,14 @@ antes del cobro en servidor (orden de ejecución).
   pedido sale sin cédula y el segundo no sale hasta que se completa.
   *B6-22: los ajustes `sentar` (SEGURO, de fábrica) y `telefonoDelCliente` (SIEMPRE, de fábrica) y la regla pura `exigidoAlSentar`, `exigidoAlCompletar` y `pideLaCedula` en `@l2/domain-orders`, que usan la tablet y el servidor. Migración `20261213000000_cliente_sin_cedula` (solo expande: la cédula y el teléfono de `account_customer` y de `customer_debt` admiten NULL, con su llave al lado). `mesas.abrir` pide lo que dice la sucursal (`FALTA_LA_CEDULA`, `FALTA_EL_TELEFONO`); `pedidos.enviar` niega el segundo pedido de una cuenta sin cédula; `cuentas.cobrar` no cobra sin ella; `clientes.asignar` completa sin autorización a la cuenta sin cédula (y el teléfono que faltaba), y la venta que queda pendiente sigue pidiendo el teléfono. Sin teléfono, el cliente nuevo no entra al directorio (lo exige: el parque llama al representante); el que ya está, por su teléfono, trae su cédula. El asiento dice qué falta (`faltan`), sin los datos. En la web, `CompletarClienteDialog` (tablet y caja), `exige` en `DatosDelCliente`, la tarjeta en `EditorSucursal`. `sentar-rapido.test-db.ts` (10 nuevas) y `sentar.test.ts` (3). Visto en el navegador en los dos temas: la tarjeta, sentar con el nombre, el primer pedido, el segundo que pide la cédula, la cola y «Factura a».*
 
-- [~] **B6-23 · El mesero más ágil** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b6-23`.*
+- [x] **B6-23 · El mesero más ágil** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.150.0).*
   → «Tomar pedido» grande y debajo una fila: «Pagar lo que va» (B3-28), «Cambiar de mesa» y «Más» (Pide la cuenta para
   irse, Liberar la mesa, Cerrar sin cobrar), a 48 px. Un pedido a una mesa sin cuenta abre «Sentar» desde el aviso y sale
   después, solo. Con partes iguales cobradas, «Abrir otra cuenta en esta mesa» en un toque. «Lo más pedido hoy» arriba
   de la carta (los 8 del día; temprano, los de la semana), también en la venta directa. «¿Ya se sirvió todo?» solo con
   platos de más de 10 minutos sin marcar (los minutos, en los avisos del salón). Criterio: tomar un pedido de los más
   pedidos lleva tres toques y ninguna acción de la mesa queda debajo de los pedidos.
+  *B6-23: `pedidos.masPedidos` (quien toma pedidos y la caja) cuenta las cantidades de los pedidos (`kitchen_order.items`) desde el inicio del día de negocio del local, con el desempate por el más reciente; sin ninguno, los últimos 7 días (`periodo: SEMANA`). `useMasPedidos` lo lee al abrir y con el tema `pedidos`; la pestaña `MAS_PEDIDOS` (`TomaPedido.tsx`) no es una categoría y se abre hasta que se toca otra. `atencionServidoMin` (10, los ajustes viejos no lo traen) en `AjustesSucursal`. `MenuDeAcciones` gana `hacia` (arriba, al pie de la pantalla), `aLoAncho` y `neutral`; la fila va con `flex-auto` (a partes iguales, «Cambiar de mesa» se partía en el panel de 1180 px), y su Esc lleva `preventDefault` (dentro de un `<dialog>`, sin él se cerraba también la capa). El aviso de un pedido con `CUENTA_CERRADA` o `MESA_SIN_CUENTA` guarda el pedido y lo envía al sentar; con `COBRO_EN_PARTES` abre otra cuenta (`· 2`) con el cliente y lo envía en ella. `useCuentas` expone `refrescar`: el «Sentar» del aviso relee la mesa antes, y un CONFLICTO al sentar o al abrir la otra cuenta también (sin canal en vivo, la cuenta cerrada seguía a la vista y el servidor negaba la nueva por las cuentas que se ven). `pedidos.test-db.ts` (1 nueva). Visto en el navegador en los dos temas, en horizontal (1180 y 1280 px) y en vertical: la fila en un renglón y su «Más» (se abre hacia arriba; Esc no cierra la hoja), la carta en «Lo más pedido» (de la semana y de hoy) y la venta directa de la caja con lo mismo; con el canal en vivo parado, la mesa liberada por otro equipo mientras se pedía («Sentar» y el pedido sale solo, comanda en la cuenta nueva) y la cuenta con 1 de 2 partes cobrada («Abrir otra cuenta en esta mesa», comanda en «· 2»).*
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 

@@ -235,6 +235,11 @@ export const AjustesSucursalSchema = z
      */
     atencionSinCuentaMin: z.number().int("Minutos enteros").min(5, "Al menos 5 minutos").max(180, "Hasta tres horas").default(45),
     /**
+     * B6-23 (M-40): al pedir la cuenta, «¿Ya se sirvió todo?» pregunta solo por los platos de más de estos minutos sin
+     * marcar servidos (lo recién pedido no se pregunta). Los ajustes publicados antes no lo traen: 10.
+     */
+    atencionServidoMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
+    /**
      * Los puestos que se vigilan (T-20, M-37): con la caja abierta, uno de estos que pasa de `puestoSinNadieMin` sin nadie
      * avisa una vez. Un puesto está ocupado si alguien trabajó en él en esos minutos. Los ajustes publicados antes no los
      * traen: los tres y 15.

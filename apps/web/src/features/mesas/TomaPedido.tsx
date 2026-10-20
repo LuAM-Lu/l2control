@@ -2,7 +2,8 @@
 
 import { useEffect, useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { ArrowLeft, ChevronUp, Search, Send, StickyNote, Trash2, TriangleAlert, X } from "lucide-react";
+import { ArrowLeft, ChevronUp, Search, Send, StickyNote, Trash2, TrendingUp, TriangleAlert, X } from "lucide-react";
+import type { MasPedidosDto } from "@l2/contracts";
 import { multiply, toMajor } from "@l2/domain-money";
 import { Badge, Button, Cajon, Dialog, Input, MoneyDisplay, Stepper, cn, formatMoneyVE } from "@l2/ui";
 import { anadir, totalBorrador, type LineaBorrador } from "./mesas.ts";
@@ -32,6 +33,9 @@ import { notasRapidas } from "./pedidos.acciones";
  */
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
+/** La pestaña de «Lo más pedido» (B6-23): no es una categoría de la carta. */
+export const MAS_PEDIDOS = "__lo-mas-pedido__";
+
 export function TomaPedido({
   rotulo,
   carta,
@@ -42,7 +46,10 @@ export function TomaPedido({
   onVolver,
   bloqueo,
   vertical = false,
+  masPedidos = null,
 }: {
+  /** B6-23: «Lo más pedido hoy» (o de la semana, temprano): la primera pestaña de la carta. */
+  masPedidos?: MasPedidosDto | null;
   /** A quién va: «Mesa 3», «Mesa 3 · Familia Pérez» o «De pie · Sr. Luis» (B6-7). */
   rotulo: string;
   carta: readonly ProductoALaVenta[];
@@ -58,8 +65,12 @@ export function TomaPedido({
   vertical?: boolean;
 }) {
   const enVenta = carta;
-  const categorias = [...new Set(enVenta.map((i) => i.categoria))];
-  const [categoria, setCategoria] = useState<string>(categorias[0] ?? "");
+  // B6-23: lo más pedido, en su orden, de lo que hoy se vende. Si hay, es la primera pestaña y la que se abre.
+  const destacados = (masPedidos?.productos ?? []).flatMap((id) => enVenta.find((i) => i.id === id) ?? []);
+  const categorias = [...(destacados.length > 0 ? [MAS_PEDIDOS] : []), ...new Set(enVenta.map((i) => i.categoria))];
+  const [elegidaAMano, setCategoria] = useState<string | null>(null);
+  // Hasta que se toque una, la primera: lo más pedido, si llegó; si no, la primera de la carta.
+  const categoria = elegidaAMano ?? categorias[0] ?? "";
   // B6-17: lo escrito busca en toda la carta, sin mirar la categoría.
   const [buscado, setBuscado] = useState("");
   const [notaDe, setNotaDe] = useState<number | null>(null);
@@ -110,12 +121,12 @@ export function TomaPedido({
   // Lo que se ve: lo buscado en toda la carta, o la categoría; lo que se vende primero y lo agotado al final.
   const q = sinAcentos(buscado.trim());
   const visibles = useMemo(() => {
-    const base = q ? enVenta.filter((i) => sinAcentos(i.nombre).includes(q)) : enVenta.filter((i) => i.categoria === categoria);
+    const base = q ? enVenta.filter((i) => sinAcentos(i.nombre).includes(q)) : categoria === MAS_PEDIDOS ? destacados : enVenta.filter((i) => i.categoria === categoria);
     const hay = (i: ProductoALaVenta) => disponible(i) && quedanDe(i) > 0;
     return [...base.filter(hay), ...base.filter((i) => !hay(i))];
     // `quedanDe` depende de las líneas: se recalcula con ellas.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [enVenta, categoria, q, lineas]);
+  }, [enVenta, categoria, q, lineas, masPedidos]);
 
   const lista = (
     <>
@@ -270,7 +281,14 @@ export function TomaPedido({
                   elegida ? "border-brand bg-brand font-semibold text-on-brand" : "border-line bg-surface text-ink-2 hover:border-line-strong hover:text-ink",
                 )}
               >
-                {c}
+                {c === MAS_PEDIDOS ? (
+                  <span className="inline-flex items-center gap-1.5">
+                    <TrendingUp className="size-(--icono-texto)" aria-hidden="true" />
+                    {masPedidos?.periodo === "SEMANA" ? "Lo más pedido de la semana" : "Lo más pedido hoy"}
+                  </span>
+                ) : (
+                  c
+                )}
               </button>
             );
           })}

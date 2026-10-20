@@ -30,11 +30,20 @@ export function MenuDeAcciones({
   etiqueta = "Más",
   surface = "pos",
   className,
+  hacia = "abajo",
+  aLoAncho = false,
+  neutral = false,
 }: {
   acciones: readonly AccionDelMenu[];
   etiqueta?: string;
   surface?: Surface;
   className?: string;
+  /** Hacia dónde se abre: abajo (de fábrica) o arriba, si el botón va al pie de la pantalla. */
+  hacia?: "abajo" | "arriba";
+  /** El botón ocupa todo su sitio (en una fila de botones iguales). */
+  aLoAncho?: boolean;
+  /** Con el fondo de un botón `neutral`, en una fila de ellos. */
+  neutral?: boolean;
 }) {
   const [abierto, setAbierto] = useState(false);
   const caja = useRef<HTMLDivElement>(null);
@@ -58,6 +67,9 @@ export function MenuDeAcciones({
       className={cn("relative", className)}
       onKeyDown={(e) => {
         if (e.key === "Escape" && abierto) {
+          // Dentro de una capa (un `<dialog>`), Escape cierra solo el menú: sin `preventDefault`, el navegador cierra
+          // también la capa.
+          e.preventDefault();
           e.stopPropagation();
           setAbierto(false);
           caja.current?.querySelector<HTMLButtonElement>("[aria-haspopup='menu']")?.focus();
@@ -80,7 +92,12 @@ export function MenuDeAcciones({
           "inline-flex cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border px-3 text-[13px] font-semibold whitespace-nowrap transition-colors",
           "focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
           ALTO[surface],
-          abierto ? "border-brand bg-brand/15 text-ink" : "border-line bg-base text-ink-2 hover:border-brand/50 hover:text-ink",
+          aLoAncho && "w-full justify-center",
+          abierto
+            ? "border-brand bg-brand/15 text-ink"
+            : neutral
+              ? "border-line bg-surface-2 text-ink hover:bg-line"
+              : "border-line bg-base text-ink-2 hover:border-brand/50 hover:text-ink",
         )}
       >
         <MoreHorizontal className="size-(--icono-texto) shrink-0" aria-hidden="true" />
@@ -92,7 +109,10 @@ export function MenuDeAcciones({
           id={`${id}-menu`}
           role="menu"
           aria-label={etiqueta}
-          className="absolute top-full right-0 z-40 mt-1.5 flex w-64 flex-col gap-0.5 rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-lift"
+          className={cn(
+            "absolute right-0 z-40 flex w-64 flex-col gap-0.5 rounded-[var(--radius-control)] border border-line bg-surface p-1 shadow-lift",
+            hacia === "arriba" ? "bottom-full mb-1.5" : "top-full mt-1.5",
+          )}
         >
           {acciones.map((a) => (
             <button

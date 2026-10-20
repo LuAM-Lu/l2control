@@ -731,6 +731,20 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               hint="Desde su último pedido; al salón y a la caja"
               onChange={(e) => cambiar({ atencionSinCuentaMin: Number(e.target.value) })}
             />
+            {/* B6-23: al pedir la cuenta, la pregunta de lo servido, solo por lo que ya tardó. */}
+            <Input
+              label="¿Ya se sirvió todo? (min)"
+              surface="admin"
+              type="number"
+              min={1}
+              max={120}
+              step={1}
+              className="tnum"
+              value={String(borrador.atencionServidoMin)}
+              error={errores.atencionServidoMin}
+              hint="Pregunta por los platos de más de estos minutos"
+              onChange={(e) => cambiar({ atencionServidoMin: Number(e.target.value) })}
+            />
           </div>
           {/* T-20: los puestos, por uso. Ocupado si alguien trabajó en él en estos minutos; con la caja abierta, uno vigilado
               que pasa de ellos sin nadie avisa una vez en Inicio. */}

@@ -43,7 +43,7 @@ import type {
 } from "@l2/contracts";
 import Link from "next/link";
 import type { Route } from "next";
-import { Badge, Button, Cajon, Confirmacion, Container, Dialog, Marquesina, MoneyDisplay, Sheet, StatTile, Stepper, avisar, cn, useMediaQuery, type Tone } from "@l2/ui";
+import { Badge, Button, Cajon, Confirmacion, Container, Dialog, Marquesina, MenuDeAcciones, MoneyDisplay, Sheet, StatTile, Stepper, avisar, cn, useMediaQuery, type Tone } from "@l2/ui";
 import { chargeableLines, loQueVaProblem } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
@@ -54,6 +54,7 @@ import { nombreDeEstancia } from "../park/view-model.ts";
 import { esMesaDelCumpleanos, ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pagarLoQueVa, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
 import {
   EN_VERTICAL,
+  cuentasDeLaMesa,
   loQuePideAtencion,
   minutosDesde,
   paraAtender,
@@ -85,6 +86,7 @@ import { CambiarDeMesa } from "./CambiarDeMesa.tsx";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
 import { CompletarClienteDialog } from "../clientes/CompletarClienteDialog.tsx";
+import { useMasPedidos } from "./useMasPedidos.ts";
 import type { ClienteElegido } from "../clientes/CampoDelCliente.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -156,7 +158,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // El plano lo publica administración desde el panel (V4, B6-1); aquí solo se lee.
   const { plano } = usePlano();
   // Las cuentas del salón (F6-05, D2, B6-7): una por familia en cada mesa, y las de pie.
-  const { cuentas, guardar, adoptar, anularPedido: anularPedidoDeLaCuenta, cerrarSinCobrar } = useCuentas();
+  const { cuentas, guardar, adoptar, refrescar, anularPedido: anularPedidoDeLaCuenta, cerrarSinCobrar } = useCuentas();
   // B6-13: cerrar la mesa sin cobrar es de supervisión y administración (M-35).
   const actor = useActorEnSesion();
   // B6-14: las mesas por limpiar, del servidor.
@@ -165,9 +167,11 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // Los pedidos y su comanda, del servidor (B6-2).
   const { pedidos, enviar: enviarPedido, reimprimir, servir, deshacer } = usePedidos();
   // Los umbrales de la atención en el salón (B6-8).
-  const { atencionSinPedirMin, atencionEsperaMin, sentar: comoSeSienta, telefonoDelCliente } = useSucursal().ajustes;
+  const { atencionSinPedirMin, atencionEsperaMin, atencionServidoMin, sentar: comoSeSienta, telefonoDelCliente } = useSucursal().ajustes;
   /** Qué se pide al sentar (B6-22): lo eligió administración en Ajustes → Sucursal; cambia en vivo. */
   const exigeAlSentar = exigidoAlSentar(comoSeSienta, telefonoDelCliente);
+  /** B6-23: «Lo más pedido hoy», la primera pestaña de la carta. */
+  const masPedidos = useMasPedidos();
   const op = useOperacion();
   const ahora = useAhoraLocal();
   const { estado } = op;
@@ -216,6 +220,30 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     if (!r) return avisar.error("Sin conexión con el servidor: no pasó a la caja. Vuelve a intentarlo.");
     if (!r.ok) return avisar.error(r.mensaje);
     avisar.ok(`${nombreDeCuenta(c)}: pagan lo que va en la caja`, { detalle: "La mesa sigue abierta: lo pagado se verá «Pagado» y lo que pidan después se cobra al final." });
+  }
+
+  /** B6-23: el pedido que espera a que se siente la mesa que se quedó sin cuenta. */
+  const porSentar = useRef<{ tableId: string; lineas: readonly LineaBorrador[]; de: string } | null>(null);
+
+  /** B6-23: otra cuenta para el mismo cliente (la suya tiene partes cobradas) y el pedido, en ella. */
+  async function abrirOtraYEnviar(c: FamilyAccountDto, lineas: readonly LineaBorrador[]) {
+    const nombre = `${(c.cliente?.nombre ?? c.family).slice(0, 72)} · 2`;
+    const r = await abrirCuentaDelSalon({
+      cuentaId: globalThis.crypto.randomUUID(),
+      ...(c.tableId ? { tableId: c.tableId } : {}),
+      cliente: { nombre, cedula: c.cliente?.cedula ?? "", telefono: c.cliente?.telefono ?? "" },
+      comensales: 1,
+      vistas: c.tableId ? cuentasDeLaMesa(cuentas, c.tableId).length : 0,
+    }).catch(() => null);
+    if (!r) return avisar.error("Sin conexión con el servidor: la cuenta no se abrió. Vuelve a intentarlo.");
+    if (!r.ok) {
+      if (r.motivo === "CONFLICTO") void refrescar();
+      return avisar.error(r.mensaje);
+    }
+    adoptar(r.valor);
+    setCuentaSel(r.valor.id);
+    setBorradores((b) => ({ ...b, [c.id]: [], [r.valor.id]: [...lineas] }));
+    await enviar(r.valor, false, lineas);
   }
 
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
@@ -360,13 +388,23 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
     }
     if (!r.ok) {
       avisar.error(r.mensaje);
-      // Un choque con otro equipo no se reintenta con el mismo id: la próxima vez se mira de nuevo.
-      if (r.motivo === "CONFLICTO") altaId.current = null;
+      // Un choque con otro equipo no se reintenta con el mismo id: la próxima vez se mira de nuevo, ya leída (B6-23).
+      if (r.motivo === "CONFLICTO") {
+        altaId.current = null;
+        void refrescar();
+      }
       return;
     }
     adoptar(r.valor);
     setCuentaSel(r.valor.id);
     setSentando(false);
+    // B6-23: si esta mesa se sentó desde el aviso de un pedido, el pedido sale ahora en su cuenta nueva.
+    const pendiente = porSentar.current;
+    if (pendiente && l.tipo === "MESA" && pendiente.tableId === l.vista.mesa.id) {
+      porSentar.current = null;
+      setBorradores((b) => ({ ...b, [pendiente.de]: [], [r.valor.id]: [...pendiente.lineas] }));
+      void enviar(r.valor, false, pendiente.lineas);
+    }
     // T-23: una familia de la sala trae el tiempo de sus niños a su mesa (como vincular, B6-3), en el mismo toque.
     const suyos = l.tipo === "MESA" && llevarTiempo ? (elegido?.estancias ?? []) : [];
     reiniciarFormulario(seleccion);
@@ -407,8 +445,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    * tablet enseñó viaja para comprobarlo. Fail-closed: si algo del borrador ya no está en la carta, no se
    * envía nada.
    */
-  async function enviar(c: FamilyAccountDto, repetir = false) {
-    const lineas = borradores[c.id] ?? [];
+  async function enviar(c: FamilyAccountDto, repetir = false, lineasDeOtra?: readonly LineaBorrador[]) {
+    // B6-23: lo que se pidió para otra cuenta (una mesa que se quedó sin la suya, o con partes cobradas) va en esta.
+    const lineas = lineasDeOtra ?? borradores[c.id] ?? [];
     const platos = lineas.flatMap((l) => {
       const it = carta.find((i) => i.id === l.itemId);
       return it ? [{ it, l }] : [];
@@ -442,6 +481,33 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       // B6-22: el segundo pedido de una cuenta sin cédula. Se pide aquí; el pedido sigue en el borrador.
       if (r.problemas?.some((p) => p.message === "FALTA_LA_CEDULA")) {
         setCompletando({ cuenta: c, luego: null });
+        return;
+      }
+      // B6-23: la mesa se quedó sin cuenta mientras se pedía (otro equipo la cobró o la liberó): «Sentar» desde el aviso,
+      // y el pedido sale solo en la cuenta nueva.
+      const mesaId = c.tableId;
+      if (mesaId && r.problemas?.some((p) => p.message === "CUENTA_CERRADA" || p.message === "MESA_SIN_CUENTA")) {
+        avisar.error(r.mensaje, {
+          detalle: "Siéntala otra vez: el pedido sale solo en su cuenta nueva.",
+          accion: {
+            texto: "Sentar",
+            alPulsar: async () => {
+              // Lo que se ve de la mesa ya no es así: se lee otra vez antes de sentar (sin canal en vivo, la cuenta
+              // cerrada seguiría a la vista y el servidor negaría la nueva por las cuentas que se ven).
+              await refrescar();
+              porSentar.current = { tableId: mesaId, lineas: [...lineas], de: c.id };
+              setVista("plano");
+              elegir(mesaId);
+              setSentando(true);
+            },
+          },
+        });
+        return;
+      }
+      // B6-23: con partes iguales cobradas, lo nuevo va en otra cuenta de la mesa: un toque la abre con el mismo cliente
+      // y el pedido sale en ella.
+      if (r.problemas?.some((p) => p.message === "COBRO_EN_PARTES")) {
+        avisar.error(r.mensaje, { accion: { texto: c.dePie ? "Abrir otra cuenta de pie" : "Abrir otra cuenta en esta mesa", alPulsar: () => void abrirOtraYEnviar(c, lineas) } });
         return;
       }
       avisar.error(r.mensaje);
@@ -533,7 +599,8 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    * servido sin hora exacta (la atención no lo mide) y pide la cuenta; «Pedir la cuenta igual» la pide sin marcar nada.
    */
   function pedirLaCuentaConServido(c: FamilyAccountDto) {
-    const platos = platosSinServir(c, pedidos);
+    // B6-23: solo los platos que ya tardaron (los minutos, en los avisos del salón); lo recién pedido no se pregunta.
+    const platos = platosSinServir(c, pedidos).filter(({ pedido }) => minutosDesde(pedido.enviadoEn, ahora) >= atencionServidoMin);
     if (platos.length === 0) return pedirLaCuenta(c);
     setSinServir({ cuenta: c, platos });
   }
@@ -615,6 +682,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
             enviando={enviando}
             onVolver={() => setVista("plano")}
             bloqueo={null}
+            masPedidos={masPedidos}
           />
         </Container>
         {/* B3-25: el mismo pedido de hace menos de 2 minutos para esta cuenta se confirma, con quién y desde dónde. */}
@@ -680,51 +748,58 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               variant="primary"
               // B6-22: sentada «Más rápido», el segundo pedido espera a la cédula: se pide antes, en el mismo campo.
               onClick={() => (pideLaCedula({ sinCedula: cuenta.cliente?.cedula === null, pedidos: pedidos.filter((p) => p.cuentaId === cuenta.id).length }) ? setCompletando({ cuenta, luego: "PEDIDO" }) : setVista("pedido"))}
-              className="w-full"
+              className="min-h-14 w-full text-lg"
             >
-              <NotebookPen size={17} aria-hidden="true" />
+              <NotebookPen size={18} aria-hidden="true" />
               {enEspera ? "Seguir con el pedido" : "Tomar pedido"}
             </Button>
-            {chargeableLines(cuenta).length === 0 ? (
-              // Nada que cobrar (B6-5): no se manda a la caja, se libera.
-              <Button variant="neutral" onClick={() => setLiberando(cuenta)} className="w-full">
-                <DoorOpen size={16} aria-hidden="true" />
-                {lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar mesa"}
-              </Button>
-            ) : cuenta.status === "ABIERTA" ? (
-              <>
-                <Button variant="neutral" onClick={() => pedirLaCuentaConServido(cuenta)} className="w-full">
-                  <Receipt size={16} aria-hidden="true" />
-                  Pide la cuenta
+            {cuenta.status === "POR_COBRAR" && (
+              <p className="text-center text-[12.5px] text-ink-3">
+                {cuenta.loQueVa
+                  ? "En la caja, pagando lo que va: la mesa sigue abierta. Si piden algo más, el pedido la trae de vuelta."
+                  : "En la cola de la caja: pagan ahí. Si piden algo más, el pedido la trae de vuelta."}
+              </p>
+            )}
+            {/* B6-23 (M-40): una fila a 48 px; lo que casi no se usa, en «Más». Cada botón parte de lo que mide su texto
+                (`flex-auto`): repartida a partes iguales, «Cambiar de mesa» se partía en el panel de la tablet. */}
+            <div className="flex gap-2">
+              {/* B3-28: pagan lo consumido hasta ahora y siguen: a la cola sin cerrar la mesa. */}
+              {loQueVaProblem(cuenta) === null && (
+                <Button variant="neutral" onClick={() => void mandarLoQueVa(cuenta)} className="min-w-0 flex-auto px-2 text-detalle">
+                  <HandCoins size={16} aria-hidden="true" className="shrink-0" />
+                  Pagar lo que va
                 </Button>
-                {/* B3-28: pagan lo consumido hasta ahora y siguen: a la cola sin cerrar la mesa. */}
-                {loQueVaProblem(cuenta) === null && (
-                  <Button variant="ghost" onClick={() => void mandarLoQueVa(cuenta)} className="w-full">
-                    <HandCoins size={16} aria-hidden="true" />
-                    Pagar lo que va
-                  </Button>
-                )}
-              </>
-            ) : cuenta.loQueVa ? (
-              <p className="text-center text-[12.5px] text-ink-3">En la caja, pagando lo que va: la mesa sigue abierta. Si piden algo más, el pedido la trae de vuelta.</p>
-            ) : (
-              <p className="text-center text-[12.5px] text-ink-3">En la cola de la caja: pagan ahí. Si piden algo más, el pedido la trae de vuelta.</p>
-            )}
-            {/* B6-21: se cambiaron de mesa: la cuenta entera va a la nueva. */}
-            {lugar.tipo === "MESA" && (
-              <Button variant="ghost" onClick={() => setCambiandoMesa(cuenta)} className="w-full" aria-haspopup="dialog">
-                <ArrowRightLeft size={16} aria-hidden="true" />
-                Cambiar de mesa
-              </Button>
-            )}
-            {/* B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o
-                no consumió / fue un error (se anula todo). */}
-            {cierraSinCobrar && chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid) && (
-              <Button variant="ghost" onClick={() => setCerrandoSinCobrar(cuenta)} className="w-full" aria-haspopup="dialog">
-                <UserX size={16} aria-hidden="true" />
-                Cerrar la mesa sin cobrar…
-              </Button>
-            )}
+              )}
+              {/* B6-21: se cambiaron de mesa: la cuenta entera va a la nueva. */}
+              {lugar.tipo === "MESA" && (
+                <Button variant="neutral" onClick={() => setCambiandoMesa(cuenta)} className="min-w-0 flex-auto px-2 text-detalle" aria-haspopup="dialog">
+                  <ArrowRightLeft size={16} aria-hidden="true" className="shrink-0" />
+                  Cambiar de mesa
+                </Button>
+              )}
+              {/* «Más» ocupa lo suyo junto a otros botones (así caben en un renglón en el panel de la tablet); solo, la fila. */}
+              <MenuDeAcciones
+                surface="tablet"
+                hacia="arriba"
+                aLoAncho
+                neutral
+                className={loQueVaProblem(cuenta) === null || lugar.tipo === "MESA" ? "shrink-0" : "min-w-0 flex-1"}
+                acciones={[
+                  ...(cuenta.status === "ABIERTA" && chargeableLines(cuenta).length > 0
+                    ? [{ id: "cuenta", texto: "Pide la cuenta para irse", icono: <Receipt size={16} />, onElegir: () => pedirLaCuentaConServido(cuenta) }]
+                    : []),
+                  // Nada que cobrar (B6-5): no se manda a la caja, se libera.
+                  ...(chargeableLines(cuenta).length === 0
+                    ? [{ id: "liberar", texto: lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar la mesa", icono: <DoorOpen size={16} />, onElegir: () => setLiberando(cuenta) }]
+                    : []),
+                  // B6-13: cerrar la mesa sin cobrar, de supervisión y administración: se fue sin pagar (deuda, B3-11) o no
+                  // consumió / fue un error (se anula todo).
+                  ...(cierraSinCobrar && chargeableLines(cuenta).length > 0 && !cuenta.lines.some((l) => l.paid)
+                    ? [{ id: "cerrar", texto: "Cerrar la mesa sin cobrar…", icono: <UserX size={16} />, onElegir: () => setCerrandoSinCobrar(cuenta), peligro: true }]
+                    : []),
+                ]}
+              />
+            </div>
           </>
         )
       )}

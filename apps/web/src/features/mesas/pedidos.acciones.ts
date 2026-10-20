@@ -1,6 +1,6 @@
 "use server";
 
-import type { NotasRapidasDto, PedidoDto, PedidoEnviadoDto, PedidosDelLocalDto, Resultado } from "@l2/contracts";
+import type { NotasRapidasDto, PedidoDto, PedidoEnviadoDto, PedidosDelLocalDto, Resultado, MasPedidosDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -41,6 +41,13 @@ export async function servirPedido(entrada: unknown): Promise<Resultado<PedidoDt
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).pedidos.servir(ctx, entrada);
+}
+
+/** «Lo más pedido hoy» (B6-23): los 8 platos más pedidos del día (temprano, de la semana). */
+export async function leerMasPedidos(): Promise<Resultado<MasPedidosDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).pedidos.masPedidos(ctx);
 }
 
 /** Las notas rápidas de un plato (B6-12): las más escritas para ese producto, y las de su categoría. */

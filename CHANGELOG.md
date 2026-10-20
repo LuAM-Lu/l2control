@@ -16,6 +16,28 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.150.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: el mesero más ágil.
+
+### Añadido
+- **«Lo más pedido hoy»**, la primera pestaña de la carta del mesero y de la venta directa de la caja: los 8 platos
+  más pedidos del día (temprano, los de la semana), en vivo. Un pedido de uno de ellos: el plato, «Revisar y enviar a
+  cocina» y «Enviar».
+- Un pedido a una mesa que se quedó sin cuenta trae **«Sentar»** en el aviso: sentada otra vez, el pedido sale solo en
+  su cuenta nueva. Con partes iguales cobradas, **«Abrir otra cuenta en esta mesa»**, con el mismo cliente, en un toque.
+- Ajustes → Sucursal: **«¿Ya se sirvió todo? (min)»** (10 de fábrica).
+
+### Cambiado
+- La mesa: «Tomar pedido» arriba y grande; debajo, una fila a 48 px con «Pagar lo que va», «Cambiar de mesa» y «Más»
+  (Pide la cuenta para irse, Liberar la mesa, Cerrar la mesa sin cobrar). Ninguna acción queda debajo de los pedidos.
+- «¿Ya se sirvió todo?» pregunta solo por los platos de más de esos minutos sin marcar servidos.
+- El menú «Más» se cierra con Esc sin cerrar la capa en la que está.
+
+### Corregido
+- Sentar en una mesa cuya cuenta cerró otro equipo, sin el canal en vivo, ya no choca con «La mesa cambió»: la tablet
+  vuelve a leer la mesa antes.
+
 ## [0.149.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: «Pedir anulación».

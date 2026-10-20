@@ -65,6 +65,11 @@ type Valor = Readonly<{
   descuento: (cmd: AplicarDescuentoCommand, autorizacion?: unknown) => Promise<Resultado<FamilyAccountDto>>;
   /** Adopta una cuenta que el servidor acaba de devolver por otra vía (la entrada o la salida del parque). */
   adoptar: (cuenta: FamilyAccountDto) => void;
+  /**
+   * Vuelve a leer las cuentas del servidor (B6-23): cuando un rechazo dice que lo que se ve ya no es así y el canal en vivo
+   * no lo trajo (se cortó o llega tarde).
+   */
+  refrescar: () => Promise<void>;
   /** Siempre `true`: las cuentas llegan del servidor con la página. Se mantiene para quien lo mira. */
   cargado: boolean;
 }>;
@@ -247,7 +252,7 @@ export function CuentasProvider({ inicial, children }: { inicial: readonly Famil
   // Una venta de mostrador vaciada no es una cuenta: no sale en ninguna estación.
   const vigentes = useMemo(() => cuentas.filter((c) => !isDiscardedDraft(c)), [cuentas]);
   const valor = useMemo(
-    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cortesia, anularPedido, cerrarSinCobrar, descuento, adoptar, cargado: true }),
+    () => ({ cuentas: vigentes, guardar, descartar, cobrar, anular, cortesia, anularPedido, cerrarSinCobrar, descuento, adoptar, refrescar, cargado: true }),
     [vigentes, guardar, descartar, cobrar, anular, cortesia, anularPedido, cerrarSinCobrar, descuento, adoptar],
   );
   return <Contexto.Provider value={valor}>{children}</Contexto.Provider>;

@@ -242,6 +242,14 @@ export const NotasRapidasQuerySchema = z.strictObject({ productId: z.uuid("Produ
 export const NotasRapidasSchema = z.object({ notas: z.array(z.string().min(1).max(80)).max(5) });
 export type NotasRapidasDto = z.infer<typeof NotasRapidasSchema>;
 
+/**
+ * «Lo más pedido hoy» (B6-23, M-40): los 8 platos más pedidos del día de negocio en esta sucursal, del más pedido al
+ * menos; temprano, cuando todavía no hay pedidos, los de los últimos 7 días (`periodo` lo dice). Lo pone arriba de la carta
+ * el mesero y la venta directa de la caja. Se aprende de los pedidos: nadie lo configura.
+ */
+export const MasPedidosSchema = z.object({ periodo: z.enum(["HOY", "SEMANA"]), productos: z.array(IdSchema).max(8) });
+export type MasPedidosDto = z.infer<typeof MasPedidosSchema>;
+
 /** Deshacer, en el momento, un plato marcado servido por error (B6-11). */
 export const DeshacerServidoCommandSchema = z.strictObject({ pedidoId: z.uuid("Pedido desconocido"), linea: z.number().int().min(0).max(39) });
 export type DeshacerServidoCommand = z.infer<typeof DeshacerServidoCommandSchema>;
