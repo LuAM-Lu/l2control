@@ -71,6 +71,11 @@ export type AccountDoc = Readonly<{
   juntadaEn?: unknown;
   /** La cuenta de una persona al dividir por ítems (B3-20): de qué cuenta salió y qué persona es. */
   divididaDe?: unknown;
+  /**
+   * «Cobrar lo que va» (B3-28): la cuenta del salón está en la cola para pagar lo consumido hasta ahora y, cobrada, sigue
+   * abierta. Lo que pidan después se cobra aparte.
+   */
+  loQueVa?: true | undefined;
 }>;
 
 /* ─────────────────────────────────────────────────────────── qué se cobra */
@@ -126,6 +131,32 @@ export function markPartPaid<A extends AccountDoc>(c: A): A {
   const pagadas = c.split.paid + 1;
   if (pagadas >= c.split.parts) return markPaid({ ...c, split: { parts: c.split.parts, paid: c.split.parts } });
   return { ...c, split: { parts: c.split.parts, paid: pagadas }, status: "POR_COBRAR" };
+}
+
+/** Por qué una cuenta no puede pagar lo que va (B3-28). */
+export type LoQueVaProblem = "NO_ES_DEL_SALON" | "NO_ABIERTA" | "SIN_PENDIENTE";
+
+/**
+ * ¿Puede esta cuenta pagar lo consumido hasta ahora y seguir abierta (B3-28)? Una mesa o una cuenta de pie (no la de un
+ * cumpleaños, que espera en la cola con su saldo, ni la de una persona al dividir), abierta y con algo que cobrar.
+ */
+export function loQueVaProblem(c: Pick<AccountDoc, "kind" | "status" | "lines" | "dePie" | "divididaDe" | "juntadaEn">): LoQueVaProblem | null {
+  if ((c.kind !== "MESA" && !(c.kind === "MOSTRADOR" && c.dePie)) || c.divididaDe !== undefined || c.juntadaEn !== undefined) return "NO_ES_DEL_SALON";
+  if (c.status !== "ABIERTA") return "NO_ABIERTA";
+  if (chargeableLines(c).length === 0) return "SIN_PENDIENTE";
+  return null;
+}
+
+/**
+ * Se cobró lo que va (B3-28), o una parte más de ello. Mientras queden partes, sigue en la cola; con la última, lo que se
+ * debía queda pagado y la cuenta del salón vuelve a la mesa abierta, sin división (era de lo cobrado) ni descuento (lo
+ * consume el cobro). Lo que pidan después se cobra aparte: cada cosa, una vez.
+ */
+export function markPartPaidSoFar<A extends AccountDoc>(c: A): A {
+  const p = markPartPaid(c);
+  if (p.status === "POR_COBRAR") return p;
+  const { split: _split, loQueVa: _loQueVa, ...resto } = p;
+  return { ...(resto as unknown as A), status: "ABIERTA" };
 }
 
 /**
@@ -196,7 +227,8 @@ export type AccountChangeProblem =
   | "ANULACION_DESDE_LA_PANTALLA"
   | "POR_USO_DESDE_LA_PANTALLA"
   | "EVENTO_DESDE_LA_PANTALLA"
-  | "PEDIDO_DESDE_LA_PANTALLA";
+  | "PEDIDO_DESDE_LA_PANTALLA"
+  | "LO_QUE_VA_NO_VALE";
 
 export type AccountChange = Readonly<{ problem: AccountChangeProblem; lineId?: string }>;
 
@@ -242,6 +274,12 @@ export function accountChangeProblem(
   if (JSON.stringify(before?.descuento ?? null) !== JSON.stringify(after.descuento ?? null)) return { problem: "DESCUENTO_DESDE_LA_PANTALLA" };
   // El reparto en partes sale del total: con un descuento puesto, la cuenta no se divide.
   if (after.descuento !== undefined && after.split !== undefined) return { problem: "DIVISION_CON_DESCUENTO" };
+  // «Cobrar lo que va» (B3-28): una cuenta del salón que va a la cola desde la mesa abierta, con algo que cobrar; ya en la
+  // cola, se puede volver a guardar así.
+  if (after.loQueVa) {
+    if (after.status !== "POR_COBRAR") return { problem: "LO_QUE_VA_NO_VALE" };
+    if (!before?.loQueVa && (!before || loQueVaProblem(before) !== null)) return { problem: "LO_QUE_VA_NO_VALE" };
+  }
   if (!before) {
     // La cuenta de una familia la abre la entrada del parque (B4-2), con sus estancias y el precio
     // del tarifario: una pantalla no la inventa.
@@ -538,16 +576,18 @@ export function receiveSession<A extends AccountDoc & { mode?: string | undefine
  */
 export type LineOrigin = Readonly<{ cuentaId: string; orderNumber?: number | undefined; family: string; kind: AccountKind; dePie?: true | undefined }>;
 
-export type JoinProblem = "EVENTO" | "CERRADA" | "COBRO_EN_CURSO" | "CON_DESCUENTO" | "SIN_PENDIENTE";
+export type JoinProblem = "EVENTO" | "CERRADA" | "COBRO_EN_CURSO" | "CON_DESCUENTO" | "SIN_PENDIENTE" | "LO_QUE_VA";
 
 /**
  * Por qué esta cuenta no entra en un cobro junto (B3-16), o `null`. No se juntan las de un cumpleaños (las cobra su
  * reserva), las cerradas, las que ya cobraron una parte de su división ni las que llevan un descuento (se calculó sobre
  * su total: se quita, o se cobra sola); y una sin nada pendiente no tiene qué juntar.
  */
-export function joinProblem(c: Pick<AccountDoc, "kind" | "status" | "split" | "descuento" | "lines">): JoinProblem | null {
+export function joinProblem(c: Pick<AccountDoc, "kind" | "status" | "split" | "descuento" | "lines" | "loQueVa">): JoinProblem | null {
   if (c.kind === "EVENTO") return "EVENTO";
   if (c.status !== "ABIERTA" && c.status !== "POR_COBRAR") return "CERRADA";
+  // B3-28: paga lo que va y sigue en su mesa; juntarla la cerraría.
+  if (c.loQueVa) return "LO_QUE_VA";
   if (c.split && c.split.paid > 0) return "COBRO_EN_CURSO";
   if (c.descuento) return "CON_DESCUENTO";
   if (chargeableLines(c).length === 0) return "SIN_PENDIENTE";
@@ -828,7 +868,9 @@ export function isPendingAtClose(c: Pick<AccountDoc, "kind" | "lines" | "status"
  * se borra) y sale en las excepciones del día.
  */
 export function markUncollectible<A extends AccountDoc>(c: A): A {
-  return { ...c, status: "INCOBRABLE" };
+  // Si estaba pagando lo que va (B3-28), ya no: se fue.
+  const { loQueVa: _loQueVa, ...resto } = c;
+  return { ...(resto as unknown as A), status: "INCOBRABLE" };
 }
 
 /** Por qué una cuenta no se puede dar por incobrable. */

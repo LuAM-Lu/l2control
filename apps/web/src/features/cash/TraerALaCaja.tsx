@@ -1,6 +1,6 @@
 "use client";
 
-import { Clock, Receipt } from "lucide-react";
+import { Clock, HandCoins, Receipt } from "lucide-react";
 import { toMajor } from "@l2/domain-money";
 import { Button, Dialog, formatMoneyVE } from "@l2/ui";
 import { nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
@@ -15,14 +15,19 @@ import { useReloj } from "../sucursal/SucursalProvider.tsx";
  * incobrables. Ahora la caja las ve en «Abiertas en el salón», con quién las abrió y cuánto llevan; aquí dice lo que se
  * sabe de una y la trae a la cola como si hubiera pedido la cuenta («Pide la cuenta»), para cobrarla sin pasar por el
  * mesero. Si piden algo más, el pedido la devuelve a la mesa (B6-18).
+ *
+ * B3-28: o «Cobrar lo que va»: paga lo consumido hasta ahora (también lo que falta servir) y la mesa sigue abierta.
  */
 export function TraerALaCaja({
   abierta,
   ahora,
   trayendo,
   onTraer,
+  onLoQueVa,
   onCerrar,
 }: {
+  /** «Cobrar lo que va» (B3-28): a la cola sin cerrar la mesa. */
+  onLoQueVa: () => void;
   /** La cuenta, o `null` (cerrado). */
   abierta: AbiertaEnElSalon | null;
   ahora: number;
@@ -44,15 +49,17 @@ export function TraerALaCaja({
       abierto={c !== null}
       onCerrar={onCerrar}
       titulo={c ? `${nombreDeCuenta(c)} no ha pedido la cuenta` : ""}
-      descripcion="Si ya se van, tráela: pasa a la cola como si hubiera pedido la cuenta y se cobra aquí. Si piden algo más, vuelve a la mesa."
+      descripcion="Si ya se van, tráela: pasa a la cola como si hubiera pedido la cuenta y se cobra aquí. Si quieren pagar y seguir, «Cobrar lo que va»: la mesa sigue abierta."
       pie={
-        <div className="flex flex-wrap justify-end gap-2">
-          <Button surface="pos" variant="neutral" onClick={onCerrar} disabled={trayendo}>
-            Volver
-          </Button>
-          <Button surface="pos" variant="primary" onClick={onTraer} disabled={trayendo}>
+        // Las dos salidas, a lo ancho: cerrar la cuenta o pagar y seguir. Volver es la «×» (o Esc).
+        <div className="flex flex-col gap-2">
+          <Button surface="pos" variant="primary" onClick={onTraer} disabled={trayendo} className="w-full">
             <Receipt className="size-(--icono-texto)" aria-hidden="true" />
             {trayendo ? "Pasando a la caja…" : "Traer a la caja y cobrar"}
+          </Button>
+          <Button surface="pos" variant="neutral" onClick={onLoQueVa} disabled={trayendo} className="w-full">
+            <HandCoins className="size-(--icono-texto)" aria-hidden="true" />
+            Cobrar lo que va: la mesa sigue abierta
           </Button>
         </div>
       }

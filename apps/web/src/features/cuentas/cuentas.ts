@@ -235,10 +235,21 @@ export function anadirPedido(
  */
 export function pasarACaja(c: FamilyAccountDto): FamilyAccountDto {
   const hayPendiente = chargeableLines(c).length > 0;
+  // Pedir la cuenta es para irse: si iba a pagar lo que va (B3-28), ahora se cobra entera.
+  const { loQueVa: _loQueVa, ...resto } = c;
   return FamilyAccountSchema.parse({
-    ...c,
+    ...resto,
     status: hayPendiente ? "POR_COBRAR" : c.status,
   });
+}
+
+/**
+ * «Pagar lo que va» (B3-28, M-40): la cuenta del salón va a la cola de la caja sin cerrar la mesa; cobrada, vuelve
+ * abierta y lo que pidan después se cobra aparte. Solo si `loQueVaProblem` lo deja (una mesa o de pie, abierta y con algo
+ * que cobrar).
+ */
+export function pagarLoQueVa(c: FamilyAccountDto): FamilyAccountDto {
+  return FamilyAccountSchema.parse({ ...c, status: "POR_COBRAR", loQueVa: true });
 }
 
 /**

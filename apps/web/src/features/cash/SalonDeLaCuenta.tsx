@@ -1,6 +1,6 @@
 "use client";
 
-import { Baby, HandPlatter, Receipt } from "lucide-react";
+import { Baby, HandCoins, HandPlatter, Receipt } from "lucide-react";
 import type { EstanciaDto, FamilyAccountDto } from "@l2/contracts";
 import { esMesaDelCumpleanos, ninosDeLaMesa } from "../cuentas/cuentas.ts";
 import { platosSinServir, textoDePlatos } from "../mesas/mesas.ts";
@@ -39,15 +39,25 @@ export function SalonDeLaCuenta({ cuenta }: { cuenta: FamilyAccountDto }) {
   const ninos = cuenta.kind === "MESA" ? ninosDeLaMesa(cuenta) : [];
   const enSala = new Map((sala?.sessions ?? []).map((s) => [s.id, s]));
   const pidio = ahora > 0 ? cuenta.pendingSince : undefined;
-  if (pidio === undefined && sinServir === "" && ninos.length === 0) return null;
+  if (pidio === undefined && sinServir === "" && ninos.length === 0 && !cuenta.loQueVa) return null;
   return (
     <div className="flex flex-col gap-1 border-b border-line px-5 py-1.5 text-[12px] text-ink-3">
+      {/* B3-28: paga lo que va y sigue en su mesa. */}
+      {cuenta.loQueVa && (
+        <p className="flex items-start gap-1.5 rounded-[var(--radius-control)] border border-brand/40 bg-brand/10 px-2.5 py-1.5 text-detalle text-ink">
+          <HandCoins className="mt-0.5 size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />
+          <span>
+            <span className="font-semibold">Cobrar lo que va:</span> todo lo pedido hasta ahora, también lo que falta servir. La mesa sigue abierta y lo
+            pagado se ve «Pagado» en la tablet.
+          </span>
+        </p>
+      )}
       {(pidio !== undefined || sinServir !== "") && (
         <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
           {pidio !== undefined && (
             <span className="tnum inline-flex items-center gap-1">
               <Receipt size={12} aria-hidden="true" />
-              Pidió la cuenta hace {duracion(minutosDesde(pidio, ahora))}
+              {cuenta.loQueVa ? "Mandó a pagar lo que va" : "Pidió la cuenta"} hace {duracion(minutosDesde(pidio, ahora))}
             </span>
           )}
           {sinServir !== "" && (

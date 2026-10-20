@@ -247,7 +247,8 @@ export function casosPedidos(base: Base): CasosPedidos {
           const volvio = actual?.cuenta.status === "POR_COBRAR" && actual.cuenta.kind !== "EVENTO";
           const deLaMesa = (c: FamilyAccountDto): FamilyAccountDto => {
             if (!volvio) return c;
-            const { pendingSince: _espera, split: _partes, ...enLaMesa } = c;
+            // B3-28: si iba a pagar lo que va, ya no: lo nuevo se pide y se cobra después.
+            const { pendingSince: _espera, split: _partes, loQueVa: _loQueVa, ...enLaMesa } = c;
             return { ...enLaMesa, status: "ABIERTA" };
           };
           const cuenta: FamilyAccountDto = actual

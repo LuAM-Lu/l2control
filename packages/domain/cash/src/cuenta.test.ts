@@ -48,6 +48,8 @@ import {
   annulEntry,
   annulEntryAtTable,
   sesionDeLinea,
+  loQueVaProblem,
+  markPartPaidSoFar,
 } from "./cuenta.ts";
 
 const usd = (minor: string) => ({ minor, currency: "USD" });
@@ -77,6 +79,49 @@ const CATALOGO: Record<string, ProductAtNow> = {
   "p-pirulin": { name: "Pirulín", amountMinor: 250n, taxCode: "EXENTA" },
 };
 const productAt = (id: string) => CATALOGO[id] ?? null;
+
+describe("cobrar lo que va (B3-28)", () => {
+  const mesa = (extra: Partial<AccountDoc> = {}): AccountDoc => ({ kind: "MESA", status: "ABIERTA", tableId: "m4", sessionIds: [], closedSessionIds: [], lines: [agua("a1", { orderId: "o1" }), agua("a2", { orderId: "o1" })], ...extra });
+
+  test("una mesa o una cuenta de pie, abierta y con algo que cobrar; las demás, no", () => {
+    assert.equal(loQueVaProblem(mesa()), null);
+    assert.equal(loQueVaProblem({ ...mostrador([agua("a1")]), status: "ABIERTA", dePie: true }), null);
+    assert.equal(loQueVaProblem(familia()), "NO_ES_DEL_SALON");
+    assert.equal(loQueVaProblem({ ...mostrador([agua("a1")]), status: "ABIERTA" }), "NO_ES_DEL_SALON");
+    assert.equal(loQueVaProblem(mesa({ status: "POR_COBRAR" })), "NO_ABIERTA");
+    assert.equal(loQueVaProblem(mesa({ lines: [agua("a1", { paid: true })] })), "SIN_PENDIENTE");
+  });
+
+  test("cobrada, lo que se debía queda pagado y la mesa sigue abierta, fuera de la cola; lo nuevo se cobra aparte", () => {
+    const cobrada = markPartPaidSoFar(mesa({ status: "POR_COBRAR", loQueVa: true }));
+    assert.equal(cobrada.status, "ABIERTA");
+    assert.equal(cobrada.loQueVa, undefined);
+    assert.ok(cobrada.lines.every((l) => l.paid));
+    // Piden un postre: solo eso se debe.
+    const conPostre = { ...cobrada, lines: [...cobrada.lines, agua("p1", { orderId: "o2" })] };
+    assert.deepEqual(chargeableLines(conPostre).map((l) => l.id), ["p1"]);
+    assert.equal(markPaid({ ...conPostre, status: "POR_COBRAR" }).status, "COBRADA");
+  });
+
+  test("en partes iguales, sigue en la cola hasta la última; con ella vuelve a la mesa sin división", () => {
+    const enPartes = mesa({ status: "POR_COBRAR", loQueVa: true, split: { parts: 2, paid: 0 } });
+    const una = markPartPaidSoFar(enPartes);
+    assert.deepEqual([una.status, una.loQueVa, una.split?.paid], ["POR_COBRAR", true, 1]);
+    const dos = markPartPaidSoFar(una);
+    assert.deepEqual([dos.status, dos.split, dos.loQueVa], ["ABIERTA", undefined, undefined]);
+  });
+
+  test("el servidor solo la acepta desde la mesa abierta, en la cola; no se junta; incobrable, deja de ir", () => {
+    const enCola = { ...mesa(), status: "POR_COBRAR" as const, loQueVa: true as const };
+    assert.equal(accountChangeProblem(mesa(), enCola, productAt), null);
+    assert.equal(accountChangeProblem(enCola, { ...enCola }, productAt), null, "ya en la cola, se vuelve a guardar");
+    assert.equal(accountChangeProblem(mesa(), { ...enCola, status: "ABIERTA" }, productAt)?.problem, "LO_QUE_VA_NO_VALE");
+    assert.equal(accountChangeProblem(familia(), { ...familia(), status: "POR_COBRAR", loQueVa: true }, productAt)?.problem, "LO_QUE_VA_NO_VALE");
+    assert.equal(accountChangeProblem(mesa({ status: "POR_COBRAR" }), enCola, productAt)?.problem, "LO_QUE_VA_NO_VALE", "la que pidió la cuenta se cobra entera");
+    assert.equal(joinProblem(enCola), "LO_QUE_VA");
+    assert.equal(markUncollectible(enCola).loQueVa, undefined);
+  });
+});
 
 describe("qué se cobra", () => {
   test("ni lo pagado, ni lo movido, ni lo regalado", () => {

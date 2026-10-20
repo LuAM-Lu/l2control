@@ -11,6 +11,7 @@ import {
   FileX,
   Hourglass,
   DoorOpen,
+  HandCoins,
   HandPlatter,
   IdCard,
   Link2,
@@ -43,14 +44,14 @@ import type {
 import Link from "next/link";
 import type { Route } from "next";
 import { Badge, Button, Cajon, Confirmacion, Container, Dialog, Marquesina, MoneyDisplay, Sheet, StatTile, Stepper, avisar, cn, useMediaQuery, type Tone } from "@l2/ui";
-import { chargeableLines } from "@l2/domain-cash";
+import { chargeableLines, loQueVaProblem } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
 import { DESHACER_SERVIDO_MS, anularSinPin, exigidoAlSentar, pideLaCedula, type Exigido } from "@l2/domain-orders";
 import { useOperador } from "../identity/operador.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
-import { esMesaDelCumpleanos, ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
+import { esMesaDelCumpleanos, ninosDeLaMesa, nombreDeCuenta, numeroDeOrden, pagarLoQueVa, pasarACaja, pendiente } from "../cuentas/cuentas.ts";
 import {
   EN_VERTICAL,
   loQuePideAtencion,
@@ -206,6 +207,17 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   const otraFamilia = usePreguntaOtraFamilia();
   /** B6-21: la cuenta que se cambia de mesa. */
   const [cambiandoMesa, setCambiandoMesa] = useState<FamilyAccountDto | null>(null);
+  /**
+   * «Pagar lo que va» (B3-28): la cuenta va a la cola de la caja sin cerrar la mesa. Se cobra todo lo pedido, también lo
+   * que falta servir; cobrada, vuelve abierta con lo pagado «Pagado».
+   */
+  async function mandarLoQueVa(c: FamilyAccountDto) {
+    const r = await guardar(pagarLoQueVa(c)).catch(() => null);
+    if (!r) return avisar.error("Sin conexión con el servidor: no pasó a la caja. Vuelve a intentarlo.");
+    if (!r.ok) return avisar.error(r.mensaje);
+    avisar.ok(`${nombreDeCuenta(c)}: pagan lo que va en la caja`, { detalle: "La mesa sigue abierta: lo pagado se verá «Pagado» y lo que pidan después se cobra al final." });
+  }
+
   /** La cuenta que se va a liberar sin consumo (B6-5), mientras se confirma. */
   const [liberando, setLiberando] = useState<FamilyAccountDto | null>(null);
   const [liberandoEnvio, setLiberandoEnvio] = useState(false);
@@ -674,10 +686,21 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
                 {lugar.tipo === "PIE" || cuentasDelLugar.length > 1 ? "Liberar esta cuenta" : "Liberar mesa"}
               </Button>
             ) : cuenta.status === "ABIERTA" ? (
-              <Button variant="neutral" onClick={() => pedirLaCuentaConServido(cuenta)} className="w-full">
-                <Receipt size={16} aria-hidden="true" />
-                Pide la cuenta
-              </Button>
+              <>
+                <Button variant="neutral" onClick={() => pedirLaCuentaConServido(cuenta)} className="w-full">
+                  <Receipt size={16} aria-hidden="true" />
+                  Pide la cuenta
+                </Button>
+                {/* B3-28: pagan lo consumido hasta ahora y siguen: a la cola sin cerrar la mesa. */}
+                {loQueVaProblem(cuenta) === null && (
+                  <Button variant="ghost" onClick={() => void mandarLoQueVa(cuenta)} className="w-full">
+                    <HandCoins size={16} aria-hidden="true" />
+                    Pagar lo que va
+                  </Button>
+                )}
+              </>
+            ) : cuenta.loQueVa ? (
+              <p className="text-center text-[12.5px] text-ink-3">En la caja, pagando lo que va: la mesa sigue abierta. Si piden algo más, el pedido la trae de vuelta.</p>
             ) : (
               <p className="text-center text-[12.5px] text-ink-3">En la cola de la caja: pagan ahí. Si piden algo más, el pedido la trae de vuelta.</p>
             )}
@@ -1596,6 +1619,7 @@ function PedidosDeLaCuenta({
             const propias = cuenta.lines.filter((l) => l.orderId === p.id);
             const anulable = propias.some((l) => !l.paid && !l.movedTo && !l.cortesia && !l.anulacion);
             const anulado = propias.length > 0 && propias.every((l) => l.anulacion !== undefined);
+            const pagado = !anulado && propias.length > 0 && propias.every((l) => l.paid || l.anulacion !== undefined || l.cortesia !== undefined);
             // Una comanda anulada no se reimprime: la cocina no tiene que preparar nada de ella.
             const fallo = p.comanda.estado === "NO_SALIO" && !anulado;
             // El papel «ANULAR» que no salió (B6-6): esa área no se enteró y hay que decírselo.
@@ -1606,9 +1630,17 @@ function PedidosDeLaCuenta({
             return (
               <li key={p.id} className={cn("rounded-[var(--radius-control)] border px-3 py-2.5", fallo || anulacionSinPapel ? "border-state-crit/50 bg-state-crit-bg" : "border-line bg-base/40")}>
                 <div className="flex items-center justify-between gap-2">
-                  <Badge tone={anulado ? "idle" : e.tono} icon={anulado ? <Ban size={13} aria-hidden="true" /> : e.icono}>
-                    {anulado ? "Pedido anulado" : unaSola?.area ? `${e.texto} · ${AREA[unaSola.area].nombre}` : e.texto}
-                  </Badge>
+                  <span className="flex flex-wrap items-center gap-1.5">
+                    <Badge tone={anulado ? "idle" : e.tono} icon={anulado ? <Ban size={13} aria-hidden="true" /> : e.icono}>
+                      {anulado ? "Pedido anulado" : unaSola?.area ? `${e.texto} · ${AREA[unaSola.area].nombre}` : e.texto}
+                    </Badge>
+                    {/* B3-28: cobrado lo que va, su pedido dice «Pagado». */}
+                    {pagado && (
+                      <Badge tone="ok" icon={<CircleCheckBig size={13} aria-hidden="true" />}>
+                        Pagado
+                      </Badge>
+                    )}
+                  </span>
                   <span className="tnum text-[12px] text-ink-3">
                     {comanda(p.numero)} · {ahora > 0 ? conSuHora(p.enviadoEn, ahora, reloj) : ""}
                   </span>

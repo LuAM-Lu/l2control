@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.146.0 en `main` (publicada, la 0.143.0) · 146 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.147.0 en `main` (publicada, la 0.143.0) · 147 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2145,8 +2145,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   caja con quién la abrió, y la caja la cobra sin pasar por el mesero.
   *B3-27: la cuenta lleva `abiertaPor` (de `account.opened_by_name`), que pone la lectura (`cuentas.leer`, `vigenteDe`) como al cliente y que `guardarVersion` y `guardar` no toman de la pantalla. El ajuste `atencionSinCuentaMin` (45 de fábrica). En la web, `abiertasEnElSalon` y el aviso `SIN_CUENTA` en `avisosDelSalon` (desde el último pedido o lo último servido; al salón, si no espera un plato), la sección plegable en `ColaCuentas` y `TraerALaCaja` (como «Pide la cuenta»); en el cierre, las que no pidieron la cuenta primero. `pendientes-del-salon.test-db.ts` (1 nueva) y `avisos.test.ts` (1). Visto en el navegador en los dos temas: la sección plegada y abierta, el diálogo con una cuenta de otro día y «Traer a la caja y cobrar», y el ajuste.*
 
-- [~] **B3-28 · «Cobrar lo que va»** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b3-28`.*
+- [x] **B3-28 · «Cobrar lo que va»** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.147.0).*
   → Una mesa o una cuenta de pie paga lo consumido hasta ahora y sigue abierta: desde la caja («Abiertas en el salón»,
   sin esperar al mesero) o desde el mesero, que lo manda a la cola sin cerrar la mesa. Se cobra todo lo pedido, también
   lo que falta servir (la caja lo ve marcado). Lo pagado se ve «Pagado» en la tablet al instante; lo que pidan después
@@ -2154,6 +2153,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   de venta, se registra en la caja. Cambia la regla de que un cobro lleve todo lo pendiente (B3-20) solo para las
   cuentas del salón; cada cosa se cobra una vez. Criterio: una mesa paga $ 20 de lo que va, pide un postre y la caja le
   cobra solo el postre al irse.
+  *B3-28: `loQueVa` en la cuenta (solo de una mesa o de pie, de la mesa abierta a la cola: `accountChangeProblem` lo niega con `LO_QUE_VA_NO_VALE`). En `@l2/domain-cash`, `loQueVaProblem` y `markPartPaidSoFar` (cobrada la última parte, la cuenta vuelve ABIERTA sin división ni descuento), `joinProblem` LO_QUE_VA y `markUncollectible` que lo quita. `cuentas.cobrar` lo usa (asiento con `sigueAbierta`); `cuentas.anular` deja abierta la mesa que sigue sentada y «Cobrarla de nuevo» le pone `loQueVa`; volver a pedir y «Pide la cuenta» lo quitan; `dividir` lo niega. Cada línea se cobra una vez (la regla de B3-20 no cambia: un cobro lleva todo lo pendiente de ese momento). En la web, `pagarLoQueVa`, el botón de la tablet, «Pagado» en cada pedido, el aviso de la caja (`SalonDeLaCuenta`), la marca en la cola y el segundo botón de `TraerALaCaja`. `lo-que-va.test-db.ts` (5 nuevas, con el criterio) y `cuenta.test.ts` (4). Visto en el navegador en los dos temas: la tablet manda, la caja cobra y la mesa sigue abierta con «Pagado».*
+
 - [ ] **B3-29 · La caja más clara** (M-40). Antes de la 1.0.0.
   → En la cabecera de la cuenta, «Añadir ítems» y «Más» (Cambiar de mesa, Se fue sin pagar, Pedir anulación, Cerrar
   sin cobrar, cada uno si aplica), a cualquier ancho: en la laptop de 1366 px no caben con su texto. «El resto en…»

@@ -48,6 +48,7 @@ const MOTIVO: Record<JoinProblem, (orden: string) => string> = {
   COBRO_EN_CURSO: (o) => `${o} ya cobró una parte de su división: termina de cobrarla primero.`,
   CON_DESCUENTO: (o) => `${o} lleva un descuento: quítalo, o cóbrala sola.`,
   SIN_PENDIENTE: (o) => `${o} no tiene nada que cobrar.`,
+  LO_QUE_VA: (o) => `${o} paga lo que va y sigue en su mesa: cóbrala sola.`,
 };
 
 const cuentaCambiada = (orden: string): Rechazo => ({

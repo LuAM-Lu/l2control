@@ -58,6 +58,7 @@ import {
   type TaxRule,
 } from "@l2/domain-tax";
 import {
+  chargeableLines,
   closeSettlement,
   computeBalance,
   documentDiscountsOf,
@@ -172,6 +173,7 @@ import {
   esLineaDeMostrador,
   esMesaDelCumpleanos,
   pasarACaja,
+  pagarLoQueVa,
   esVentaDirecta,
   nombreDeCuenta,
   dividirEn,
@@ -831,7 +833,8 @@ function CobroCuenta({
   async function cobrar() {
     if (enviando) return;
     setError(null);
-    if (!modoPapel && avisadosDeSalida.current !== cuenta.id) {
+    // Lo que va (B3-28): la mesa sigue, y los niños con su tiempo; se cobra lo de ahora.
+    if (!modoPapel && !cuenta.loQueVa && avisadosDeSalida.current !== cuenta.id) {
       const enSala = ninosEnSalaDeLaCuenta(cuenta, salaDelCobro?.sessions ?? []);
       if (enSala.length > 0) {
         setNinosSinSalida(enSala.map(nombreDelNino));
@@ -2567,6 +2570,8 @@ export function CajaScreen({
     if (antes === null || antes === actual?.id) return;
     const volvio = cuentas.find((c) => c.id === antes);
     if (volvio?.status !== "ABIERTA" || (volvio.kind !== "MESA" && !volvio.dePie)) return;
+    // B3-28: la que pagó lo que va vuelve a su mesa sin deber nada: no volvió a pedir.
+    if (chargeableLines(volvio).length === 0) return;
     avisar.info(`${nombreDeCuenta(volvio)} volvió a pedir: salió de la cola`, {
       detalle: "Lo tecleado sin cobrar se descartó. Vuelve a la cola cuando pida la cuenta.",
     });
@@ -2620,9 +2625,12 @@ export function CajaScreen({
   }, [cuentas, losPedidos, ahoraDelEquipo, ajustes.atencionSinCuentaMin, busqueda, filtro]);
   const [porTraer, setPorTraer] = useState<AbiertaEnElSalon | null>(null);
   const [trayendo, setTrayendo] = useState(false);
-  /** «Traer a la caja y cobrar» (B3-27): como «Pide la cuenta» en la tablet; la caja la cobra sin pasar por el mesero. */
-  async function traerALaCaja(a: AbiertaEnElSalon) {
-    const lista = pasarACaja(a.cuenta);
+  /**
+   * «Traer a la caja y cobrar» (B3-27): como «Pide la cuenta» en la tablet; la caja la cobra sin pasar por el mesero. Con
+   * `loQueVa` (B3-28), «Cobrar lo que va»: la mesa sigue abierta después del cobro.
+   */
+  async function traerALaCaja(a: AbiertaEnElSalon, loQueVa = false) {
+    const lista = loQueVa ? pagarLoQueVa(a.cuenta) : pasarACaja(a.cuenta);
     if (lista.status !== "POR_COBRAR") {
       setPorTraer(null);
       avisar.error(`${nombreDeCuenta(a.cuenta)} no tiene nada que cobrar: se libera desde Mesas.`);
@@ -2634,7 +2642,9 @@ export function CajaScreen({
     if (!r) return avisar.error("Sin conexión con el servidor: la cuenta no pasó a la caja.");
     if (!r.ok) return avisar.error(r.mensaje);
     setPorTraer(null);
-    avisar.info(`${nombreDeCuenta(a.cuenta)} pasó a la cola de la caja`, { detalle: "Como si hubiera pedido la cuenta. Cóbrala aquí." });
+    avisar.info(`${nombreDeCuenta(a.cuenta)} pasó a la cola de la caja`, {
+      detalle: loQueVa ? "Cobra lo que va: la mesa sigue abierta después." : "Como si hubiera pedido la cuenta. Cóbrala aquí.",
+    });
     elegirOtra(a.cuenta.id);
   }
   const enElParque = useMemo(() => {
@@ -2894,7 +2904,9 @@ export function CajaScreen({
     avisar.ok(
       faltan > 0
         ? `${numeroDeOrden(cuenta)}: parte ${despues.split!.paid} de ${despues.split!.parts} cobrada`
-        : `Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`,
+        : despues.status === "ABIERTA" && cuenta.loQueVa
+          ? `Lo que va de ${numeroDeOrden(cuenta)}, cobrado: ${formatMoneyVE(r.total, "USD")} · la mesa sigue abierta`
+          : `Orden ${numeroDeOrden(cuenta)} cobrada: ${formatMoneyVE(r.total, "USD")}`,
       {
         detalle: [
           r.venta.personal
@@ -3105,7 +3117,7 @@ export function CajaScreen({
       <h1 className="sr-only">Caja</h1>
       {/* B6-14: el aviso suave de la cuenta del salón que pidió y sigue sin cobrar. */}
       <AvisosDelSalon para="CAJA" porLimpiar={porLimpiarPorId} />
-      <TraerALaCaja abierta={porTraer} ahora={ahoraDelEquipo} trayendo={trayendo} onTraer={() => porTraer && void traerALaCaja(porTraer)} onCerrar={() => setPorTraer(null)} />
+      <TraerALaCaja abierta={porTraer} ahora={ahoraDelEquipo} trayendo={trayendo} onTraer={() => porTraer && void traerALaCaja(porTraer)} onLoQueVa={() => porTraer && void traerALaCaja(porTraer, true)} onCerrar={() => setPorTraer(null)} />
       <Container
         as="main"
         ancho="muro"
@@ -3283,7 +3295,8 @@ export function CajaScreen({
                   },
                   onDividir: (n) => guardar(n === 1 ? unirCuenta(actual) : dividirEn(actual, n)),
                   // La cuenta de una persona ya es parte de una división: se cobra, o se une de nuevo desde la suya.
-                  ...(actual.divididaDe ? {} : { onPorItems: () => setDividiendoPorItems(actual.id) }),
+                  // Lo que va (B3-28) se cobra entero o en partes iguales: dividirla la sacaría de su mesa.
+                  ...(actual.divididaDe || actual.loQueVa ? {} : { onPorItems: () => setDividiendoPorItems(actual.id) }),
                   // B3-25: lo que salió en su comanda se anula desde el ticket (no desde la carga de papel).
                   ...(modoPapel
                     ? {}
