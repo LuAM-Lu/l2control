@@ -41,11 +41,18 @@ export function AyudaPanel({
     setLeyendo(null);
   }, [abierto]);
 
-  const actual = leyendo ?? entradaDe(ruta);
-  const delError = consulta ? problemaDe(consulta, ruta) : null;
+  // T-26: la pestaña o la vista abierta («?pestana=respaldos») elige su entrada. Se lee al abrir la ayuda, después de
+  // montar: el servidor no la conoce, y leerla al pintar haría que su HTML no coincidiera.
+  const [busqueda, setBusqueda] = useState("");
+  useEffect(() => {
+    if (abierto) setBusqueda(window.location.search);
+  }, [abierto, ruta]);
+  const aqui = `${ruta}${busqueda}`;
+  const actual = leyendo ?? entradaDe(aqui);
+  const delError = consulta ? problemaDe(consulta, aqui) : null;
   const resultados = useMemo(() => buscar(texto), [texto]);
   const recorrido = actual ? (actual.recorrido ? (RECORRIDOS.find((r) => r.id === actual.recorrido) ?? null) : null) : recorridoDe(ruta);
-  const enEstaPantalla = actual !== null && actual === entradaDe(ruta);
+  const enEstaPantalla = actual !== null && actual === entradaDe(aqui);
 
   return (
     <Sheet

@@ -1223,6 +1223,7 @@ function CobroCuenta({
             </button>
           )}
           {/* B3-29: lo demás, en «Más», cada acción con su texto (en la laptop de 1366 px no cabían). */}
+          <div data-recorrido="caja-mas">
           <MenuDeAcciones
             surface="pos"
             acciones={[
@@ -1237,6 +1238,7 @@ function CobroCuenta({
                 : []),
             ]}
           />
+          </div>
         </div>
         {/* B6-14: una cuenta del salón dice su mesa, si pidió la cuenta, lo que falta servir y sus niños (B4-14: lo suyo
             en esta cuenta, o ya pagado aparte), con su tiempo si siguen en la sala. */}

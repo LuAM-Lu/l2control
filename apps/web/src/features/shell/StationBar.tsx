@@ -80,7 +80,7 @@ import { BotonSonidoDeAvisos } from "../park/BotonSonidoDeAvisos.tsx";
  *
  * 5. **Por pantalla (T-21, M-38).** Un puesto de una sola pantalla (el mesero, la
  *    monitora) dice su nombre en la barra en vez de una pestaña gigante. La caja,
- *    desde 1440 px, sus cinco pestañas con su número (Alt+1 a Alt+5); por debajo
+ *    desde 1440 px, sus pestañas con su número (Alt+1, Alt+2…); por debajo
  *    (la laptop de 1366 y la tablet), Cobrar y Turno fijas y «Más ▾» con las
  *    demás. Los avisos, cortos por debajo de 1440: el de impresión, su número;
  *    el turno, el reloj.

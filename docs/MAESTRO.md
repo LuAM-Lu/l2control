@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.154.0 en `main` (publicada, la 0.143.0) · 154 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.155.0 en `main` (publicada, la 0.143.0) · 155 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1062,8 +1062,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   encuentran en la misma lista y se corrigen en un solo lugar.
   *T-25: migración `20261215000000_clientes` (solo expande: `kid.retired_at` y `retired_by_name`, y `guardian_merge`, de solo agregar, una vez por representante, con RLS; el disparador `l2_nino_de_su_familia_siempre` deja pasar a un niño solo a la familia con que se juntó la suya). `clientes/directorio.ts` (`app.directorio`): `pagina` (una consulta con lo buscado, el filtro como parámetro, la página y la cuenta de cada filtro; vigentes = sin fusión, su actividad con los suyos), `ficha` (visitas por día de negocio, lo cobrado de sus cuentas sin lo anulado, lo que debe por representante, cédula o teléfono, sus niños con sus visitas, la historia de hasta 40 y los parecidos: el mismo nombre y sin otra cédula), `corregir`, `nino` (agregar, corregir, retirar; no en la sala) y `juntar` (la cédula y el VIP pasan si la que queda no los tiene). `quienQueda` lo siguen la entrada (`representanteDeLaEntrada`, `representantes.buscar`), el salón y la caja (`resolverCliente`, `clientes.buscar`, `encontrar`, `deAqui`); el directorio viejo y la entrada dejan fuera a los juntados y a los niños retirados, y un retirado que vuelve a entrar con su nombre vuelve. Acciones `clientes.ver` (P,P,P,D,P,D) y `clientes.juntar` (P,P,D,D,D,D) en la matriz y en DESPUES; asientos `cliente.consultar`, `cliente.corregir` (con `cambio`, sin los datos), `cliente.juntar`, `nino.agregar` y `nino.retirar`; tema en vivo `clientes`. En la web, el módulo Clientes (`clientes/directorio`, `ClientesScreen`) con `CampoCedula` y `CampoTelefono`, `Marquesina` en los nombres y lo privado con `data-privado`; el VIP se marca ahí; «Representantes y niños» se va (`RUTAS_MOVIDAS`). `directorio.test-db.ts` (4, con el criterio). Visto en el navegador a 1366 y 1280 px y en un teléfono de 390 px, en los dos temas: la lista y sus filtros, la ficha, «Editar datos», agregar y retirar un niño y «Juntar» de punta a punta (dos registros quedan en uno, con los dos niños y «Se juntó con»).*
 
-- [~] **T-26 · La ayuda al día** (M-40). Antes de la 1.0.0, al final del bloque. *A cargo: LuAMi (Claude), en
-  `feat/t-26`.*
+- [x] **T-26 · La ayuda al día** (M-40). Antes de la 1.0.0, al final del bloque. *Hecho el 2026-10-20 (v0.155.0).*
   → Una revisión entera del panel «Ayuda» (?) contra la app de hoy, entrada por entrada. Hoy tiene 20 entradas para 31
   pantallas: 14 caen en una general (las secciones de Inventario, Reportes y Ajustes) y Personal apunta a una ruta que se
   mudó dentro de Deudas; se escribe la de cada pantalla y se corrige lo que quedó viejo (botones y textos que cambiaron). Y el de
@@ -1072,6 +1071,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   pasa» con los mensajes nuevos («Falta la cédula», «Anulación pedida», «La caja sigue abierta»…); los recorridos
   guiados de caja, mesas y parque con el flujo nuevo (quien ya los vio recibe solo «Lo nuevo»); y la ayuda de atajos.
   Criterio: cada cosa nueva del bloque se encuentra buscándola en la ayuda de su pantalla.
+  *T-26: el manual pasa de 21 a 43 entradas. `entradaDe` acepta la búsqueda de la dirección: una entrada puede pedir su pestaña o su vista (`?pestana=respaldos`, `?vista=personal`) y gana sobre la de su sección; `AyudaPanel` la lee al abrir la ayuda, en un efecto (al pintar, el HTML del servidor no coincidía). Los recorridos llevan en cada paso desde qué versión está (`desde`) y `pasosNuevos` da lo que quien ya vio uno de antes no vio; `AyudaProvider` se lo enseña con «Lo nuevo · Paso 1 de N» (`Recorrido` gana `antes`), y desde la ayuda sale entero. Versiones: parque 2 (el cierre del parque), caja 4 («Más», con su `data-recorrido`, y «Lo más pedido hoy») y mesas 5 (la fila de la mesa y la carta). `manual.test.ts` (5): cada sección del menú con su entrada propia, las pestañas, y que lo nuevo del bloque se encuentra buscándolo en la ayuda de su pantalla (el criterio). Visto en el navegador en los dos temas: la ayuda de Respaldos, de Deudas → Personal y de Sucursal, y «Lo nuevo» en mesas para quien vio la versión 4.*
 
 ### Etapa 0 · Cimientos del servidor (local)
 

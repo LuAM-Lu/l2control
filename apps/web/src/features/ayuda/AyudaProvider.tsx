@@ -6,7 +6,7 @@ import { CircleHelp } from "lucide-react";
 import { Recorrido, anotarErrorReciente, cn, erroresRecientes, registrarAyudaDeErrores, registrarReporteDeErrores } from "@l2/ui";
 import { useOperador } from "../identity/operador.ts";
 import { problemaDe } from "./manual.ts";
-import { recorridoDe, type RecorridoDePantalla } from "./recorridos.ts";
+import { pasosNuevos, recorridoDe, type PasoDeLaPantalla, type RecorridoDePantalla } from "./recorridos.ts";
 import { marcarRecorridoVisto } from "./ayuda.acciones.ts";
 import { AyudaPanel } from "./AyudaPanel.tsx";
 import { capturarPantalla } from "../soporte/captura.ts";
@@ -46,6 +46,8 @@ export function AyudaProvider({ vistos: inicial, children }: { vistos: readonly 
   /** El texto del error con que se abrió la ayuda, si se abrió desde un aviso. */
   const [consulta, setConsulta] = useState<string | null>(null);
   const [recorrido, setRecorrido] = useState<RecorridoDePantalla | null>(null);
+  /** T-26: los pasos nuevos para quien vio una versión anterior; `null`: el recorrido entero. */
+  const [loNuevo, setLoNuevo] = useState<readonly PasoDeLaPantalla[] | null>(null);
 
   const abrir = useCallback(() => {
     setConsulta(null);
@@ -85,7 +87,12 @@ export function AyudaProvider({ vistos: inicial, children }: { vistos: readonly 
     if (!operador) return;
     const r = recorridoDe(ruta);
     if (!r || vistos.has(`${r.id}@${r.version}`)) return;
-    const t = window.setTimeout(() => setRecorrido((actual) => actual ?? r), ESPERA_RECORRIDO_MS);
+    // T-26: quien ya vio una versión anterior recibe solo lo nuevo.
+    const nuevos = pasosNuevos(r, vistos);
+    const t = window.setTimeout(() => {
+      setLoNuevo(nuevos);
+      setRecorrido((actual) => actual ?? r);
+    }, ESPERA_RECORRIDO_MS);
     return () => window.clearTimeout(t);
   }, [ruta, operador, vistos]);
 
@@ -103,7 +110,7 @@ export function AyudaProvider({ vistos: inicial, children }: { vistos: readonly 
   // Un error que el manual conoce trae su solución en el aviso.
   useEffect(() => {
     registrarAyudaDeErrores((texto) =>
-      problemaDe(texto, ruta)
+      problemaDe(texto, `${ruta}${window.location.search}`)
         ? () => {
             setConsulta(texto);
             setAbierto(true);
@@ -137,6 +144,8 @@ export function AyudaProvider({ vistos: inicial, children }: { vistos: readonly 
         consulta={consulta}
         onRecorrido={(r) => {
           setAbierto(false);
+          // Pedido desde la ayuda: entero.
+          setLoNuevo(null);
           setRecorrido(r);
         }}
         onReportar={operador ? (codigo) => void reportar(codigo) : null}
@@ -149,7 +158,13 @@ export function AyudaProvider({ vistos: inicial, children }: { vistos: readonly 
           abrir();
         }}
       />
-      <Recorrido pasos={recorrido?.pasos ?? []} abierto={recorrido !== null} onTerminar={terminar} etiqueta="Recorrido de esta pantalla" />
+      <Recorrido
+        pasos={loNuevo ?? recorrido?.pasos ?? []}
+        abierto={recorrido !== null}
+        onTerminar={terminar}
+        etiqueta={loNuevo ? "Lo nuevo en esta pantalla" : "Recorrido de esta pantalla"}
+        antes={loNuevo ? "Lo nuevo" : undefined}
+      />
     </Contexto.Provider>
   );
 }
