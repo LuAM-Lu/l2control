@@ -2740,7 +2740,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   worker (6); en el navegador con una impresora de mentira por TCP y el agente desde su código (el USB, simulado: esta PC no
   tiene térmica; la cola de Windows se prueba con un PowerShell de mentira y queda por ver en la laptop real).*
   *· Visto en el local (2026-10-13): la USB como respaldo imprime.*
-- [ ] **B5-7 · Los avisos a tiempo** (M-40). Antes de la 1.0.0.
+- [~] **B5-7 · Los avisos a tiempo** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b5-7`.*
   → «Hora de cierre del local» en Ajustes → Sucursal: desde esa hora y hasta el corte del día, Inicio y la caja dicen
   «La caja sigue abierta: ciérrala antes de irte», con lo que falta. Que la PC del local no baje los respaldos sale
   también en la apertura y el cierre del turno, solo a administración y supervisión, con «Cómo se arregla» (encender esa
