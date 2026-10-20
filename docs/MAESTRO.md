@@ -3740,7 +3740,8 @@ F9-05).
   lista, con una hoja de detalle (la venta: líneas, totales, tasa, pagos, quién cobró, anulada o devuelta; lo demás, sus
   datos con nombre), y «Kárdex de inventario» como su otra vista (`?vista=kardex`). Probado en la base (3 pruebas) y en
   el navegador en los dos temas.*
-- [ ] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Antes de la 1.0.0 (maqueta vista, sección 6).
+- [~] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Antes de la 1.0.0 (maqueta vista, sección 6). *A cargo:
+  LuAMi (Claude), en `feat/b11-8`.*
   → Con lo que ya tiene, de la pregunta a la respuesta: arriba las cifras clave (niños, dinero, promedio por niño,
   estancia, pico) con la diferencia contra el periodo anterior; cuándo viene la gente (por hora y día de la semana por
   hora); de dónde sale el dinero (paquetes, «Más tiempo», tiempo de más, en mesas; lo regalado aparte); qué se vende (los
