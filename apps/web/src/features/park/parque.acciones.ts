@@ -2,6 +2,7 @@
 
 import type {
   AvisosDeSalaDto,
+  CierreDelParqueDto,
   CheckInResult,
   CheckoutResult,
   EstanciaDto,
@@ -138,4 +139,11 @@ export async function cerrarEstanciaHuerfana(entrada: unknown): Promise<Resultad
   if (r.ok) log().info({ tenantId: ctx.tenantId, cuenta: r.valor.account.id }, "estancia huérfana cerrada");
   else log().warn({ tenantId: ctx.tenantId, motivo: r.motivo }, "cierre de huérfana rechazado");
   return r;
+}
+
+/** El cierre del parque de hoy (B4-21), para volver a leerlo cuando cambia la sala. */
+export async function leerCierreDelParque(): Promise<Resultado<CierreDelParqueDto>> {
+  const ctx = await contextoActual();
+  if (!ctx) return sinSesion;
+  return (await aplicacion()).reportes.cierreDelParque(ctx);
 }

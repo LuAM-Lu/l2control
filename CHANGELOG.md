@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.153.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: el cierre del parque.
+
+### Añadido
+- **Cierre del parque**, la jornada de la monitora como el corte de la caja y **sin montos**: «Cierre» en la sala (junto a
+  «Buscar») o en el menú Parque. Los niños que entraron hoy, las familias, el máximo a la vez, la estancia promedio y los
+  que siguen en la sala; «Pide atención» (recogidos por otra persona, sin pulsera, anuladas, «Más tiempo» y las de otro
+  día sin salida); cada familia con sus niños (pulsera, entrada y salida, paquete, tiempo, tiempo de más, quién lo recogió
+  y su mesa); las pulseras usadas, los pares de medias y los cumpleaños de hoy. Se pone al día solo.
+- **«Guardar PDF del cierre»**: una hoja A4 con lo mismo, con la sala en cero (antes, lo que se ve es un corte del
+  momento). El teléfono del representante va a medias; completo, en Clientes.
+
 ## [0.152.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: Clientes.

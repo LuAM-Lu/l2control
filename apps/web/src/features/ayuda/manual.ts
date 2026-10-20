@@ -217,6 +217,27 @@ export const MANUAL: readonly EntradaDelManual[] = [
     recorrido: "parque",
   },
   {
+    id: "cierre-del-parque",
+    ruta: "/monitor/cierre",
+    titulo: "Cierre del parque",
+    roles: OPERACION_PARQUE,
+    proposito: "La jornada de la monitora, como el corte de la caja y sin montos: cada familia que pasó hoy por el parque, y lo que se cuadra al cerrar.",
+    pasos: [
+      "Se abre desde la sala («Cierre», junto a «Buscar») o desde el menú Parque. Se ve en cualquier momento: es un corte del momento, y se pone al día solo con cada entrada y salida.",
+      "Arriba, los niños que entraron hoy, las familias, el máximo a la vez (con su hora), la estancia promedio y cuántos siguen en la sala: para cerrar, cero.",
+      "«Pide atención»: los que recogió otra persona, los que entraron sin pulsera, las entradas anuladas (con quién y por qué), cada «Más tiempo» y las estancias de otro día que quedaron sin salida.",
+      "Por familia: el representante (el teléfono a medias; completo, en Clientes) y cada niño con su pulsera, su entrada y su salida, su paquete, el tiempo que estuvo, el tiempo de más, quién lo recogió y su mesa.",
+      "Al final, lo que se cuadra con lo físico: las pulseras usadas (de cuál a cuál) y los pares de medias (y cuántos quedan), y los cumpleaños de hoy con sus invitados reservados y los que entraron.",
+      "«Guardar PDF del cierre» sale con la sala en cero: abre la hoja A4, y el navegador la imprime o la guarda como PDF.",
+    ],
+    problemas: [
+      {
+        sintoma: "«Guardar PDF del cierre» está apagado",
+        solucion: "Queda algún niño en la sala: el cierre sale cuando salgan todos. Lo que se ve mientras tanto es un corte del momento. Las estancias de otro día sin salida no cuentan: las cierra la dirección en «estancias a revisar».",
+      },
+    ],
+  },
+  {
     id: "salida",
     // B4-12: la salida vive en «Parque», en una capa: esta entrada del manual se encuentra buscando.
     ruta: "/monitor#salida",

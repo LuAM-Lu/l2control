@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.152.0 en `main` (publicada, la 0.143.0) · 152 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.153.0 en `main` (publicada, la 0.143.0) · 153 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2581,7 +2581,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cobra ese paquete (`pagadaAntes`). En la web, `PagarAhoraDialog` en la caja (al pie de la cola y con la pulsera) y en
   la ficha de la sala; la salida no ofrece «por uso» con el paquete pagado. `pagar-ahora.test-db.ts` (4). Visto en el
   navegador en los dos temas: la caja cobra a los 20 minutos, la salida dice «Todo pagado» y la sala manda a la caja.*
-- [~] **B4-21 · El cierre del parque** (M-40). *A cargo: LuAMi (Claude), en `feat/b4-21`.* Antes de la 1.0.0 (maqueta vista, sección 5). *Decidido el 2026-10-19: se ve en
+- [x] **B4-21 · El cierre del parque** (M-40). *Hecho el 2026-10-20 (v0.153.0).* Antes de la 1.0.0 (maqueta vista, sección 5). *Decidido el 2026-10-19: se ve en
   cualquier momento como corte del momento y el PDF de cierre sale con la sala en cero; el teléfono del representante, a
   medias (el completo, en Clientes).*
   → La jornada de la monitora, como el corte de la caja: en su pantalla durante el día y en PDF al cerrar, **sin
@@ -2591,6 +2591,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   con quién, «Más tiempo», olvidadas); el cumpleaños (reservados y entrados); las pulseras usadas y los pares de medias.
   Lo privado, con `data-privado`. Criterio: al cerrar el día, la monitora tiene en una hoja cada familia que pasó por el
   parque y cuadra sus pulseras y sus medias.
+  *B4-21: `reportes.cierreDelParque` (`reportes/cierre-del-parque.ts`, con `parque.checkIn`: la monitora, la caja, supervisión y administración) lee las estancias del día de negocio de hoy: las cifras (sin las anuladas; el pico con `picoDeAforo`; el promedio sin las pausas por comida), cada familia en el orden en que llegó (`telefonoAMedias`), la mesa de cada niño (las cuentas de mesa de hoy, en cualquier estado), lo que pide atención (las de otro día sin salida, en un renglón con cuántas), los cumpleaños de hoy (`reservasDe`, sin los cancelados), las pulseras (la de una anulada también se gastó) y las medias (las líneas `med-` y lo que queda del producto de medias, si se cuenta). Contrato `CierreDelParqueSchema`, sin dinero. En la web, `/monitor/cierre` (`CierreDelParqueScreen`, en vivo con la sala) y `/informes/cierre-del-parque` (`CierreDelParqueImpreso`, con las piezas de los informes; con niños en la sala lo dice y no hay hoja), el botón en la sala, la sección del menú Parque y su entrada en la ayuda. `cierre-del-parque.test-db.ts` (3, con el criterio). Visto en el navegador en un teléfono de 390 px y a 1280 y 1366 px, en los dos temas: con niños en la sala (el PDF apagado y por qué) y con la sala en cero (el PDF, un renglón por niño).*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 

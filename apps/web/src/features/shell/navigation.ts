@@ -116,6 +116,16 @@ export const MODULOS: readonly Modulo[] = [
           "Un solo lector: una pulsera nueva abre la entrada; una que está en la sala, su ficha con su salida. Las estancias, por urgencia, con el reloj del servidor.",
       },
       {
+        // B4-21 (M-40): la jornada de la monitora, como el corte de la caja y sin montos.
+        id: "cierre",
+        nombre: "Cierre del parque",
+        href: "/monitor/cierre" as Route,
+        abre: "estacion",
+        proposito:
+          "Las familias que pasaron hoy, con sus niños, sus horas y quién los recogió; lo que pide atención, las pulseras usadas y los pares de medias. El PDF sale con la sala en cero.",
+        tarea: "B4-21",
+      },
+      {
         id: "eventos",
         nombre: "Cumpleaños",
         href: rutaSeccion("parque", "eventos"),

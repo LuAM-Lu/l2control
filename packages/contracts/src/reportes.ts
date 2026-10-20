@@ -364,6 +364,66 @@ export const InformeDelParqueSchema = z.object({
 });
 export type InformeDelParqueDto = z.infer<typeof InformeDelParqueSchema>;
 
+/** Un niño en el cierre del parque (B4-21): su entrada y su salida, sin montos. */
+export const NinoDelCierreSchema = z.object({
+  nombre: z.string(),
+  pulsera: z.string(),
+  entrada: TimestampSchema,
+  /** En la sala todavía (o anulada sin salida): `null`. */
+  salida: TimestampSchema.nullable(),
+  /** El paquete con que salió (o sigue): el último «Más tiempo», si subió. */
+  paquete: z.string(),
+  /** Lo que estuvo, sin sus pausas por comida; en la sala, hasta ahora. */
+  minutos: z.number().int().nonnegative(),
+  /** Lo que pasó de lo contratado; `null` por uso o sin pasarse. */
+  deMas: z.number().int().positive().nullable(),
+  /** Quién lo recogió: su representante u otra persona. En la sala o anulada, `null`. */
+  recogio: z.object({ nombre: z.string(), otro: z.boolean() }).nullable(),
+  /** La mesa a la que se vinculó su pulsera, si se vinculó. */
+  mesa: z.string().nullable(),
+  anulada: z.boolean(),
+});
+export type NinoDelCierreDto = z.infer<typeof NinoDelCierreSchema>;
+
+/** Lo que pide atención al cerrar el parque: recogidos por otra persona, sin pulsera, anuladas, «Más tiempo», olvidadas. */
+export const AtencionDelCierreSchema = z.object({
+  tipo: z.enum(["OTRA_PERSONA", "SIN_PULSERA", "ANULADA", "MAS_TIEMPO", "OLVIDADA"]),
+  en: TimestampSchema,
+  nino: z.string(),
+  detalle: z.string(),
+});
+export type AtencionDelCierreDto = z.infer<typeof AtencionDelCierreSchema>;
+
+/**
+ * El cierre del parque (B4-21, M-40): la jornada de la monitora del día de negocio de hoy, como el corte de la caja y **sin
+ * montos**: las cifras, cada familia con sus niños, lo que pide atención, los cumpleaños, las pulseras usadas y los pares
+ * de medias. Se ve en cualquier momento, como un corte del momento; el PDF de cierre sale con la sala en cero. El
+ * teléfono del representante va a medias (el completo está en Clientes).
+ */
+export const CierreDelParqueSchema = z.object({
+  encabezado: EncabezadoDeInformeSchema,
+  dia: FechaSchema,
+  resumen: z.object({
+    /** Los que entraron (sin las entradas anuladas). */
+    ninos: z.number().int().nonnegative(),
+    familias: z.number().int().nonnegative(),
+    /** Los niños a la vez en la sala, el máximo del día, y cuándo. */
+    pico: z.object({ ninos: z.number().int().nonnegative(), en: TimestampSchema }).nullable(),
+    /** El tiempo promedio de los que salieron, sin sus pausas por comida. */
+    minutosPromedio: z.number().int().nonnegative().nullable(),
+    /** Los que siguen en la sala: cero para cerrar. */
+    enSala: z.number().int().nonnegative(),
+  }),
+  familias: z.array(z.object({ representante: z.string(), telefono: z.string(), ninos: z.array(NinoDelCierreSchema).min(1) })),
+  atencion: z.array(AtencionDelCierreSchema),
+  cumpleanos: z.array(z.object({ cumpleanero: z.string(), reservados: z.number().int().nonnegative(), entraron: z.number().int().nonnegative() })),
+  /** Las pulseras usadas hoy (sin los códigos SP- de los que entraron sin ella): cuántas y de cuál a cuál. */
+  pulseras: z.object({ usadas: z.number().int().nonnegative(), desde: z.string().nullable(), hasta: z.string().nullable() }),
+  /** Los pares de medias vendidos al entrar (B4-9) y cuántos quedan, si se cuentan. */
+  medias: z.object({ pares: z.number().int().nonnegative(), quedan: z.number().int().nullable() }),
+});
+export type CierreDelParqueDto = z.infer<typeof CierreDelParqueSchema>;
+
 /** De qué parte del local es un movimiento (B11-7). */
 export const CategoriaDeMovimientoSchema = z.enum(["CAJA", "PARQUE", "MESAS", "INVENTARIO", "PERSONAL"]);
 export type CategoriaDeMovimientoDto = z.infer<typeof CategoriaDeMovimientoSchema>;
