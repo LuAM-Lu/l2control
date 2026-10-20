@@ -21,6 +21,8 @@ import { horaDelDia } from "../eventos/formato.ts";
 const DIAS: readonly DiaSemana[] = ["LUNES", "MARTES", "MIERCOLES", "JUEVES", "VIERNES", "SABADO", "DOMINGO"];
 /** A qué hora puede terminar el día de negocio (B3-24): cada media hora, de las 12:00 am a las 10:00 am. */
 const FINES_DEL_DIA: readonly number[] = Array.from({ length: 21 }, (_, i) => i * 30);
+/** B5-7: la hora de cierre del local, de media en media hora, de las 12:00 pm a las 11:30 pm. */
+const CIERRES_DEL_LOCAL: readonly number[] = Array.from({ length: 24 }, (_, i) => 720 + i * 30);
 
 /** El enum no lleva tildes; la pantalla sí, que la lee una persona. */
 const NOMBRE_DIA: Readonly<Record<DiaSemana, string>> = {
@@ -484,6 +486,32 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
             <p id="suc-zona-nota" className={cn("flex items-start gap-1 text-[12px]", errores.zonaHoraria ? "font-medium text-state-crit" : "text-ink-3")}>
               {errores.zonaHoraria && <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
               {errores.zonaHoraria ?? "Decide el día de negocio: se cambia sin turnos abiertos ni niños en sala."}
+            </p>
+          </div>
+          {/* B5-7 (M-40): desde esta hora (o la del horario de ese día) y hasta que el día termina, Inicio y la caja avisan que
+              la caja sigue abierta. */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="suc-cierre-del-local" className={ETIQUETA}>
+              Hora de cierre del local
+            </label>
+            <select
+              id="suc-cierre-del-local"
+              className={cn(CAMPO, "tnum", errores.cierreDelLocalMin ? "border-state-crit" : "border-line")}
+              value={String(borrador.cierreDelLocalMin)}
+              aria-invalid={errores.cierreDelLocalMin ? true : undefined}
+              aria-describedby="suc-cierre-del-local-nota"
+              onChange={(e) => cambiar({ cierreDelLocalMin: Number(e.target.value) })}
+            >
+              {CIERRES_DEL_LOCAL.map((min) => (
+                <option key={min} value={String(min)}>
+                  {horaDelDia(min, borrador.formatoHora)}
+                </option>
+              ))}
+            </select>
+            <p id="suc-cierre-del-local-nota" className={cn("flex items-start gap-1 text-[12px]", errores.cierreDelLocalMin ? "font-medium text-state-crit" : "text-ink-3")}>
+              {errores.cierreDelLocalMin && <TriangleAlert size={12} className="mt-0.5 shrink-0" aria-hidden="true" />}
+              {errores.cierreDelLocalMin ??
+                "Desde esa hora y hasta que termina el día, Inicio y la caja avisan si la caja sigue abierta. Si el horario dice otra para un día, manda el horario."}
             </p>
           </div>
           {/* B3-24 (M-38): lo cobrado pasada la medianoche sigue siendo del día hasta esta hora; desde ella, una caja que siga

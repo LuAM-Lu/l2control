@@ -1,7 +1,7 @@
 import "server-only";
 import { connection } from "next/server";
 import type { PcDeRespaldos } from "@l2/application";
-import { InformeDeLaPcSchema, type EstadoDeRespaldosDto, type InformeDeLaPcDto, type NivelDeRespaldos, type Resultado } from "@l2/contracts";
+import { InformeDeLaPcSchema, type AvisoDeRespaldosDelTurnoDto, type EstadoDeRespaldosDto, type InformeDeLaPcDto, type NivelDeRespaldos, type Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { entorno } from "../../servidor/entorno";
 import { contextoActual, ipDeLaPeticion } from "../../servidor/sesion";
@@ -26,6 +26,18 @@ export async function avisoDeRespaldos(): Promise<AvisoDeRespaldos | null> {
   const { nivel, aviso, ensayo } = r.valor;
   if (nivel === "AL_DIA" && !ensayo?.integro) return null;
   return { nivel, aviso, ensayadoEn: ensayo?.en ?? null };
+}
+
+/**
+ * La PC del local que no baja los respaldos (B5-7), para la apertura y el cierre del turno: `null` si los baja, o para
+ * quien no es administración ni supervisión, o sin servidor.
+ */
+export async function avisoDeRespaldosDelTurno(): Promise<AvisoDeRespaldosDelTurnoDto | null> {
+  await connection();
+  const ctx = await contextoActual();
+  if (!ctx) return null;
+  const r = await (await aplicacion()).respaldos.avisoDelTurno(ctx).catch(() => null);
+  return r?.ok ? r.valor : null;
 }
 
 /**

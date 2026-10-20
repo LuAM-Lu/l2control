@@ -5,7 +5,7 @@ import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, ArrowLeftRight, CalendarClock, CalendarX2, CircleCheckBig, FileText, Laptop, Lock, TriangleAlert, Wallet } from "lucide-react";
-import type { ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
+import type { AvisoDeRespaldosDelTurnoDto, ComprobacionAperturaDto, CorteDto, MoneyDto, Rechazo, ReservaEventoDto, Resultado, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { money, toMajor, type CurrencyCode } from "@l2/domain-money";
 import { Badge, Button, Container, Dialog, Input, MoneyDisplay, Sheet, avisar, cn, formatMoneyVE } from "@l2/ui";
@@ -27,6 +27,7 @@ import { horaDelDia } from "../eventos/formato.ts";
 import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import { finDelDiaDelTurno } from "./turno.ts";
 import { TarjetaEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
+import { AvisoDeLaPc } from "../sistema/AvisoDeLaPc.tsx";
 
 /**
  * El turno de caja — F4-01, F4-05 a F4-08, JORNADA §3 a §5, B3-1 y B3-5.
@@ -49,7 +50,10 @@ export function TurnoScreen({
   ultimoZ = null,
   eventosHoy = [],
   cerrar = false,
+  respaldos = null,
 }: {
+  /** B5-7: la PC del local que no baja los respaldos (solo a administración y supervisión), al abrir y al cerrar. */
+  respaldos?: AvisoDeRespaldosDelTurnoDto | null;
   /** El turno del equipo (o el ajeno que se cierra); `null` si no hay ninguno abierto. */
   turno: TurnoDto | null;
   /** Empezar por su cierre (`?cerrar=1`): la caja de un día anterior lleva aquí (B3-24). */
@@ -69,10 +73,10 @@ export function TurnoScreen({
   if (ajeno) {
     if (!vista?.ok || !turno) return <SinTurnoAjeno mensaje={vista && !vista.ok ? vista.mensaje : "Ese turno no existe."} />;
     if (turno.estado === "CERRADO_Z") return <SinTurnoAjeno mensaje="Ese turno ya tiene su corte Z: está cerrado." />;
-    return <TurnoAbierto turno={turno} vistaInicial={vista.valor} ajeno cerrar={cerrar} />;
+    return <TurnoAbierto turno={turno} vistaInicial={vista.valor} ajeno cerrar={cerrar} respaldos={respaldos} />;
   }
-  if (!turno) return <AperturaTurno comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventosHoy} />;
-  return <TurnoAbierto turno={turno} vistaInicial={vista?.ok ? vista.valor : null} ajeno={false} cerrar={cerrar} />;
+  if (!turno) return <AperturaTurno comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventosHoy} respaldos={respaldos} />;
+  return <TurnoAbierto turno={turno} vistaInicial={vista?.ok ? vista.valor : null} ajeno={false} cerrar={cerrar} respaldos={respaldos} />;
 }
 
 /* ────────────────────────────────────────────────────────────── la apertura */
@@ -83,11 +87,13 @@ function AperturaTurno({
   otrosAbiertos,
   ultimoZ,
   eventosHoy,
+  respaldos,
 }: {
   comprobacion: ComprobacionAperturaDto | null;
   otrosAbiertos: readonly TurnoDto[];
   ultimoZ: CorteDto | null;
   eventosHoy: readonly ReservaEventoDto[];
+  respaldos: AvisoDeRespaldosDelTurnoDto | null;
 }) {
   const router = useRouter();
   const actor = useActorEnSesion();
@@ -283,6 +289,8 @@ function AperturaTurno({
         {fuera && comprobacion && <AvisoFueraDelPunto puntos={comprobacion.puntoDeCobro.puntos} />}
         {comprobacion?.jornadaSinCerrar && <AvisoDiaSinCerrar dia={comprobacion.jornadaSinCerrar} />}
         <TarjetaEventosDeHoy reservas={eventosHoy} />
+        {/* B5-7: la PC del local que no baja los respaldos, con cómo se arregla (administración y supervisión). */}
+        <AvisoDeLaPc aviso={respaldos} />
         {deAntes.length > 0 && (
           <section className="rounded-[var(--radius-card)] border border-state-warn/40 bg-state-warn-bg p-4">
             <h2 className="flex items-center gap-1.5 font-display text-sm font-bold text-state-warn">
@@ -409,7 +417,19 @@ function SinTurnoAjeno({ mensaje }: { mensaje: string }) {
 
 /* ──────────────────────────────────────────────────────────── el turno abierto */
 
-function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto; vistaInicial: CorteDto | null; ajeno: boolean; cerrar: boolean }) {
+function TurnoAbierto({
+  turno,
+  vistaInicial,
+  ajeno,
+  cerrar,
+  respaldos,
+}: {
+  turno: TurnoDto;
+  vistaInicial: CorteDto | null;
+  ajeno: boolean;
+  cerrar: boolean;
+  respaldos: AvisoDeRespaldosDelTurnoDto | null;
+}) {
   const router = useRouter();
   const { ajustes } = useSucursal();
   // B3-24: su día terminó a la hora de los ajustes y sigue abierta. Se dice en la cabecera, en rojo.
@@ -502,6 +522,7 @@ function TurnoAbierto({ turno, vistaInicial, ajeno, cerrar }: { turno: TurnoDto;
           tipo={cierre.tipo}
           otras={cierre.otras}
           ajeno={ajeno}
+          respaldos={respaldos}
           onVolver={() => {
             setCierre(null);
             router.refresh();

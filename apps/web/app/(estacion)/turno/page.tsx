@@ -2,6 +2,7 @@ import { TurnoScreen } from "../../../src/features/cash/TurnoScreen";
 import { turnoDelEquipo } from "../../../src/features/cash/turno.servidor";
 import { comprobacionApertura, turnosAbiertosDeOtros, ultimoCorteZ, vistaDelTurno } from "../../../src/features/cash/cortes.servidor";
 import { eventosDeHoy } from "../../../src/features/eventos/eventos.servidor";
+import { avisoDeRespaldosDelTurno } from "../../../src/features/sistema/respaldos.servidor";
 
 /**
  * Turno de caja (M-13, B3-5): la apertura con su comprobación, el resumen del libro con las ventas
@@ -16,12 +17,24 @@ export const dynamic = "force-dynamic";
 export default async function TurnoPage({ searchParams }: { searchParams: Promise<{ turno?: string; cerrar?: string }> }) {
   const { turno: ajeno, cerrar } = await searchParams;
   const aCerrar = cerrar === "1";
+  // B5-7: la PC del local que no baja los respaldos, al abrir y al cerrar (solo administración y supervisión).
+  const respaldos = avisoDeRespaldosDelTurno();
   if (ajeno) {
     const vista = await vistaDelTurno(ajeno);
-    return <TurnoScreen ajeno turno={vista?.ok ? vista.valor.turno : null} vista={vista} cerrar={aCerrar} />;
+    return <TurnoScreen ajeno turno={vista?.ok ? vista.valor.turno : null} vista={vista} cerrar={aCerrar} respaldos={await respaldos} />;
   }
   const turno = await turnoDelEquipo();
-  if (turno) return <TurnoScreen turno={turno} vista={await vistaDelTurno()} cerrar={aCerrar} />;
+  if (turno) return <TurnoScreen turno={turno} vista={await vistaDelTurno()} cerrar={aCerrar} respaldos={await respaldos} />;
   const [comprobacion, otrosAbiertos, ultimoZ, eventos] = await Promise.all([comprobacionApertura(), turnosAbiertosDeOtros(), ultimoCorteZ(), eventosDeHoy()]);
-  return <TurnoScreen turno={null} vista={null} comprobacion={comprobacion} otrosAbiertos={otrosAbiertos} ultimoZ={ultimoZ} eventosHoy={eventos?.reservas ?? []} />;
+  return (
+    <TurnoScreen
+      turno={null}
+      vista={null}
+      comprobacion={comprobacion}
+      otrosAbiertos={otrosAbiertos}
+      ultimoZ={ultimoZ}
+      eventosHoy={eventos?.reservas ?? []}
+      respaldos={await respaldos}
+    />
+  );
 }

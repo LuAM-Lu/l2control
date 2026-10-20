@@ -7,7 +7,7 @@ import { after, before, describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type { CopiaDeRespaldoDto } from "@l2/contracts";
 import type { Contexto } from "../index.ts";
-import { clasificar, type PcDeRespaldos } from "./respaldos.ts";
+import { clasificar, laPcNoBaja, type PcDeRespaldos } from "./respaldos.ts";
 import { abrirLocalDePrueba, contextoDe, contextoElevado, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
@@ -85,6 +85,11 @@ describe("cómo están", () => {
     assert.equal(clasificar([copia(5), copia(29, { bajadoEn: new Date(AHORA - 25 * H).toISOString() })], true, AHORA).nivel, "AL_DIA");
     // El último que salió es de hace más de día y medio: la única copia reciente está en el servidor.
     assert.equal(clasificar([copia(5), copia(29), copia(53, { bajadoEn: new Date(AHORA - 50 * H).toISOString() })], true, AHORA).nivel, "SIN_BAJAR");
+    // B5-7: la misma regla para el turno, aunque lo peor sea otra cosa (el de anoche falló); sin respaldos, no es de la PC.
+    assert.equal(laPcNoBaja([copia(2, { estado: "FALLIDO", archivo: null, sha256: null }), copia(26), copia(50, { bajadoEn: new Date(AHORA - 49 * H).toISOString() })], true, AHORA), true);
+    assert.equal(laPcNoBaja([], false, AHORA), false);
+    assert.equal(laPcNoBaja([copia(5)], false, AHORA), true);
+    assert.equal(laPcNoBaja([copia(5), copia(29, { bajadoEn: new Date(AHORA - 25 * H).toISOString() })], true, AHORA), false);
   });
 });
 
@@ -306,5 +311,38 @@ describe("respaldar ahora (B7-8)", () => {
         tx.backupRequest.create({ data: { tenantId: local.sistema.tenantId, state: "HECHO", requestedByName: "Abigail Karam", startedAt: new Date(AHORA), finishedAt: new Date(AHORA) } }),
       ),
     );
+  });
+});
+
+describe("en el turno (B5-7)", () => {
+  // Tres días después: el más reciente que bajó cualquier PC es de antes de AHORA.
+  const LUEGO = AHORA + 72 * H;
+
+  test("la PC que no baja: administración y supervisión lo ven, con cuál es y cuándo bajó el último; la caja no", async () => {
+    const sup = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
+    const ctxSup = await contextoDe(local, await crearEquipo(local, "Caja 2"), sup, "5937");
+    const caja = await local.app.respaldos.avisoDelTurno(ctxCajera, LUEGO);
+    assert.equal(!caja.ok && caja.motivo, "NO_PERMITIDO");
+
+    const preparada = await local.app.respaldos.prepararPc(ctxAdmin, { nombre: "Laptop Lenovo de caja" }, AHORA);
+    assert.ok(preparada.ok);
+    const r = await local.app.respaldos.avisoDelTurno(ctxSup, LUEGO);
+    assert.ok(r.ok, JSON.stringify(r));
+    assert.equal(r.valor?.pc?.nombre, "Laptop Lenovo de caja");
+    assert.ok(r.valor?.ultimaVez && Date.parse(r.valor.ultimaVez) <= AHORA, "cuándo bajó el último");
+    const admin = await local.app.respaldos.avisoDelTurno(ctxAdminSinConfirmar, LUEGO);
+    assert.ok(admin.ok && admin.valor?.pc?.nombre === "Laptop Lenovo de caja", "administración, sin confirmar la identidad: solo mira");
+
+    // Baja el de anoche y su huella cuadra: el aviso se quita solo.
+    const anoche = await respaldo(-(72 - 3) * H);
+    const pc = (await entrar(preparada.valor.credencial))!;
+    assert.ok((await local.app.respaldos.acusar(pc, { archivo: anoche.file, sha256: HUELLA }, LUEGO)).ok);
+    assert.deepEqual(await local.app.respaldos.avisoDelTurno(ctxSup, LUEGO), { ok: true, valor: null });
+
+    // Sin PC preparada, también: no hay quien los baje.
+    assert.ok((await local.app.respaldos.retirarPc(ctxAdmin, { id: preparada.valor.pc.id }, LUEGO)).ok);
+    const sinPc = await local.app.respaldos.avisoDelTurno(ctxSup, LUEGO);
+    assert.ok(sinPc.ok && sinPc.valor !== null);
+    assert.equal(sinPc.valor?.pc, null);
   });
 });

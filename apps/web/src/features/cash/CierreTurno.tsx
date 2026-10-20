@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { CircleCheckBig, EyeOff, Lock, OctagonAlert, RotateCcw, ShieldCheck, TriangleAlert } from "lucide-react";
-import type { ArqueoDto, CorteDto, MoneyDto, Rechazo, TipoDeCierre, TurnoDto } from "@l2/contracts";
+import type { ArqueoDto, AvisoDeRespaldosDelTurnoDto, CorteDto, MoneyDto, Rechazo, TipoDeCierre, TurnoDto } from "@l2/contracts";
 import { countDenominations } from "@l2/domain-cash";
 import { money, multiply, subtract, toMajor, zero, type CurrencyCode, type Money } from "@l2/domain-money";
 import { Button, Input, MoneyDisplay, Stepper, avisar, cn, formatMoneyVE } from "@l2/ui";
@@ -14,6 +14,7 @@ import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autoriza
 import { PendientesDelCierre } from "./PendientesDelCierre.tsx";
 import { registrarArqueo, sellarCorteZ } from "./cortes.acciones";
 import { TicketDelCorte } from "../impresion/TicketDelCorte.tsx";
+import { AvisoDeLaPc } from "../sistema/AvisoDeLaPc.tsx";
 
 /**
  * Cerrar un turno — F4-06, F4-07, JORNADA §4 (relevo) y §5 (cierre de la jornada), B3-5.
@@ -44,9 +45,12 @@ export function CierreTurno({
   tipo,
   otras = [],
   ajeno,
+  respaldos = null,
   onVolver,
 }: {
   turno: TurnoDto;
+  /** B5-7: la PC del local que no baja los respaldos (solo administración y supervisión). */
+  respaldos?: AvisoDeRespaldosDelTurnoDto | null;
   /**
    * Lo decide el servidor (B3-15): con otra caja abierta se cierra esta (RELEVO); si es la última, el día (JORNADA). La
    * pantalla lo sabe al abrir el cierre para enseñar los pasos; si cambia mientras tanto, manda el servidor.
@@ -73,6 +77,12 @@ export function CierreTurno({
           ? "Es la última caja abierta: al cerrarla se cierra el día, y no se hace con nada pendiente."
           : `Siguen abiertas: ${otras.length > 0 ? otras.map((o) => `«${o}»`).join(", ") : "otras cajas"}. Cierras solo esta caja; el día lo cierra la última.`}
       </p>
+      {/* B5-7: antes de irse, que la PC del local no baja los respaldos; «Cómo se arregla», al tocarlo. */}
+      {respaldos && (
+        <div className="px-4 pt-3 md:px-6">
+          <AvisoDeLaPc aviso={respaldos} plegado className="mx-auto max-w-3xl" />
+        </div>
+      )}
       {paso === "pendientes" && <PendientesDelCierre turnoId={turno.id} onListo={() => setPaso("contar")} />}
       {paso === "contar" && (
         <Contar

@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.151.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: los avisos a tiempo.
+
+### Añadido
+- **«La caja sigue abierta: ciérrala antes de irte»**: desde la hora de cierre del local y hasta que el día termina,
+  arriba en la caja, con la hora, lo que falta (las cuentas por cobrar, las del salón sin pedir la cuenta y los niños en la
+  sala) y «Cerrar la caja». Inicio lo dice igual.
+- Ajustes → Sucursal: **«Hora de cierre del local»** (10:00 pm de fábrica). Si el horario declara el cierre de un día,
+  manda el horario.
+- Al abrir y al cerrar el turno, administración y supervisión ven si **la PC del local no baja los respaldos** (cuál y
+  desde cuándo), con «Cómo se arregla». Se quita solo cuando la PC baja el de anoche.
+
 ## [0.150.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: el mesero más ágil.
