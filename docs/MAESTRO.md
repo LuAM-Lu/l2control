@@ -2155,7 +2155,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cobra solo el postre al irse.
   *B3-28: `loQueVa` en la cuenta (solo de una mesa o de pie, de la mesa abierta a la cola: `accountChangeProblem` lo niega con `LO_QUE_VA_NO_VALE`). En `@l2/domain-cash`, `loQueVaProblem` y `markPartPaidSoFar` (cobrada la última parte, la cuenta vuelve ABIERTA sin división ni descuento), `joinProblem` LO_QUE_VA y `markUncollectible` que lo quita. `cuentas.cobrar` lo usa (asiento con `sigueAbierta`); `cuentas.anular` deja abierta la mesa que sigue sentada y «Cobrarla de nuevo» le pone `loQueVa`; volver a pedir y «Pide la cuenta» lo quitan; `dividir` lo niega. Cada línea se cobra una vez (la regla de B3-20 no cambia: un cobro lleva todo lo pendiente de ese momento). En la web, `pagarLoQueVa`, el botón de la tablet, «Pagado» en cada pedido, el aviso de la caja (`SalonDeLaCuenta`), la marca en la cola y el segundo botón de `TraerALaCaja`. `lo-que-va.test-db.ts` (5 nuevas, con el criterio) y `cuenta.test.ts` (4). Visto en el navegador en los dos temas: la tablet manda, la caja cobra y la mesa sigue abierta con «Pagado».*
 
-- [ ] **B3-29 · La caja más clara** (M-40). Antes de la 1.0.0.
+- [~] **B3-29 · La caja más clara** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b3-29`.*
   → En la cabecera de la cuenta, «Añadir ítems» y «Más» (Cambiar de mesa, Se fue sin pagar, Pedir anulación, Cerrar
   sin cobrar, cada uno si aplica), a cualquier ancho: en la laptop de 1366 px no caben con su texto. «El resto en…»
   bajo el primer pago, con el monto que falta. Lo que el mesero suma mientras se cobra se ve marcado y no se pierde lo
