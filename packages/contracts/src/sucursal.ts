@@ -240,6 +240,17 @@ export const AjustesSucursalSchema = z
      */
     atencionServidoMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
     /**
+     * B5-7 (M-40): a qué hora cierra el local, en minutos desde la medianoche, cuando el horario del día no lo dice. Desde
+     * ahí y hasta que el día termina, Inicio y la caja avisan que la caja sigue abierta. Los ajustes publicados antes no
+     * lo traen: las 10:00 pm, como antes.
+     */
+    cierreDelLocalMin: z
+      .number()
+      .int("Minutos enteros")
+      .min(720, "Va de las 12:00 pm a las 11:30 pm")
+      .max(1410, "Va de las 12:00 pm a las 11:30 pm")
+      .default(1320),
+    /**
      * Los puestos que se vigilan (T-20, M-37): con la caja abierta, uno de estos que pasa de `puestoSinNadieMin` sin nadie
      * avisa una vez. Un puesto está ocupado si alguien trabajó en él en esos minutos. Los ajustes publicados antes no los
      * traen: los tres y 15.

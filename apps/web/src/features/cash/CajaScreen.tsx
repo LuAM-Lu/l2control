@@ -130,6 +130,7 @@ import {
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 import { CompletarClienteDialog } from "../clientes/CompletarClienteDialog.tsx";
 import { useMasPedidos } from "../mesas/useMasPedidos.ts";
+import { AvisoDeCierre } from "./AvisoDeCierre.tsx";
 import { MAS_PEDIDOS } from "../mesas/TomaPedido.tsx";
 import { TraerALaCaja } from "./TraerALaCaja.tsx";
 import { abiertasEnElSalon, type AbiertaEnElSalon } from "../mesas/mesas.ts";
@@ -3165,6 +3166,8 @@ export function CajaScreen({
       <h1 className="sr-only">Caja</h1>
       {/* B6-14: el aviso suave de la cuenta del salón que pidió y sigue sin cobrar. */}
       <AvisosDelSalon para="CAJA" porLimpiar={porLimpiarPorId} />
+      {/* B5-7: pasada la hora de cierre del local, que la caja sigue abierta y lo que falta. */}
+      {turno && !deOtroDia && <AvisoDeCierre />}
       <TraerALaCaja abierta={porTraer} ahora={ahoraDelEquipo} trayendo={trayendo} onTraer={() => porTraer && void traerALaCaja(porTraer)} onLoQueVa={() => porTraer && void traerALaCaja(porTraer, true)} onCerrar={() => setPorTraer(null)} />
       <Container
         as="main"

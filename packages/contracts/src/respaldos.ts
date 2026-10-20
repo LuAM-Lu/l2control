@@ -113,6 +113,17 @@ export const EstadoDeRespaldosSchema = z.object({
 });
 export type EstadoDeRespaldosDto = z.infer<typeof EstadoDeRespaldosSchema>;
 
+/**
+ * La PC del local que no baja los respaldos, para el turno (B5-7, M-40): al abrirlo y al cerrarlo lo ven administración
+ * y supervisión, con cómo se arregla. `pc: null`: ninguna preparada. Se quita sola cuando la PC baja el de anoche.
+ */
+export const AvisoDeRespaldosDelTurnoSchema = z.object({
+  pc: z.object({ nombre: z.string(), carpeta: z.string().nullable() }).nullable(),
+  /** Cuándo bajó el más reciente que bajó (y su huella cuadró); `null` si todavía no bajó ninguno. */
+  ultimaVez: TimestampSchema.nullable(),
+});
+export type AvisoDeRespaldosDelTurnoDto = z.infer<typeof AvisoDeRespaldosDelTurnoSchema>;
+
 /** Lo que la PC del local puede bajar: los que siguen en el servidor. */
 export const IndiceDeRespaldosSchema = z.object({
   copias: z.array(

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.150.0 en `main` (publicada, la 0.143.0) · 150 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.151.0 en `main` (publicada, la 0.143.0) · 151 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2740,14 +2740,14 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   worker (6); en el navegador con una impresora de mentira por TCP y el agente desde su código (el USB, simulado: esta PC no
   tiene térmica; la cola de Windows se prueba con un PowerShell de mentira y queda por ver en la laptop real).*
   *· Visto en el local (2026-10-13): la USB como respaldo imprime.*
-- [~] **B5-7 · Los avisos a tiempo** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b5-7`.*
+- [x] **B5-7 · Los avisos a tiempo** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.151.0).*
   → «Hora de cierre del local» en Ajustes → Sucursal: desde esa hora y hasta el corte del día, Inicio y la caja dicen
   «La caja sigue abierta: ciérrala antes de irte», con lo que falta. Que la PC del local no baje los respaldos sale
   también en la apertura y el cierre del turno, solo a administración y supervisión, con «Cómo se arregla» (encender esa
   PC, ejecutar su tarea «L2 Control - Respaldos» o prepararla otra vez); se quita solo cuando baja el de anoche.
   Criterio: a las 10:20 pm con la caja abierta, la caja lo avisa; y una PC que no baja respaldos se ve al abrir el
   turno.
+  *B5-7: `cierreDelLocalMin` (1320, los ajustes viejos no lo traen) en `AjustesSucursal`; `cierreDelDia` (el horario de ese día, si lo declara abierto; si no, la hora del local), `pasadaLaHoraDeCierre` y `loQueFalta` en `features/cash/turno.ts`, que usan Inicio (`AvisoDelDia`, sin su copia del horario) y la caja (`AvisoDeCierre`, con `useLoQueFaltaParaCerrar`: la cola, `abiertasEnElSalon` y la sala). La caja de un día anterior sigue con su aviso rojo (B3-24). `laPcNoBaja` en `sistema/respaldos.ts` es la regla de `SIN_BAJAR` (la usan `clasificar` y el turno, aunque lo peor sea otra cosa); `respaldos.avisoDelTurno` (con `reportes.verSucursal`: administración y supervisión) da la PC, su carpeta y cuándo bajó el último, o `null`. La página del turno lo lee y `AvisoDeLaPc` lo pinta en la apertura (con los pasos) y en el cierre (plegado); «Ir a Respaldos» solo a quien tiene `sistema.actualizar`. `respaldos.test-db.ts` (1 nueva y 4 casos de `laPcNoBaja`). Visto en el navegador en los dos temas, con el reloj del navegador a las 10:20 pm y a las 3:00 pm: la caja lo avisa de noche y no de tarde; supervisión ve la PC al abrir el turno en la tablet y al cerrar la caja de otro equipo; la cajera, no.*
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 

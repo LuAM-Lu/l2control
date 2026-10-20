@@ -18,12 +18,14 @@
 import { createHash, randomBytes } from "node:crypto";
 import {
   AcuseDeRespaldoCommandSchema,
+  AvisoDeRespaldosDelTurnoSchema,
   EstadoDeRespaldosSchema,
   FijarRespaldoCommandSchema,
   PrepararPcDeRespaldosCommandSchema,
   RetirarPcDeRespaldosCommandSchema,
   SoltarRespaldoCommandSchema,
   problemasDe,
+  type AvisoDeRespaldosDelTurnoDto,
   type CopiaDeRespaldoDto,
   type EnsayoDeRestauracionDto,
   type EstadoDeRespaldosDto,
@@ -90,6 +92,11 @@ export interface CasosRespaldos {
    * siguiente, con `respaldar.sh`, y escribe cómo terminó. Uno a la vez: con otro pedido o en curso, se queda ese.
    */
   pedirAhora(ctx: Contexto, ahora?: number): Promise<Resultado<EstadoDeRespaldosDto>>;
+  /**
+   * B5-7 (M-40): para el turno, si la PC del local no baja los respaldos (`laPcNoBaja`), cuál es y cuándo bajó el último;
+   * `null` si los baja. Lo ven administración y supervisión (`reportes.verSucursal`): no es de quien cobra.
+   */
+  avisoDelTurno(ctx: Contexto, ahora?: number): Promise<Resultado<AvisoDeRespaldosDelTurnoDto | null>>;
 }
 
 const huellaDe = (credencial: string) => createHash("sha256").update(credencial).digest("hex");
@@ -141,6 +148,19 @@ const pcDto = (p: BackupReceiver): PcDeRespaldosDto => ({
 });
 
 /**
+ * Si la PC del local no baja los respaldos (B7-4; para el turno, B5-7): ninguna preparada, ninguno bajado medio día
+ * después del último hecho, o el más reciente que bajó es de hace más de día y medio. Sin ninguno hecho, no: eso es del
+ * servidor, y lo dice el panel.
+ */
+export function laPcNoBaja(copias: readonly CopiaDeRespaldoDto[], hayPc: boolean, ahora: number): boolean {
+  const ultimo = copias.find((c) => c.estado === "HECHO");
+  if (!ultimo) return false;
+  if (!hayPc) return true;
+  const bajado = copias.find((c) => c.bajadoEn !== null);
+  return bajado ? ahora - Date.parse(bajado.hechoEn) > SIN_BAJAR_TRAS_MS : ahora - Date.parse(ultimo.hechoEn) > PRIMERO_SIN_BAJAR_TRAS_MS;
+}
+
+/**
  * Cómo están, de los intentos del más nuevo al más viejo. Va de lo peor a lo mejor: sin ninguno, el último
  * falló, el de anoche no se hizo, el último ensayo de restauración no salió íntegro (B7-6), ninguna PC preparada o
  * la PC no baja los recientes, o más de una semana sin ensayar; si no, al día.
@@ -159,14 +179,16 @@ export function clasificar(
   if (ensayo && !ensayo.integro) {
     return { nivel: "NO_INTEGRO", aviso: `El último ensayo de restauración no salió íntegro: ${ensayo.detalle ?? "sin motivo"}` };
   }
-  if (!hayPc) return { nivel: "SIN_BAJAR", aviso: "Ninguna PC del local está preparada para bajarlos: la única copia está en el servidor." };
-  const bajado = copias.find((c) => c.bajadoEn !== null);
-  if (!bajado) {
-    if (ahora - Date.parse(ultimo.hechoEn) > PRIMERO_SIN_BAJAR_TRAS_MS) {
-      return { nivel: "SIN_BAJAR", aviso: "La PC del local todavía no ha bajado ningún respaldo: la única copia está en el servidor." };
-    }
-  } else if (ahora - Date.parse(bajado.hechoEn) > SIN_BAJAR_TRAS_MS) {
-    return { nivel: "SIN_BAJAR", aviso: "La PC del local no baja los respaldos recientes: la única copia de los últimos días está en el servidor." };
+  if (laPcNoBaja(copias, hayPc, ahora)) {
+    const bajado = copias.find((c) => c.bajadoEn !== null);
+    return {
+      nivel: "SIN_BAJAR",
+      aviso: !hayPc
+        ? "Ninguna PC del local está preparada para bajarlos: la única copia está en el servidor."
+        : !bajado
+          ? "La PC del local todavía no ha bajado ningún respaldo: la única copia está en el servidor."
+          : "La PC del local no baja los respaldos recientes: la única copia de los últimos días está en el servidor.",
+    };
   }
   // Semanal: sin ensayo en más de una semana (o ninguno, con respaldos de hace más de una), se avisa.
   const primero = copias.findLast((c) => c.estado === "HECHO")!;
@@ -241,6 +263,24 @@ export function casosRespaldos(base: Base): CasosRespaldos {
         return leer(tx, ahora);
       });
       return "ok" in r ? r : { ok: true, valor: r };
+    },
+
+    async avisoDelTurno(ctx, ahora = Date.now()) {
+      const r = await base.conTenant(ctx.tenantId, async (tx): Promise<{ aviso: AvisoDeRespaldosDelTurnoDto | null } | Rechazo> => {
+        const p = await permisoEn(tx, ctx, "reportes.verSucursal");
+        if (p !== "PERMITIDO") return rechazoDePermiso(p);
+        const filas = await tx.backupCopy.findMany({ orderBy: [{ madeAt: "desc" }, { id: "desc" }], take: 60 });
+        const pc = await tx.backupReceiver.findFirst({ where: { revokedAt: null } });
+        const copias = filas.map((f) => dto(f));
+        if (!laPcNoBaja(copias, pc !== null, ahora)) return { aviso: null };
+        return {
+          aviso: AvisoDeRespaldosDelTurnoSchema.parse({
+            pc: pc ? { nombre: pc.name, carpeta: pc.folder } : null,
+            ultimaVez: copias.find((c) => c.bajadoEn !== null)?.bajadoEn ?? null,
+          }),
+        };
+      });
+      return "ok" in r ? r : { ok: true, valor: r.aviso };
     },
 
     async prepararPc(ctx, entrada, ahora = Date.now()) {

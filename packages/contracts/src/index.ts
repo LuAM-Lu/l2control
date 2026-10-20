@@ -942,6 +942,8 @@ export {
   type FijarRespaldoCommand,
   type TipoDeCarpeta,
   type InformeDeLaPcDto,
+  AvisoDeRespaldosDelTurnoSchema,
+  type AvisoDeRespaldosDelTurnoDto,
 } from "./respaldos.ts";
 
 export {
