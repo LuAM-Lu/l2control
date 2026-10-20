@@ -2137,7 +2137,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   (`descontado.despues`), y si un vale se anuló así. En la web, `PestanasDeDeudas`, `AccionesDelPersonal.tsx` y la
   columna «Quincena» de `seccionesDelPersonal` (pantalla y PDF); `/personal` redirige a `/deudas?vista=personal`.
   `personal.test-db.ts` (2 nuevas). Visto en el navegador en los dos temas, con administración.*
-- [ ] **B3-27 · Las cuentas del salón a la vista de la caja** (M-40). Antes de la 1.0.0.
+- [~] **B3-27 · Las cuentas del salón a la vista de la caja** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b3-27`.*
   → En la cola de la caja, «Abiertas en el salón»: las mesas y las cuentas de pie que no han pedido la cuenta, con quién
   las abrió y cuánto llevan abiertas, y «Traer a la caja» (como «Pide la cuenta»). Una cuenta del salón que pasa un rato
   sin pedir la cuenta avisa al mesero y a la caja (los minutos, en los ajustes, como los demás avisos del salón), y al
