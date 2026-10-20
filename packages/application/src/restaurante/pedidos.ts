@@ -32,6 +32,8 @@ import {
   NotasRapidasQuerySchema,
   NotasRapidasSchema,
   type NotasRapidasDto,
+  MasPedidosSchema,
+  type MasPedidosDto,
   problemasDe,
   type AccountLineDto,
   type FamilyAccountDto,
@@ -58,7 +60,7 @@ import {
   type MarcaDePlato,
 } from "@l2/domain-orders";
 import { reintentado } from "@l2/domain-printing";
-import { calendarDay, startOfDay } from "@l2/domain-rates";
+import { addDays, calendarDay, startOfDay } from "@l2/domain-rates";
 import { errorDeBase, type Base, type Transaccion } from "@l2/database";
 import type { Action } from "@l2/domain-identity";
 import type { Contexto } from "../contexto.ts";
@@ -70,7 +72,8 @@ import { impresoraDe } from "../impresion/impresion.ts";
 import { NOMBRE_DE_AREA, areaSinImpresora, areasDeProductos, oficioDe, sinImpresoraPara, type LineaGuardada } from "./comandas.ts";
 import { encolarComanda } from "./comanda.ts";
 import { borrarBorradorEn } from "../caja/borrador.ts";
-import { zonaDe } from "../sucursal/ajustes.ts";
+import { diaDeNegocioDe, zonaDe } from "../sucursal/ajustes.ts";
+import { businessDayAt, businessDayEnd } from "@l2/domain-cash";
 import { candadoDeMesas, cuentaDeMesaPara, mesaParaCuentaNueva, mesaSinCuenta } from "./plano.ts";
 
 export interface CasosPedidos {
@@ -100,6 +103,11 @@ export interface CasosPedidos {
    * últimos 60 días en esta sucursal y, si tiene pocas, las de su categoría. Las aprende de los pedidos; nadie las configura.
    */
   notasRapidas(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<NotasRapidasDto>>;
+  /**
+   * «Lo más pedido hoy» (B6-23): los 8 platos más pedidos del día de negocio en esta sucursal; si todavía no hay, los de
+   * los últimos 7 días. Lo piden el mesero y la caja.
+   */
+  masPedidos(ctx: Contexto, ahora?: number): Promise<Resultado<MasPedidosDto>>;
 }
 
 /** Quién ve los pedidos: quien los toma y la caja, que cobra la mesa y ve si salió la comanda. */
@@ -110,6 +118,25 @@ type FilaPedido = Awaited<ReturnType<Transaccion["kitchenOrder"]["findFirstOrThr
 
 export function casosPedidos(base: Base): CasosPedidos {
   return {
+    async masPedidos(ctx, ahora = Date.now()) {
+      return base.conTenant(ctx.tenantId, async (tx): Promise<Resultado<MasPedidosDto>> => {
+        if (!(await puedeAlguna(tx, ctx, VEN_PEDIDOS))) return rechazoDePermiso("DENEGADO");
+        const dia = await diaDeNegocioDe(tx, ctx.branchId);
+        const inicioDeHoy = businessDayEnd(addDays(businessDayAt(ahora, dia.zona, dia.finMin), -1), dia.zona, dia.finMin);
+        // Lo pedido desde una fecha, por plato, del más pedido al menos (en empate, el más reciente).
+        const contar = (desde: Date) => tx.$queryRaw<{ producto: string }[]>`
+          SELECT i->>'productId' AS producto
+          FROM kitchen_order k, jsonb_array_elements(k.items) i
+          WHERE k.branch_id = ${ctx.branchId}::uuid AND k.created_at >= ${desde} AND i->>'productId' IS NOT NULL
+          GROUP BY 1
+          ORDER BY sum(coalesce((i->>'cantidad')::int, 1)) DESC, max(k.created_at) DESC
+          LIMIT ${MAS_PEDIDOS}`;
+        const hoy = await contar(new Date(inicioDeHoy));
+        const filas = hoy.length > 0 ? hoy : await contar(new Date(ahora - 7 * 86_400_000));
+        return { ok: true, valor: MasPedidosSchema.parse({ periodo: hoy.length > 0 ? "HOY" : "SEMANA", productos: filas.map((f) => f.producto) }) };
+      });
+    },
+
     async leer(ctx, ahora = Date.now()) {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<PedidosDelLocalDto | Rechazo> => {
         if (!(await puedeAlguna(tx, ctx, VEN_PEDIDOS))) return rechazoDePermiso("DENEGADO");
@@ -540,6 +567,9 @@ export function casosPedidos(base: Base): CasosPedidos {
     },
   };
 }
+
+/** Cuántos platos lleva «Lo más pedido hoy» (B6-23). */
+const MAS_PEDIDOS = 8;
 
 /** De cuántos días atrás se aprenden las notas rápidas (B6-12). */
 const DIAS_DE_NOTAS = 60;

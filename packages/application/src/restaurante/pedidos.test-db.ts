@@ -728,6 +728,27 @@ describe("notas rápidas del mesero (B6-12)", () => {
   });
 });
 
+describe("lo más pedido hoy (B6-23)", () => {
+  test("los más pedidos del día, del más al menos; temprano, los de la semana; quien no pide no los ve", async () => {
+    const dePie = await sentarDePrueba(l, mesero, undefined, AHORA, { nombre: "Prueba Más Pedidos" });
+    valor(await l.app.pedidos.enviar(mesero, { pedidoId: randomUUID(), cuentaId: dePie.id, lineas: [linea("Tequeños", 30)], repetir: true }, AHORA + 2 * MIN));
+    const hoy = valor(await l.app.pedidos.masPedidos(mesero, AHORA + 3 * MIN));
+    assert.equal(hoy.periodo, "HOY");
+    assert.equal(hoy.productos[0], ids["Tequeños"], "treinta tequeños: el más pedido");
+    assert.ok(hoy.productos.includes(ids["Refresco"]!));
+    assert.ok(hoy.productos.length <= 8);
+    // Tres días después, sin pedidos ese día: los de la semana.
+    const temprano = valor(await l.app.pedidos.masPedidos(cajera, AHORA + 3 * 86_400_000));
+    assert.equal(temprano.periodo, "SEMANA");
+    assert.equal(temprano.productos[0], ids["Tequeños"]);
+    // Pasada la semana, nada.
+    assert.deepEqual(valor(await l.app.pedidos.masPedidos(mesero, AHORA + 9 * 86_400_000)).productos, []);
+    const r = await l.app.pedidos.masPedidos(monitora, AHORA);
+    assert.equal(!r.ok && r.motivo, "NO_PERMITIDO");
+    assert.deepEqual(valor(await otro.app.pedidos.masPedidos(otroMesero, AHORA)).productos, []);
+  });
+});
+
 describe("servir y cerrar la mesa (B6-13)", () => {
   test("«¿Ya se sirvió todo?» al pedir la cuenta: servidos sin hora exacta", async () => {
     const id = randomUUID();

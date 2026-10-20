@@ -31,6 +31,7 @@ import {
   ChevronDown,
   Sparkles,
   StickyNote,
+  TrendingUp,
 } from "lucide-react";
 import {
   type CurrencyCode,
@@ -128,6 +129,8 @@ import {
 } from "./ClienteFacturaDialog.tsx";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 import { CompletarClienteDialog } from "../clientes/CompletarClienteDialog.tsx";
+import { useMasPedidos } from "../mesas/useMasPedidos.ts";
+import { MAS_PEDIDOS } from "../mesas/TomaPedido.tsx";
 import { TraerALaCaja } from "./TraerALaCaja.tsx";
 import { abiertasEnElSalon, type AbiertaEnElSalon } from "../mesas/mesas.ts";
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
@@ -3645,12 +3648,16 @@ function CartaMostrador({
   const aLaVenta = useContext(ALaVenta);
   const { vista, cambiar } = useContext(VistaPrecios);
   const buscador = useContext(BuscadorDeLaCarta);
+  // B6-23: «Lo más pedido hoy» (o de la semana, temprano), primero y abierta de entrada, si hay.
+  const masPedidos = useMasPedidos();
+  const destacados = useMemo(() => (masPedidos?.productos ?? []).flatMap((id) => aLaVenta.find((p) => p.id === id) ?? []), [masPedidos, aLaVenta]);
   // Las pestañas salen de lo que se vende: una categoría existe si hay algo en ella (B9-1).
   const categorias = useMemo(
-    () => ["Todos", ...categoriesOf(aLaVenta.map((p) => ({ category: p.categoria })))],
-    [aLaVenta],
+    () => [...(destacados.length > 0 ? [MAS_PEDIDOS] : []), "Todos", ...categoriesOf(aLaVenta.map((p) => ({ category: p.categoria })))],
+    [aLaVenta, destacados.length],
   );
-  const [elegida, setCategoria] = useState("Todos");
+  const [elegidaAMano, setCategoria] = useState<string | null>(null);
+  const elegida = elegidaAMano ?? categorias[0]!;
   const [busqueda, setBusqueda] = useState("");
   const consulta = nameKey(busqueda);
   const buscando = consulta !== "";
@@ -3658,9 +3665,11 @@ function CartaMostrador({
   const categoria = buscando ? "Todos" : categorias.includes(elegida) ? elegida : "Todos";
   const productos = buscando
     ? aLaVenta.filter((p) => coincide(p, consulta))
-    : categoria === "Todos"
-      ? aLaVenta
-      : aLaVenta.filter((p) => nameKey(p.categoria) === nameKey(categoria));
+    : categoria === MAS_PEDIDOS
+      ? destacados
+      : categoria === "Todos"
+        ? aLaVenta
+        : aLaVenta.filter((p) => nameKey(p.categoria) === nameKey(categoria));
   const seVenden = productos.filter(seVendeAhora);
   const noSeVenden = productos.filter((p) => !seVendeAhora(p));
 
@@ -3858,7 +3867,14 @@ function CartaMostrador({
                 : "border border-line/60 bg-surface text-ink-2 hover:bg-surface-2",
             )}
           >
-            {cat}
+            {cat === MAS_PEDIDOS ? (
+              <span className="inline-flex items-center gap-1.5">
+                <TrendingUp className="size-(--icono-texto)" aria-hidden="true" />
+                {masPedidos?.periodo === "SEMANA" ? "Lo más pedido de la semana" : "Lo más pedido hoy"}
+              </span>
+            ) : (
+              cat
+            )}
           </button>
         ))}
       </div>

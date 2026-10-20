@@ -570,6 +570,8 @@ export {
   MarcarMesaLimpiaCommandSchema,
   type MesasPorLimpiarDto,
   NotasRapidasSchema,
+  MasPedidosSchema,
+  type MasPedidosDto,
   type NotasRapidasDto,
   type DeshacerServidoCommand,
   VincularPulserasCommandSchema,
