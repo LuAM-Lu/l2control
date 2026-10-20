@@ -116,6 +116,12 @@ ponen y `guardarVersion` lo quita. El directorio es el de representantes, con la
 `customer_debt`; se cobra en una cuenta nueva del mostrador (`deudas.cobrar`) que, cobrada entera, la salda en la misma
 transacción (`deudas/saldar.ts`).
 
+**Clientes (T-25).** El directorio (`guardian`) es el de todos: las familias del parque y los clientes de mesa con
+teléfono. Se ve y se corrige en Clientes (`directorio.*`, `clientes.ver`). Un niño se retira (`kid.retired_at`): la entrada no lo
+ofrece y, si vuelve a entrar con su nombre, vuelve. «Juntar» (`clientes.juntar`) deja su fila en `guardian_merge` (solo agregar):
+sus niños pasan a quien queda (el disparador lo deja solo así) y su historia se lee con `registrosDe`. **Toda búsqueda por
+teléfono o por ficha sigue a `quienQueda`**: el teléfono del que se fue lleva al que queda. Con dos cédulas no se juntan.
+
 **Secciones con pestañas (T-18).** Lo que va junto vive en una sección con `pestanas` en `shell/navigation.ts`, cada
 pestaña con su permiso (la sección se ve con cualquiera de ellos). La pestaña va en la dirección (`?pestana=…`,
 `rutaPestana`, `pestanaPedida`) y la ruta del panel lee solo la abierta, dentro de `MarcoDeSeccion`. Una ruta que se

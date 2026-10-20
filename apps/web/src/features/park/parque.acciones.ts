@@ -4,8 +4,6 @@ import type {
   AvisosDeSalaDto,
   CheckInResult,
   CheckoutResult,
-  DirectorioRepresentantesDto,
-  PaginaDelDirectorioDto,
   EstanciaDto,
   EstadoPulseraDto,
   FamilyAccountDto,
@@ -111,20 +109,6 @@ export async function buscarRepresentante(entrada: unknown): Promise<Resultado<R
   const ctx = await contextoActual();
   if (!ctx) return sinSesion;
   return (await aplicacion()).representantes.buscar(ctx, entrada);
-}
-
-/** Corrige un representante o un niño del directorio; devuelve el directorio. */
-/** Busca en el directorio y trae de a 50 (T-22, `PaginaDelDirectorioQuerySchema`): lo escrito, la letra, cargar más. */
-export async function buscarEnElDirectorio(entrada: unknown): Promise<Resultado<PaginaDelDirectorioDto>> {
-  const ctx = await contextoActual();
-  if (!ctx) return sinSesion;
-  return (await aplicacion()).representantes.pagina(ctx, entrada);
-}
-
-export async function corregirDirectorio(entrada: unknown): Promise<Resultado<DirectorioRepresentantesDto>> {
-  const ctx = await contextoActual();
-  if (!ctx) return sinSesion;
-  return (await aplicacion()).representantes.corregir(ctx, entrada);
 }
 
 /** Paga el parque antes de salir (B4-19): el tiempo abierto pasa a su paquete y la cuenta, a la cola de la caja. */

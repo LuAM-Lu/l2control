@@ -129,3 +129,132 @@ export const AsignarClienteCommandSchema = z.strictObject({
   cliente: DatosParcialesDelClienteSchema,
 });
 export type AsignarClienteCommand = z.infer<typeof AsignarClienteCommandSchema>;
+
+/* ───────────────────────────────────────────── Clientes (T-25, M-40): el directorio de todos */
+
+/**
+ * Los filtros de Clientes: todos; las familias del parque (con niños); los de mesa (alguna cuenta del salón o una venta
+ * que quedó pendiente a su nombre); los que deben (B3-11); los VIP (B3-6).
+ */
+export const FiltroDeClientesSchema = z.enum(["TODOS", "FAMILIAS", "DE_MESA", "CON_DEUDA", "VIP"]);
+export type FiltroDeClientes = z.infer<typeof FiltroDeClientesSchema>;
+
+/** Una página de Clientes: lo buscado (nombre, cédula, teléfono o un niño, como el campo de T-24) y el filtro, de a 50. */
+export const PaginaDeClientesQuerySchema = z.strictObject({
+  texto: z.string().trim().max(80).default(""),
+  filtro: FiltroDeClientesSchema.default("TODOS"),
+  desde: z.number().int().min(0).max(1_000_000).default(0),
+  cuantos: z.number().int().min(1).max(100).default(50),
+});
+export type PaginaDeClientesQuery = z.input<typeof PaginaDeClientesQuerySchema>;
+
+/** Dónde vino: el parque, una mesa, de pie, una venta del mostrador a su nombre o un cumpleaños. */
+export const DondeVinoSchema = z.enum(["PARQUE", "MESA", "DE_PIE", "MOSTRADOR", "CUMPLEANOS"]);
+export type DondeVino = z.infer<typeof DondeVinoSchema>;
+
+/** Un cliente en la lista: lo justo para reconocerlo sin abrir su ficha. */
+export const ClienteDelDirectorioSchema = z.object({
+  id: IdSchema,
+  nombre: z.string(),
+  cedula: z.string().nullable(),
+  telefono: z.string(),
+  /** Sus niños (los que no se retiraron). */
+  ninos: z.number().int().min(0),
+  ultimaVez: z.object({ en: TimestampSchema, donde: DondeVinoSchema }).nullable(),
+  /** Lo que debe (B3-11), si debe algo. */
+  debe: MoneySchema.nullable(),
+  /** El nombre de su regla VIP (B3-6), si la tiene. */
+  vip: z.string().nullable(),
+});
+export type ClienteDelDirectorioDto = z.infer<typeof ClienteDelDirectorioSchema>;
+
+export const PaginaDeClientesSchema = z.object({
+  clientes: z.array(ClienteDelDirectorioSchema),
+  /** Cuántos hay con lo buscado y el filtro. */
+  total: z.number().int().min(0),
+  /** Cuántos hay en cada filtro, sin lo buscado: lo que dicen los chips. */
+  porFiltro: z.object({ TODOS: z.number().int(), FAMILIAS: z.number().int(), DE_MESA: z.number().int(), CON_DEUDA: z.number().int(), VIP: z.number().int() }),
+});
+export type PaginaDeClientesDto = z.infer<typeof PaginaDeClientesSchema>;
+
+/** Algo que hizo en el local, para «Lo que hizo en el local»: lo más reciente primero. */
+export const MovimientoDelClienteSchema = z.object({
+  en: TimestampSchema,
+  que: z.enum(["PARQUE", "MESA", "DE_PIE", "MOSTRADOR", "CUMPLEANOS", "DEUDA"]),
+  /** «Sofía y Mateo · 2 horas», «#0230 · 3 personas», «Cumpleaños de Sofía · 15 invitados», «Se fue sin pagar». */
+  detalle: z.string().max(120),
+  /** Lo que se cobró o lo que dejó a deber; sin cobrar todavía, `null`. */
+  monto: MoneySchema.nullable(),
+});
+export type MovimientoDelClienteDto = z.infer<typeof MovimientoDelClienteSchema>;
+
+/**
+ * La ficha de un cliente (T-25): sus datos, sus cifras, sus niños, lo que hizo en el local y quién se le parece. Lo de
+ * los registros que se juntaron con él cuenta como suyo.
+ */
+export const FichaDelClienteSchema = z.object({
+  id: IdSchema,
+  nombre: z.string(),
+  cedula: z.string().nullable(),
+  telefono: z.string(),
+  /** Desde cuándo está en el directorio. */
+  desde: TimestampSchema,
+  /** Los días que vino (al parque, al salón o a un cumpleaños). */
+  visitas: z.number().int().min(0),
+  /** Lo cobrado de sus cuentas, sin lo anulado. */
+  gastado: MoneySchema,
+  /** Lo que debe (B3-11). */
+  debe: MoneySchema,
+  vip: z.object({ reglaId: IdSchema, nombre: z.string() }).nullable(),
+  ninos: z.array(
+    z.object({
+      id: IdSchema,
+      nombre: z.string(),
+      apodo: z.string().nullable(),
+      visitas: z.number().int().min(0),
+      /** Retirado de la familia: sus estancias lo siguen nombrando; la entrada ya no lo ofrece. */
+      retirado: z.object({ en: TimestampSchema, por: z.string() }).nullable(),
+    }),
+  ),
+  historia: z.array(MovimientoDelClienteSchema).max(40),
+  /** Otros del directorio con el mismo nombre: quizás la misma persona, que quedó dos veces. */
+  parecidos: z.array(
+    z.object({ id: IdSchema, nombre: z.string(), cedula: z.string().nullable(), telefono: z.string(), ultimaVez: TimestampSchema.nullable() }),
+  ),
+  /** Los registros que se juntaron con este (T-25). */
+  juntados: z.array(z.object({ nombre: z.string(), en: TimestampSchema, por: z.string() })),
+});
+export type FichaDelClienteDto = z.infer<typeof FichaDelClienteSchema>;
+
+/**
+ * Corregir los datos de un cliente (T-25): su nombre, su teléfono (el directorio lo necesita: el parque llama al
+ * representante) y su cédula. La cédula se anota o se corrige; no se quita.
+ */
+export const CorregirClienteCommandSchema = z.strictObject({
+  clienteId: IdSchema,
+  nombre: DatosDelClienteSchema.shape.nombre,
+  cedula: z.preprocess(opcional, DocumentoVeSchema.optional()),
+  telefono: z.preprocess(sinSeparadores, TelefonoVeSchema),
+});
+export type CorregirClienteCommand = z.infer<typeof CorregirClienteCommandSchema>;
+
+const nombreDelNino = z.string().trim().min(2, "Nombre demasiado corto").max(60, "Un nombre de hasta 60 caracteres");
+const apodoDelNino = z.preprocess((v) => (typeof v === "string" && v.trim() === "" ? undefined : v), z.string().trim().max(30).optional());
+
+/** Los niños de un cliente (T-25): agregar uno, corregirlo o retirarlo (un error, o ya no viene; no se borra). */
+export const NinoDelClienteCommandSchema = z.discriminatedUnion("kind", [
+  z.strictObject({ kind: z.literal("AGREGAR"), clienteId: IdSchema, nombre: nombreDelNino, apodo: apodoDelNino }),
+  z.strictObject({ kind: z.literal("CORREGIR"), clienteId: IdSchema, ninoId: IdSchema, nombre: nombreDelNino, apodo: apodoDelNino }),
+  z.strictObject({ kind: z.literal("RETIRAR"), clienteId: IdSchema, ninoId: IdSchema }),
+]);
+export type NinoDelClienteCommand = z.infer<typeof NinoDelClienteCommandSchema>;
+
+/**
+ * Juntar a la misma persona que quedó dos veces (T-25): la que se va pasa a la que queda (sus niños, su historia, lo que
+ * debe) y buscarla por su cédula o su teléfono lleva a la que queda. No se deshace; con dos cédulas distintas no son la
+ * misma persona.
+ */
+export const JuntarClientesCommandSchema = z
+  .strictObject({ quedaId: IdSchema, seVaId: IdSchema })
+  .refine((c) => c.quedaId !== c.seVaId, { message: "Elige otro cliente", path: ["seVaId"] });
+export type JuntarClientesCommand = z.infer<typeof JuntarClientesCommandSchema>;

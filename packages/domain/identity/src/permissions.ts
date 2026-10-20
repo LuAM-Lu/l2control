@@ -47,6 +47,8 @@ export type Action =
   | "parque.extenderSinCobro"
   | "parque.vincularMesa"
   | "parque.verContacto"
+  | "clientes.ver"
+  | "clientes.juntar"
   | "parque.cerrarHuerfana"
   | "parque.anularEntrada"
   | "evento.reservar"
@@ -154,6 +156,10 @@ export const MATRIZ: Matriz = Object.freeze({
   "parque.extenderSinCobro": fila(P, A, D, D, A, D),
   "parque.vincularMesa": fila(P, P, P, P, P, D),
   "parque.verContacto": fila(P, P, D, D, P, D),
+  // T-25 (M-40): Clientes. Lo ven y corrigen quienes atienden al cliente (administración, supervisión, la caja y la
+  // monitora); el mesero completa los datos al sentar. Juntar a la misma persona, administración y supervisión.
+  "clientes.ver": fila(P, P, P, D, P, D),
+  "clientes.juntar": fila(P, P, D, D, D, D),
   // F5-13, H-19: una estancia huérfana (el niño se fue sin registrar la salida) la cierra la
   // dirección del local con un motivo, sin cobrar tiempo de más.
   "parque.cerrarHuerfana": fila(P, P, D, D, D, D),

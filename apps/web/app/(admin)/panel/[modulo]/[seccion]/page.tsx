@@ -21,8 +21,8 @@ import { estadoDelSistema } from "../../../../../src/features/sistema/sistema.se
 import { RespaldosScreen } from "../../../../../src/features/sistema/RespaldosScreen";
 import { estadoDeRespaldos } from "../../../../../src/features/sistema/respaldos.servidor";
 import { entorno } from "../../../../../src/servidor/entorno";
-import { RepresentantesPage } from "../../../../../src/features/park/RepresentantesPage";
-import { paginaDelDirectorio } from "../../../../../src/features/park/parque.servidor";
+import { ClientesScreen } from "../../../../../src/features/clientes/ClientesScreen";
+import { paginaDeClientes } from "../../../../../src/features/clientes/directorio.servidor";
 import { TasasPage } from "../../../../../src/features/cash/TasasPage";
 import { autorizadoresDeTasa, paginaDeTasas } from "../../../../../src/features/cash/tasas.servidor";
 import { MediosPage } from "../../../../../src/features/cash/MediosPage";
@@ -60,7 +60,7 @@ import { informeDeDeudas, informeDeInventario, informeDeMovimientos, informeDeVe
  * de encontrar la página del módulo. Añadir una pantalla es una línea.
  */
 const PANTALLAS: Readonly<Record<string, (q: ConsultaEnLaDireccion) => React.ReactNode | Promise<React.ReactNode>>> = {
-  "parque/representantes": async () => <RepresentantesPage inicial={await paginaDelDirectorio()} descuentos={await descuentosDelLocal()} />,
+  "clientes/directorio": async () => <ClientesScreen inicial={await paginaDeClientes()} descuentos={await descuentosDelLocal()} />,
   "parque/eventos": async () => <EventosScreen catalogo={await catalogoDeEventos()} agenda={await agendaDeEventos()} />,
   "ajustes/cumpleanos": async () => <CumpleanosScreen publicado={await catalogoDeEventos()} productos={await catalogoDelLocal()} />,
   "ajustes/tarifas": async () => <EditorTarifario versiones={await versionesDelTarifario()} />,

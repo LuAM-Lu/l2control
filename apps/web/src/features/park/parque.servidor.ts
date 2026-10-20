@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { MonitorSnapshotDto, PaginaDelDirectorioDto } from "@l2/contracts";
+import type { MonitorSnapshotDto } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -20,15 +20,6 @@ export async function salaDelLocal(): Promise<MonitorSnapshotDto | null> {
     return null;
   }
   return r.valor;
-}
-
-/** La primera página del directorio (T-22): de a 50, de la visita más reciente a la más vieja. */
-export async function paginaDelDirectorio(): Promise<PaginaDelDirectorioDto | null> {
-  await connection();
-  const ctx = await contextoActual();
-  if (!ctx) return null;
-  const r = await (await aplicacion()).representantes.pagina(ctx, {});
-  return r.ok ? r.valor : null;
 }
 
 /** Niños atendidos hoy y el mismo día de la semana pasada hasta esta hora (Inicio, B4-2). */

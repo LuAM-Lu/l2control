@@ -16,6 +16,26 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.152.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: Clientes.
+
+### Añadido
+- **Clientes**, una sección propia del panel en lugar de «Representantes y niños»: las familias del parque y los
+  clientes de mesa en una sola lista, con el campo de siempre (nombre, cédula, teléfono o un niño) y los filtros Todos,
+  Familias, De mesa, Con deuda y VIP, con su cuenta. Cada renglón dice dónde vino la última vez y si debe, es VIP o le
+  falta la cédula.
+- La ficha de cada cliente: sus visitas, lo gastado, lo que debe y su descuento VIP; sus niños, y «Lo que hizo en el
+  local» (sus entradas al parque, sus mesas, sus cumpleaños y sus deudas, con lo cobrado).
+- «Editar datos» (con los campos de la mesa y la caja, auditado; la cédula se anota o se corrige, no se quita) y los
+  niños: agregar, corregir y retirar (la entrada deja de ofrecerlo; si vuelve a entrar, vuelve).
+- **«Juntar»** (supervisión y administración): la misma persona que quedó dos veces. Pasan sus niños, su historia, lo que
+  debe, su cédula y su VIP; buscarla por su teléfono lleva a la que queda. Con dos cédulas distintas no se juntan.
+
+### Cambiado
+- Lo ven y corrigen administración, supervisión, la caja y la monitora (permisos nuevos «clientes.ver» y
+  «clientes.juntar»). La dirección vieja lleva a Clientes.
+
 ## [0.151.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: los avisos a tiempo.

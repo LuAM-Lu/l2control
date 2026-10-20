@@ -161,7 +161,13 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   // Una consulta no cambia nada: se audita (§7.6) y no avisa a nadie.
   "representante.consultar": NADA,
   "cliente.buscar": NADA,
-  "nino.corregir": ["sala"],
+  "nino.corregir": ["sala", "clientes"],
+  // T-25: Clientes. Una consulta no avisa; corregir y juntar cambian lo que ven la sala, la caja y el salón.
+  "cliente.consultar": NADA,
+  "cliente.corregir": ["clientes", "sala", "cuentas"],
+  "cliente.juntar": ["clientes", "sala", "cuentas", "descuentos"],
+  "nino.agregar": ["clientes", "sala"],
+  "nino.retirar": ["clientes", "sala"],
 
   "medio.crear": ["medios"],
   "medio.encender": ["medios"],
