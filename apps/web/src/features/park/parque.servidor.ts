@@ -1,6 +1,6 @@
 import "server-only";
 import { connection } from "next/server";
-import type { MonitorSnapshotDto } from "@l2/contracts";
+import type { CierreDelParqueDto, MonitorSnapshotDto, Resultado } from "@l2/contracts";
 import { aplicacion, log } from "../../servidor/aplicacion";
 import { contextoActual } from "../../servidor/sesion";
 
@@ -29,4 +29,12 @@ export async function ninosAtendidos(): Promise<{ hoy: number; semanaPasada: num
   if (!ctx) return null;
   const r = await (await aplicacion()).parque.atendidos(ctx);
   return r.ok ? r.valor : null;
+}
+
+/** El cierre del parque de hoy (B4-21): la pantalla de la monitora y su PDF. `null` sin sesión. */
+export async function cierreDelParque(): Promise<Resultado<CierreDelParqueDto> | null> {
+  await connection();
+  const ctx = await contextoActual();
+  if (!ctx) return null;
+  return (await aplicacion()).reportes.cierreDelParque(ctx);
 }

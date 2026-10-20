@@ -1,7 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen, Unlink, HandCoins } from "lucide-react";
+import { Ban, Baby, Gift, OctagonAlert, TimerReset, Users, NotebookPen, Link2, WifiOff, TriangleAlert, ClipboardList, ClipboardCheck, Plus, UtensilsCrossed, Play, UserSearch, HandHeart, DoorOpen, Unlink, HandCoins } from "lucide-react";
+import Link from "next/link";
 import { PagarAhoraDialog, hayQuePagarAntes } from "./PagarAhoraDialog.tsx";
 import { WristbandCodeSchema, type CatalogoDto, type FamilyAccountDto, type ReservaEventoDto } from "@l2/contracts";
 import { Container, EmptyState, ScannerField, Sheet, cn, formatMoneyVE, avisar, Button, useMediaQuery } from "@l2/ui";
@@ -306,6 +307,17 @@ export function ParkMonitor({
               <UserSearch size={18} aria-hidden="true" />
               <span className="max-md:sr-only">Buscar</span>
             </Button>
+            {/* B4-21: la jornada de la monitora, sin montos; su PDF al cerrar, con la sala en cero. */}
+            <Link
+              href={"/monitor/cierre" as Route}
+              data-recorrido="sala-cierre"
+              aria-label="Cierre del parque"
+              title="Cierre del parque: las familias de hoy, las pulseras y las medias"
+              className="inline-flex min-h-12 min-w-12 shrink-0 items-center justify-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface-2 px-4 text-base text-ink transition-colors hover:bg-line focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <ClipboardCheck size={18} aria-hidden="true" />
+              <span className="max-md:sr-only">Cierre</span>
+            </Link>
           </div>
           <BuscadorDeClientes abierto={buscandoCliente} onCerrar={() => setBuscandoCliente(false)} />
           {/* B4-12: la entrada y la salida, en capas sobre la sala. */}

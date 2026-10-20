@@ -25,6 +25,8 @@ const alcanza = (actor: Actor, accion: Action) => can(actor, accion) !== "DENEGA
 
 export const SUPERFICIE_DE_RUTA: Readonly<Record<string, SurfaceId>> = {
   "/monitor": "monitor",
+  // B4-21: el cierre del parque es de quien atiende la sala.
+  "/monitor/cierre": "monitor",
   "/entrada": "entrada",
   "/salida": "salida",
   "/caja": "caja",
