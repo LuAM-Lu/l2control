@@ -16,6 +16,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.146.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: las cuentas del salón a la vista de la caja.
+
+### Añadido
+- **«Abiertas en el salón»** al pie de la cola de la caja: las mesas y las cuentas de pie que no han pedido la cuenta y
+  tienen algo que cobrar, con quién las abrió y cuánto llevan. Va plegada mientras haya cola, con cuántas «llevan rato».
+  Tocar una dice lo que se sabe (abierta por, a qué hora, su último pedido, lo que debe) y «Traer a la caja y cobrar» la
+  pasa a la cola como «Pide la cuenta», sin esperar al mesero.
+- **«… lleva 45 min sin pedir la cuenta»:** la cuenta del salón que pasa ese rato desde su último pedido avisa a la caja
+  y al mesero (al mesero, si no espera un plato). Los minutos, en Ajustes → Sucursal («Sin pedir la cuenta»).
+
+### Cambiado
+- En el cierre del turno, las cuentas que no pidieron la cuenta salen primero.
+
 ## [0.145.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: sentar «Más seguro» o «Más rápido».

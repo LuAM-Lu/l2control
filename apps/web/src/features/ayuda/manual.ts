@@ -265,6 +265,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Elige el medio de pago y escribe el monto; se puede pagar con varios medios (mixto). El vuelto se calcula solo.",
       "«Cambiar de mesa» (en una cuenta de mesa): si la familia se cambió y nadie lo hizo en la tablet, la cuenta pasa entera a la mesa nueva, con su papel para la cocina.",
       "«En el parque» (al pie de la cola): las familias con niños en la sala que pueden pagar ya. «Pagar ahora» (o pasar la pulsera de uno de sus niños): el de tiempo abierto elige su paquete y la cuenta se abre para cobrarla con lo demás. Al salir dentro de su tiempo se van sin pasar por la caja; si se pasan, el tiempo de más llega a la cola.",
+      "«Abiertas en el salón» (al pie de la cola): las mesas y las cuentas de pie que no han pedido la cuenta y tienen algo que cobrar, con quién las abrió y cuánto llevan. «Lleva rato» si pasaron los minutos de Ajustes → Sucursal desde su último pedido (la caja y el mesero reciben un aviso). Tócala y «Traer a la caja y cobrar»: pasa a la cola como si hubiera pedido la cuenta, sin esperar al mesero. Si piden algo más, vuelve a la mesa. En el cierre, las que no pidieron la cuenta salen primero.",
       "Si una mesa vuelve a pedir mientras la cobras, sale de la cola y la caja lo dice («Mesa 4 volvió a pedir: salió de la cola»): lo tecleado sin cobrar se descarta, y vuelve cuando pida la cuenta otra vez.",
       "Si sobra, «Vuelto» (o «Propina», o «A caja» si es poco). El vuelto va en efectivo $; para darlo de otra forma, toca «Vuelto» otra vez: efectivo Bs, Pago Móvil (con el banco del cliente y la referencia del envío) o «Repartido», que propone los dólares enteros en billetes y los centavos en bolívares, a la tasa del cobro. Avisa si en la gaveta no alcanza esa moneda. Cada parte sale de su moneda y el recibo dice cómo se dio.",
       "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I), «Descuento» y «Dividir» en partes iguales, de 2 a 6. La cuenta que nació con su cliente (una mesa, de pie) ya viene a su nombre. Una venta del mostrador se cobra a alguien: si no tiene cliente, «Factura a» dice «Falta el cliente» y pide su cédula (o el RIF de su empresa) y su nombre. Una cuenta sentada «Más rápido» que llega sin la cédula dice «Falta la cédula» (también en la cola): tócalo (tecla I), escríbela en el mismo campo «Cédula o RIF» y la factura sale a su nombre. Sin ella no se cobra.",
@@ -464,6 +465,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["no pidio la cuenta", "no ha pedido la cuenta"],
       },
       {
+        sintoma: "«… lleva 45 min sin pedir la cuenta»",
+        solucion:
+          "Una mesa o una cuenta de pie no ha pedido la cuenta desde su último pedido (los minutos, en Ajustes → Sucursal). Mírala en «Abiertas en el salón»: si ya se van, «Traer a la caja y cobrar»; si siguen, no hace falta nada.",
+        reconoce: ["sin pedir la cuenta", "abiertas en el salon"],
+      },
+      {
         sintoma: "«Esta caja es del … : ciérrala antes de cobrar»",
         solucion:
           "La caja quedó abierta de un día que ya terminó. La caja enseña lo pendiente de ese día: cóbralo ahí (o «Se fue sin pagar» o incobrable), registra la salida de sus niños y «Cerrar la caja» lleva al conteo y al corte Z. Lo de hoy se cobra después, en la caja de hoy. Si el equipo de esa caja no está, supervisión la cierra desde Inicio.",
@@ -540,7 +547,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«Pide la cuenta» la manda a caja. Si queda algún plato sin marcar servido, pregunta «¿Ya se sirvió todo?»: «Sí, todo servido» los marca sin hora exacta (no cuentan como espera). Si no consumieron nada, «Liberar».",
       "Supervisión y administración cierran una mesa sin cobrar con «Cerrar la mesa sin cobrar…» y su PIN: «Se fue sin pagar» deja lo que debe a nombre del cliente; «No consumió o fue un error» anula todo lo que pidió (al estante o a merma, con su papel «ANULAR»). La mesa queda libre. Si al sentar a alguien sale «Debe … de antes», avísale: se cobra en la caja.",
       "Cobrada (o cerrada) la última cuenta de una mesa, queda «Por limpiar» en todas las tablets. Al limpiarla, «Mesa limpia: dejarla libre». La caja y supervisión también pueden, por si se olvida.",
-      "Los avisos suaves, sin sonido y una vez por mesa: la que lleva sentada sin pedir, la que espera su pedido y la que sigue por limpiar, pasados sus minutos (Ajustes → Sucursal).",
+      "Los avisos suaves, sin sonido y una vez por mesa: la que lleva sentada sin pedir, la que espera su pedido, la que lleva rato sin pedir la cuenta desde su último pedido (también le avisa a la caja) y la que sigue por limpiar, pasados sus minutos (Ajustes → Sucursal). Si ya terminaron, «Pide la cuenta».",
       "Un cumpleaños tiene su mesa: al empezarlo se elige una libre, o aquí, en una mesa libre, «Sentar el cumpleaños de …». Lo que pidan va a su cuenta (no se abre otra), que sigue en la cola de la caja con el saldo: el representante paga una sola vez. Se cambia de mesa como cualquier cuenta.",
     ],
     problemas: [

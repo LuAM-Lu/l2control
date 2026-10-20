@@ -40,7 +40,7 @@ export const RECORRIDOS: readonly RecorridoDePantalla[] = [
     version: 3,
     ruta: "/caja",
     pasos: [
-      { objetivo: en("caja-cola"), titulo: "Lo que hay por cobrar", texto: "La cola va de la cuenta más antigua a la más nueva: parque, mesas, de pie y mostrador." },
+      { objetivo: en("caja-cola"), titulo: "Lo que hay por cobrar", texto: "La cola va de la cuenta más antigua a la más nueva: parque, mesas, de pie y mostrador. Al pie, «Abiertas en el salón»: las mesas que no han pedido la cuenta; una se trae a la caja con un toque." },
       {
         objetivo: en("caja-entrada"),
         titulo: "Niños que llegan a la caja",

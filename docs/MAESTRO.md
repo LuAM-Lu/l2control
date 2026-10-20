@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.145.0 en `main` (publicada, la 0.143.0) · 145 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.146.0 en `main` (publicada, la 0.143.0) · 146 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2137,13 +2137,14 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   (`descontado.despues`), y si un vale se anuló así. En la web, `PestanasDeDeudas`, `AccionesDelPersonal.tsx` y la
   columna «Quincena» de `seccionesDelPersonal` (pantalla y PDF); `/personal` redirige a `/deudas?vista=personal`.
   `personal.test-db.ts` (2 nuevas). Visto en el navegador en los dos temas, con administración.*
-- [~] **B3-27 · Las cuentas del salón a la vista de la caja** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b3-27`.*
+- [x] **B3-27 · Las cuentas del salón a la vista de la caja** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.146.0).*
   → En la cola de la caja, «Abiertas en el salón»: las mesas y las cuentas de pie que no han pedido la cuenta, con quién
   las abrió y cuánto llevan abiertas, y «Traer a la caja» (como «Pide la cuenta»). Una cuenta del salón que pasa un rato
   sin pedir la cuenta avisa al mesero y a la caja (los minutos, en los ajustes, como los demás avisos del salón), y al
   empezar el cierre del turno salen de primera. Criterio: una cuenta de pie abierta y sin pedir la cuenta se ve en la
   caja con quién la abrió, y la caja la cobra sin pasar por el mesero.
+  *B3-27: la cuenta lleva `abiertaPor` (de `account.opened_by_name`), que pone la lectura (`cuentas.leer`, `vigenteDe`) como al cliente y que `guardarVersion` y `guardar` no toman de la pantalla. El ajuste `atencionSinCuentaMin` (45 de fábrica). En la web, `abiertasEnElSalon` y el aviso `SIN_CUENTA` en `avisosDelSalon` (desde el último pedido o lo último servido; al salón, si no espera un plato), la sección plegable en `ColaCuentas` y `TraerALaCaja` (como «Pide la cuenta»); en el cierre, las que no pidieron la cuenta primero. `pendientes-del-salon.test-db.ts` (1 nueva) y `avisos.test.ts` (1). Visto en el navegador en los dos temas: la sección plegada y abierta, el diálogo con una cuenta de otro día y «Traer a la caja y cobrar», y el ajuste.*
+
 - [ ] **B3-28 · «Cobrar lo que va»** (M-40). Antes de la 1.0.0.
   → Una mesa o una cuenta de pie paga lo consumido hasta ahora y sigue abierta: desde la caja («Abiertas en el salón»,
   sin esperar al mesero) o desde el mesero, que lo manda a la cola sin cerrar la mesa. Se cobra todo lo pedido, también

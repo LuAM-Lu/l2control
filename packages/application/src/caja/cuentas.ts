@@ -296,9 +296,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
         // Las cobradas (y las incobrables) se enseñan el día en que se cerraron; las demás, hasta que se cobran.
         const zona = await zonaDe(tx, ctx.branchId);
         const desde = new Date(startOfDay(calendarDay(new Date(ahora).toISOString(), zona), zona));
-        const filas = await tx.$queryRaw<{ account_id: string; version: number; content: unknown }[]>`
-          SELECT ultima.account_id, ultima.version, ultima.content FROM (
-            SELECT DISTINCT ON (v.account_id) v.account_id, v.version, v.content, v.status, v.saved_at
+        const filas = await tx.$queryRaw<{ account_id: string; version: number; content: unknown; opened_by_name: string }[]>`
+          SELECT ultima.account_id, ultima.version, ultima.content, ultima.opened_by_name FROM (
+            SELECT DISTINCT ON (v.account_id) v.account_id, v.version, v.content, v.status, v.saved_at, a.opened_by_name
             FROM account_version v
             JOIN account a ON a.tenant_id = v.tenant_id AND a.id = v.account_id
             WHERE a.branch_id = ${ctx.branchId}::uuid
@@ -308,7 +308,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           ORDER BY ultima.saved_at`;
         // Se revalida al salir: lo que no cumple el contrato no llega a ninguna estación (fail-closed).
         const clientes = await clientesDeCuentas(tx, filas.map((f) => f.account_id));
-        const cuentas = filas.map((f) => deVersion(f.content, f.version, clientes.get(f.account_id))).filter((c) => !isDiscardedDraft(c));
+        const cuentas = filas.map((f) => deVersion(f.content, f.version, clientes.get(f.account_id), f.opened_by_name)).filter((c) => !isDiscardedDraft(c));
         return CuentasDelLocalSchema.parse({ cuentas });
       });
       if ("ok" in r) return r;
@@ -371,11 +371,13 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           const orderNumber = antes?.orderNumber ?? (await siguienteNumero(tx, ctx));
           const version = (actual?.version ?? 0) + 1;
           // La cola se ordena por cuánto lleva esperando: la hora de entrar en ella la pone el servidor.
-          // Y su cliente lo pone su mando (B6-9): el que mande la pantalla se ignora; se queda el que tenía.
-          const { pendingSince: _, cliente: _cliente, ...sinEspera } = enviada;
+          // Y su cliente lo pone su mando (B6-9): el que mande la pantalla se ignora; se queda el que tenía. Igual quién la
+          // abrió (B3-27): lo dice su fila.
+          const { pendingSince: _, cliente: _cliente, abiertaPor: _abiertaPor, ...sinEspera } = enviada;
           const cuenta = FamilyAccountSchema.parse({
             ...sinEspera,
             ...(antes?.cliente ? { cliente: antes.cliente } : {}),
+            ...(antes?.abiertaPor ? { abiertaPor: antes.abiertaPor } : {}),
             version,
             orderNumber,
             openedAt: antes?.openedAt ?? instante,
@@ -407,7 +409,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             ...(antes ? { before: resumenDe(antes) } : {}),
             after: { ...resumenDe(cuenta), ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}) },
           });
-          return cuenta;
+          return antes ? cuenta : FamilyAccountSchema.parse({ ...cuenta, abiertaPor: quien.nombre });
         });
 
       try {
@@ -1516,11 +1518,11 @@ async function puedeAlguna(tx: Transaccion, ctx: Contexto, acciones: readonly Ac
 }
 
 /**
- * La cuenta de una versión guardada, con su número de versión y su cliente (B6-9, de su propia tabla), validada con el
- * contrato.
+ * La cuenta de una versión guardada, con su número de versión, su cliente (B6-9, de su propia tabla) y quién la abrió
+ * (B3-27, de su fila), validada con el contrato.
  */
-function deVersion(content: unknown, version: number, cliente?: ClienteDeCuentaDto): FamilyAccountDto {
-  return FamilyAccountSchema.parse({ ...(content as object), version, ...(cliente ? { cliente } : {}) });
+function deVersion(content: unknown, version: number, cliente?: ClienteDeCuentaDto, abiertaPor?: string): FamilyAccountDto {
+  return FamilyAccountSchema.parse({ ...(content as object), version, ...(cliente ? { cliente } : {}), ...(abiertaPor ? { abiertaPor } : {}) });
 }
 
 /** La última versión de una cuenta que existe, dentro de la transacción. */
@@ -1528,7 +1530,8 @@ export async function vigenteDe(tx: Transaccion, accountId: string): Promise<Vig
   const v = await tx.accountVersion.findFirst({ where: { accountId }, orderBy: { version: "desc" } });
   if (!v) return null;
   const cliente = (await clientesDeCuentas(tx, [accountId])).get(accountId);
-  return { cuenta: deVersion(v.content, v.version, cliente), version: v.version };
+  const fila = await tx.account.findUnique({ where: { id: accountId }, select: { openedByName: true } });
+  return { cuenta: deVersion(v.content, v.version, cliente, fila?.openedByName), version: v.version };
 }
 
 /**
@@ -1587,9 +1590,10 @@ export async function guardarVersion(
     quien: string;
   }>,
 ): Promise<void> {
-  // El número de versión vive en su columna, y el cliente en su tabla (B6-9): el contenido es la cuenta sin ellos. Lo
-  // que una pantalla mande como cliente al guardar la cuenta se ignora así: el cliente solo cambia por su mando.
-  const { version, cliente: _cliente, ...contenido } = cuenta;
+  // El número de versión vive en su columna, el cliente en su tabla (B6-9) y quién la abrió en su fila (B3-27): el
+  // contenido es la cuenta sin ellos. Lo que una pantalla mande al guardar la cuenta se ignora así: el cliente solo cambia
+  // por su mando.
+  const { version, cliente: _cliente, abiertaPor: _abiertaPor, ...contenido } = cuenta;
   await tx.accountVersion.create({
     data: {
       tenantId: ctx.tenantId,
@@ -1712,6 +1716,8 @@ async function crearCuentaDelSalon(
     lines: args.lines,
     version: 1,
     orderNumber,
+    // Quién la abrió (B3-27): lo mismo que dirá su fila al leerla; así el primer envío y su reintento devuelven lo mismo.
+    abiertaPor: args.quien,
   });
   await tx.account.create({
     data: {
@@ -1741,7 +1747,7 @@ export function nombrePropioDe(c: FamilyAccountDto): string | null {
 
 /** Lo que es de la pantalla: sin la versión ni lo que pone el servidor. */
 function deLaPantalla(c: FamilyAccountDto) {
-  const { version: _v, orderNumber: _o, openedAt: _a, pendingSince: _p, ...resto } = c;
+  const { version: _v, orderNumber: _o, openedAt: _a, pendingSince: _p, abiertaPor: _por, ...resto } = c;
   return resto;
 }
 

@@ -11,7 +11,7 @@ import { atencionDeCuentas, type PedidoParaAtencion, type UmbralesDeAtencion } f
 import { multiply, sum, type Money } from "@l2/domain-money";
 import type { ProductoALaVenta } from "../inventario/catalogo.ts";
 import type { EstadoLocal } from "../operacion/proyeccion.ts";
-import { esDelSalonAbierta, esMesaDelCumpleanos, nombreDeCuenta } from "../cuentas/cuentas.ts";
+import { esDelSalonAbierta, esMesaDelCumpleanos, nombreDeCuenta, pendiente } from "../cuentas/cuentas.ts";
 import { duracion } from "./tiempo.ts";
 
 /**
@@ -280,13 +280,38 @@ export function textoDePlatos(platos: readonly { pedido: PedidoDto; lineas: read
 }
 
 export type AvisoDelSalon = Readonly<{ clave: string; texto: string; detalle: string }>;
-/** Los umbrales de los avisos del salón (B6-14): los de la atención (B6-8) y los de la cuenta y la limpieza. */
-export type UmbralesDelSalon = UmbralesDeAtencion & Readonly<{ cuentaMin: number; limpiarMin: number }>;
+/**
+ * Los umbrales de los avisos del salón (B6-14): los de la atención (B6-8), los de la cuenta y la limpieza, y (B3-27) el de
+ * la cuenta que no pide la cuenta.
+ */
+export type UmbralesDelSalon = UmbralesDeAtencion & Readonly<{ cuentaMin: number; limpiarMin: number; sinCuentaMin: number }>;
+
+/**
+ * Una cuenta del salón que no ha pedido la cuenta y tiene algo que cobrar (B3-27, M-40): la caja la ve en «Abiertas en el
+ * salón». `ultimo`: su último pedido (lo último servido, si fue después), o cuando se abrió; `llevaRato`: pasó el umbral
+ * desde ahí (la cuenta de pie que se olvidó, el ticket n.º 3); `esperando`: tiene un plato sin servir.
+ */
+export type AbiertaEnElSalon = Readonly<{ cuenta: FamilyAccountDto; ultimo: string; llevaRato: boolean; esperando: boolean }>;
+
+/** Las cuentas del salón abiertas, sin pedir la cuenta y con algo que cobrar: las que llevan rato primero, después la más vieja. */
+export function abiertasEnElSalon(cuentas: readonly FamilyAccountDto[], pedidos: readonly PedidoDto[], ahora: number, sinCuentaMin: number): AbiertaEnElSalon[] {
+  return cuentas
+    .filter((c) => c.status === "ABIERTA" && (c.kind === "MESA" || c.dePie === true) && pendiente(c).amount > 0n)
+    .map((c) => {
+      const suyos = pedidos.filter((p) => p.cuentaId === c.id).map((p) => paraAtender(p, cuentas)).filter((a) => !a.anulado);
+      const ultimo = Math.max(Date.parse(c.openedAt), ...suyos.flatMap((a) => [a.enviadoEn, ...(a.platos ?? []).flatMap((pl) => (pl.servidoEn !== null ? [pl.servidoEn] : []))]));
+      const desde = new Date(ultimo).toISOString();
+      const esperando = suyos.some((a) => (a.platos ?? []).some((pl) => !pl.anulado && pl.servidoEn === null));
+      return { cuenta: c, ultimo: desde, llevaRato: ahora > 0 && minutosDesde(desde, ahora) >= sinCuentaMin, esperando };
+    })
+    .sort((a, b) => Number(b.llevaRato) - Number(a.llevaRato) || Date.parse(a.cuenta.openedAt) - Date.parse(b.cuenta.openedAt));
+}
 
 /**
  * Los avisos suaves del salón (B6-14, M-35): uno por mesa y por umbral, a quien le toca. Al salón (el mesero y
  * supervisión, en Mesas): la cuenta sentada sin pedir, el pedido que espera y la mesa que sigue por limpiar. A la caja:
- * la cuenta que pidió y sigue sin cobrar. La clave dice qué se avisó, para no repetirlo: un pedido nuevo que espera, o
+ * la cuenta que pidió y sigue sin cobrar. A los dos (B3-27): la que lleva rato desde su último pedido sin pedir la cuenta
+ * (al salón, si no espera un plato: entonces el aviso es el de la espera). La clave dice qué se avisó, para no repetirlo: un pedido nuevo que espera, o
  * otra vez por limpiar, es otro aviso.
  */
 export function avisosDelSalon(
@@ -315,7 +340,21 @@ export function avisosDelSalon(
       const min = minutosDesde(desde, ahora);
       if (min >= umbrales.cuentaMin) avisos.push({ clave: `CUENTA:${c.id}:${desde}`, texto: `${rotulo(c)} pidió la cuenta hace ${duracion(min)}`, detalle: nombreDeCuenta(c) });
     }
+    for (const a of abiertasEnElSalon(delSalon, pedidos, ahora, umbrales.sinCuentaMin).filter((x) => x.llevaRato)) {
+      avisos.push({
+        clave: `SIN_CUENTA:${a.cuenta.id}:${a.ultimo}`,
+        texto: `${rotulo(a.cuenta)} lleva ${duracion(minutosDesde(a.ultimo, ahora))} sin pedir la cuenta`,
+        detalle: `${nombreDeCuenta(a.cuenta)}. Si ya se van, tráela desde «Abiertas en el salón».`,
+      });
+    }
     return avisos;
+  }
+  for (const a of abiertasEnElSalon(delSalon, pedidos, ahora, umbrales.sinCuentaMin).filter((x) => x.llevaRato && !x.esperando)) {
+    avisos.push({
+      clave: `SIN_CUENTA:${a.cuenta.id}:${a.ultimo}`,
+      texto: `${rotulo(a.cuenta)} lleva ${duracion(minutosDesde(a.ultimo, ahora))} sin pedir la cuenta`,
+      detalle: `${nombreDeCuenta(a.cuenta)}. ¿Ya terminaron? «Pide la cuenta» la manda a la caja.`,
+    });
   }
   for (const c of delSalon.filter((x) => x.status === "ABIERTA")) {
     const suyos = pedidos.filter((p) => p.cuentaId === c.id).map((p) => ({ p, a: paraAtender(p, cuentas) })).filter((x) => !x.a.anulado);

@@ -717,6 +717,20 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
               hint="Aviso al salón"
               onChange={(e) => cambiar({ atencionLimpiarMin: Number(e.target.value) })}
             />
+            {/* B3-27: la cuenta del salón que no pide la cuenta (la de pie que se olvida). */}
+            <Input
+              label="Sin pedir la cuenta (min)"
+              surface="admin"
+              type="number"
+              min={5}
+              max={180}
+              step={1}
+              className="tnum"
+              value={String(borrador.atencionSinCuentaMin)}
+              error={errores.atencionSinCuentaMin}
+              hint="Desde su último pedido; al salón y a la caja"
+              onChange={(e) => cambiar({ atencionSinCuentaMin: Number(e.target.value) })}
+            />
           </div>
           {/* T-20: los puestos, por uso. Ocupado si alguien trabajó en él en estos minutos; con la caja abierta, uno vigilado
               que pasa de ellos sin nadie avisa una vez en Inicio. */}

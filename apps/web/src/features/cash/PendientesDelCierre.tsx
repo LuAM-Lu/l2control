@@ -170,7 +170,8 @@ export function PendientesDelCierre({
           <div className="flex flex-col gap-4">
             {p.cuentas.length > 0 && (
               <Grupo icono={<ReceiptText size={15} aria-hidden="true" />} titulo="Cuentas por cobrar" n={p.cuentas.length}>
-                {p.cuentas.map((c) => {
+                {/* B3-27: las del salón que no pidieron la cuenta, primero: son las que se olvidan. */}
+                {[...p.cuentas].sort((a, b) => Number(b.status === "ABIERTA") - Number(a.status === "ABIERTA")).map((c) => {
                   const completa = lasCuentas.find((x) => x.id === c.id);
                   // Del salón: una mesa, una de pie o un cumpleaños con su mesa. Si no pidió la cuenta, no está en la cola.
                   const delSalon = c.kind === "MESA" || c.dePie || (completa ? esMesaDelCumpleanos(completa) : false);

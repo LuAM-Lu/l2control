@@ -230,6 +230,11 @@ export const AjustesSucursalSchema = z
     atencionCuentaMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
     atencionLimpiarMin: z.number().int("Minutos enteros").min(1, "Al menos un minuto").max(120, "Hasta dos horas").default(10),
     /**
+     * B3-27 (M-40): a partir de cuántos minutos desde su último pedido una cuenta del salón que no ha pedido la cuenta avisa
+     * al salón y a la caja (la cuenta de pie que se olvidó, el ticket n.º 3). Los ajustes publicados antes no lo traen: 45.
+     */
+    atencionSinCuentaMin: z.number().int("Minutos enteros").min(5, "Al menos 5 minutos").max(180, "Hasta tres horas").default(45),
+    /**
      * Los puestos que se vigilan (T-20, M-37): con la caja abierta, uno de estos que pasa de `puestoSinNadieMin` sin nadie
      * avisa una vez. Un puesto está ocupado si alguien trabajó en él en esos minutos. Los ajustes publicados antes no los
      * traen: los tres y 15.

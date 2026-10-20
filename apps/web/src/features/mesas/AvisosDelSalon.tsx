@@ -18,7 +18,7 @@ export function AvisosDelSalon({ para, porLimpiar }: { para: "SALON" | "CAJA"; p
   const { cuentas } = useCuentas();
   const { pedidos } = usePedidos();
   const { plano } = usePlano();
-  const { atencionSinPedirMin, atencionEsperaMin, atencionCuentaMin, atencionLimpiarMin } = useSucursal().ajustes;
+  const { atencionSinPedirMin, atencionEsperaMin, atencionCuentaMin, atencionLimpiarMin, atencionSinCuentaMin } = useSucursal().ajustes;
   const ahora = useAhoraLocal();
   const vistos = useRef<Set<string> | null>(null);
   useEffect(() => {
@@ -28,6 +28,7 @@ export function AvisosDelSalon({ para, porLimpiar }: { para: "SALON" | "CAJA"; p
       esperaMin: atencionEsperaMin,
       cuentaMin: atencionCuentaMin,
       limpiarMin: atencionLimpiarMin,
+      sinCuentaMin: atencionSinCuentaMin,
     });
     if (vistos.current === null) {
       vistos.current = new Set(avisos.map((a) => a.clave));
@@ -38,6 +39,6 @@ export function AvisosDelSalon({ para, porLimpiar }: { para: "SALON" | "CAJA"; p
       vistos.current.add(a.clave);
       avisar.info(a.texto, { detalle: a.detalle });
     }
-  }, [para, cuentas, pedidos, plano, porLimpiar, ahora, atencionSinPedirMin, atencionEsperaMin, atencionCuentaMin, atencionLimpiarMin]);
+  }, [para, cuentas, pedidos, plano, porLimpiar, ahora, atencionSinPedirMin, atencionEsperaMin, atencionCuentaMin, atencionLimpiarMin, atencionSinCuentaMin]);
   return null;
 }
