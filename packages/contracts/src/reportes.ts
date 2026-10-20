@@ -333,7 +333,30 @@ export const InformeDelParqueSchema = z.object({
     /** El tiempo promedio de las que salieron, sin sus pausas por comida; `null` si ninguna salió. */
     minutosPromedio: z.number().int().nonnegative().nullable(),
     dinero: MoneySchema,
+    /** B11-8: el dinero del tiempo entre los niños que entraron. */
+    porNino: MoneySchema.default({ minor: "0", currency: "USD" }),
   }),
+  /**
+   * B11-8: el periodo con que se compara (`periodoAnterior`): hasta una semana, los mismos días de la semana anterior; un
+   * mes desde su día 1, el mes anterior; si no, uno igual de largo justo antes. Con sus cifras clave.
+   */
+  anterior: z
+    .object({
+      desde: FechaSchema,
+      hasta: FechaSchema,
+      con: z.enum(["SEMANA", "MES", "PERIODO"]),
+      ninos: z.number().int().nonnegative(),
+      dinero: MoneySchema,
+      porNino: MoneySchema,
+      minutosPromedio: z.number().int().nonnegative().nullable(),
+      pico: z.number().int().nonnegative().nullable(),
+    })
+    .nullable()
+    .default(null),
+  /** B11-8: los que entraron por día de la semana (1 lunes … 7 domingo) y hora del local. Solo las celdas con alguno. */
+  porSemanaYHora: z
+    .array(z.object({ dia: z.number().int().min(1).max(7), hora: z.number().int().min(0).max(23), ninos: z.number().int().positive() }))
+    .default([]),
   porDia: z.array(
     z.object({ dia: FechaSchema, ninos: z.number().int().nonnegative(), pico: z.number().int().nonnegative(), paquetes: MoneySchema, recargas: MoneySchema, tiempoDeMas: MoneySchema, total: MoneySchema }),
   ),

@@ -5,7 +5,7 @@ import { TAMANO_ICONO } from "@l2/ui";
 import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import type { ParquePedido } from "./reportes.servidor.ts";
 import { DocumentoDeInforme, SeccionImpresa, importe, periodoEnPalabras } from "./informe.tsx";
-import { direccionDelParque, duracion, seccionesDelParque } from "./parque.tsx";
+import { diferencia, diferenciaEnMinutos, direccionDelParque, duracion, seccionesDelParque } from "./parque.tsx";
 
 /**
  * El PDF del parque (B11-6): compacto, con las cifras arriba y las cinco secciones. Lo imprime el navegador, que también
@@ -30,13 +30,24 @@ export function ParqueImpreso({ pedido, informe }: ParquePedido) {
   }
   const i = informe.valor;
   const r = i.resumen;
+  const a = i.anterior;
   return (
-    <DocumentoDeInforme titulo="Parque" local={i.encabezado.local} periodo={periodoEnPalabras(i.periodo)} generadoEn={i.encabezado.generadoEn} generadoPor={i.encabezado.generadoPor} volver={volver}>
-      <dl className="mb-3 grid grid-cols-4 gap-x-3 gap-y-1 border-b border-current/40 pb-2 text-[9.5pt]">
-        <Dato termino="Niños" valor={String(r.ninos)} pie={`${i.porDia.length} ${i.porDia.length === 1 ? "día" : "días"}`} />
+    <DocumentoDeInforme
+      titulo="Parque"
+      local={i.encabezado.local}
+      periodo={periodoEnPalabras(i.periodo)}
+      filtro={a ? `comparado con ${periodoEnPalabras(a)}` : null}
+      generadoEn={i.encabezado.generadoEn}
+      generadoPor={i.encabezado.generadoPor}
+      volver={volver}
+    >
+      {/* B11-8: las cifras clave con su diferencia contra el periodo anterior. */}
+      <dl className="mb-3 grid grid-cols-5 gap-x-3 gap-y-1 border-b border-current/40 pb-2 text-[9.5pt]">
+        <Dato termino="Niños" valor={String(r.ninos)} pie={a ? diferencia(BigInt(r.ninos), BigInt(a.ninos), a.con) : `${i.porDia.length} ${i.porDia.length === 1 ? "día" : "días"}`} />
+        <Dato termino="Dinero del tiempo" valor={importe(r.dinero)} pie={a ? diferencia(BigInt(r.dinero.minor), BigInt(a.dinero.minor), a.con) : `en mesas ${importe(i.dinero.enMesas.monto)}`} />
+        <Dato termino="Por niño" valor={importe(r.porNino)} pie={a ? diferencia(BigInt(r.porNino.minor), BigInt(a.porNino.minor), a.con) : "lo del tiempo"} />
+        <Dato termino="Tiempo promedio" valor={duracion(r.minutosPromedio)} pie={a ? diferenciaEnMinutos(r.minutosPromedio, a.minutosPromedio, a.con) : "sin pausas por comida"} />
         <Dato termino="Aforo pico" valor={r.pico ? `${r.pico.ninos} de ${r.aforo}` : "—"} pie={r.pico ? reloj.diaYHora(Date.parse(r.pico.en)) : "sin estancias"} />
-        <Dato termino="Tiempo promedio" valor={duracion(r.minutosPromedio)} pie="sin pausas por comida" />
-        <Dato termino="Dinero del tiempo" valor={importe(r.dinero)} pie={`en mesas ${importe(i.dinero.enMesas.monto)}`} />
       </dl>
       {seccionesDelParque(i, reloj, formatoHora, true).map((s) => (
         <SeccionImpresa key={s.id} seccion={s} />
