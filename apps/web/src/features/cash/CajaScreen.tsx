@@ -2650,6 +2650,8 @@ export function CajaScreen({
 
   /** El buscador de clientes (T-19, tecla C). */
   const [buscandoCliente, setBuscandoCliente] = useState(false);
+  /** T-24: lo que llega escrito al buscador desde el directorio del campo de la cola. */
+  const [textoDelCliente, setTextoDelCliente] = useState("");
 
   function elegir(id: string) {
     setVentaNueva(false);
@@ -2800,8 +2802,11 @@ export function CajaScreen({
       antesDeSalir(() => abrirEntrada(null));
       return true;
     }
+    // T-24: la búsqueda es una sola: «C» enfoca el campo de la cola, como «/».
     if (letra === "C") {
-      setBuscandoCliente(true);
+      setBuscando(true);
+      buscadorRef.current?.focus();
+      setVista("cola");
       return true;
     }
     if (letra === "M" && puedeMoverEfectivo) {
@@ -3119,7 +3124,10 @@ export function CajaScreen({
           onElegir={elegirOtra}
           onNuevaVentaDirecta={() => antesDeSalir(onNuevaVentaDirecta)}
           onEntrada={puedeRegistrarEntrada ? () => antesDeSalir(() => abrirEntrada(null)) : null}
-          onBuscarCliente={() => setBuscandoCliente(true)}
+          onBuscarCliente={(texto) => {
+            setTextoDelCliente(texto ?? "");
+            setBuscandoCliente(true);
+          }}
           ventaNueva={ventaNueva}
           puntoDeCobro={turno?.punto ?? null}
           recientes={recientes}
@@ -3331,6 +3339,7 @@ export function CajaScreen({
       />
       <BuscadorDeClientes
         abierto={buscandoCliente}
+        textoInicial={textoDelCliente}
         onCerrar={() => setBuscandoCliente(false)}
         // La caja abre lo que está por cobrar; lo demás (una mesa comiendo) se ve, pero no se cobra todavía.
         puedeAbrir={(c) => c.status === "POR_COBRAR"}

@@ -7,7 +7,7 @@ import { contactKey, documentKey, telefonoLegible } from "@l2/domain-park";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { Input, formatMoneyVE, type Surface } from "@l2/ui";
 import { CampoCedula, CampoTelefono } from "./CamposDelCliente.tsx";
-import { CampoDelCliente, type ClienteElegido } from "./CampoDelCliente.tsx";
+import { CampoDelCliente, type ClienteElegido, type ParaQue } from "./CampoDelCliente.tsx";
 import { buscarCliente } from "./clientes.acciones";
 
 /**
@@ -44,7 +44,10 @@ export function DatosDelCliente({
   autoFocus = false,
   onElegido,
   trasElElegido,
+  para = "MESA",
 }: {
+  /** Dónde se usa: ordena «Aquí ahora» (T-24). */
+  para?: ParaQue;
   /** Lo que va justo debajo del campo del cliente (sentar: «Llevar el tiempo de sus niños»), a la vista al elegir. */
   trasElElegido?: ReactNode;
   valor: DatosDelClienteDto;
@@ -123,11 +126,22 @@ export function DatosDelCliente({
   return (
     <fieldset className="flex flex-col gap-3">
       <legend className="sr-only">Datos del cliente</legend>
-      {/* T-23: quien está aquí, o por su nombre; lo de abajo se rellena al elegir. */}
-      <CampoDelCliente elegido={elegido?.cliente ?? null} onElegir={elegir} onDeshacer={deshacer} surface={surface} autoFocus={autoFocus} />
+      {/* T-24: un solo campo, «Cédula o RIF», con «Aquí ahora» y «Buscar por nombre o teléfono»; al elegir, lo de abajo
+          se rellena. */}
+      <CampoDelCliente
+        elegido={elegido?.cliente ?? null}
+        onElegir={elegir}
+        onDeshacer={deshacer}
+        surface={surface}
+        autoFocus={autoFocus}
+        para={para}
+        cedula={{ valor: valor.cedula, onCambio: (cedula) => onCambio({ ...valor, cedula }), required: true, error: errores?.cedula }}
+      />
       {trasElElegido}
-      {/* La cédula y el teléfono, con los campos que ayudan a llenarlos (T-19). */}
-      <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} required error={errores?.cedula} />
+      {/* El elegido sin cédula (de antes de T-19): se escribe aquí. */}
+      {elegido && !elegido.cliente.cedula && (
+        <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} required error={errores?.cedula} />
+      )}
       <CampoTelefono surface={surface} valor={valor.telefono} onCambio={(telefono) => onCambio({ ...valor, telefono })} required error={errores?.telefono} />
       <Input
         label="Nombre y apellido"

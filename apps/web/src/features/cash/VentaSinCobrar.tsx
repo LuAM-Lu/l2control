@@ -84,6 +84,7 @@ export function VentaSinCobrar({
       {conDatos ? (
         <div className="flex flex-col gap-3">
           <DatosDelCliente
+            para="CAJA"
             valor={datos}
             // Después del primer intento, lo que falta se recalcula al escribir: un error corregido se va solo.
             onCambio={(d) => {

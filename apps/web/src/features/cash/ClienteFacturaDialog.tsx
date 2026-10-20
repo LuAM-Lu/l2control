@@ -144,10 +144,12 @@ export function ClienteFacturaDialog({
         }}
         className="flex flex-col gap-3"
       >
+        {/* T-24: un solo campo, «Cédula o RIF»: el del directorio pone su nombre; un RIF de empresa, su razón social. */}
         <CampoDelCliente
           surface="pos"
-          label="Del directorio: cédula, teléfono o nombre"
-          autoFocus={exigido && campos.document === ""}
+          para="CAJA"
+          autoFocus={campos.document === "" || !exigido}
+          cedula={{ valor: campos.document, onCambio: (v) => poner("document", v), required: true, error: errores.document }}
           elegido={elegido?.cliente ?? null}
           onElegir={(c) => {
             setElegido({ cliente: c, antes: { document: campos.document, name: campos.name } });
@@ -171,7 +173,9 @@ export function ClienteFacturaDialog({
             setElegido(null);
           }}
         />
-        <CampoCedula label="Cédula o RIF" surface="pos" autoFocus={!exigido || campos.document !== ""} valor={campos.document} onCambio={(v) => poner("document", v)} error={errores.document} />
+        {elegido && !elegido.cliente.cedula && (
+          <CampoCedula label="Cédula o RIF" surface="pos" valor={campos.document} onCambio={(v) => poner("document", v)} error={errores.document} />
+        )}
         <Input
           label="Nombre o razón social"
           surface="pos"

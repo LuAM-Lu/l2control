@@ -44,8 +44,8 @@ import { reservasDe } from "../park/eventos.ts";
 import { enLaSalaDeHoy } from "../park/parque.ts";
 import { sessionsVinculadas } from "../restaurante/plano.ts";
 import { diaDeNegocioDe, zonaDe } from "../sucursal/ajustes.ts";
-import { businessDayAt } from "@l2/domain-cash";
-import { calendarDay } from "@l2/domain-rates";
+import { businessDayAt, businessDayEnd } from "@l2/domain-cash";
+import { addDays, calendarDay } from "@l2/domain-rates";
 export { clientesDeCuentas } from "./de-cuentas.ts";
 
 /** El cliente que se le pone a una cuenta, ya reconocido (o dado de alta) en el directorio. */
@@ -257,12 +257,12 @@ export function casosClientes(base: Base): CasosClientes {
         if (rechazo) return rechazo;
         const aqui: ClienteDeAquiDto[] = [];
         const vistos = new Set<string>();
-        const sumar = async (guardianId: string, motivo: ClienteDeAquiDto["motivo"], detalle: string, estancias: string[] = []) => {
+        const sumar = async (guardianId: string, motivo: ClienteDeAquiDto["motivo"], detalle: string, estancias: string[] = [], en: Date | null = null) => {
           if (vistos.has(guardianId)) return;
           const g = await tx.guardian.findFirst({ where: { id: guardianId } });
           if (!g) return;
           vistos.add(guardianId);
-          aqui.push({ cliente: await encontradoDe(tx, g), motivo, detalle: detalle.slice(0, 80), estancias });
+          aqui.push({ cliente: await encontradoDe(tx, g), motivo, detalle: detalle.slice(0, 80), estancias, en: en ? en.toISOString() : null });
         };
         // Las familias con niños en la sala, la más reciente primero: son las que suelen pasar a una mesa. Una estancia
         // olvidada de otro día está a revisar: no está aquí. Un niño ya vinculado a una mesa no se ofrece para otra (R3):
@@ -294,6 +294,27 @@ export function casosClientes(base: Base): CasosClientes {
         for (const r of (await reservasDe(tx, { branchId: ctx.branchId, eventDate: new Date(hoy) })).filter((x) => x.estado !== "CANCELADA")) {
           await sumar(r.representante.id, "CUMPLEANOS", `Cumpleaños de ${r.cumpleanero}`);
         }
+        // T-24: los que vinieron hoy y ya se fueron: salieron del parque o pagaron su cuenta. Vuelven a la mesa o a la caja
+        // y no hay que escribir sus datos otra vez. Los más recientes primero.
+        const inicioDeHoy = businessDayEnd(addDays(hoyDeNegocio, -1), dia.zona, dia.finMin);
+        const salieron = await tx.parkSession.findMany({
+          where: { branchId: ctx.branchId, status: { not: "ACTIVA" }, endedAt: { gte: new Date(inicioDeHoy) }, OR: [{ closureKind: null }, { closureKind: { not: "ANULADA" } }] },
+          orderBy: { endedAt: "desc" },
+          select: { guardianId: true, endedAt: true },
+          take: 40,
+        });
+        const pagaron = await tx.$queryRaw<{ guardian_id: string; saved_at: Date }[]>`
+          SELECT DISTINCT ON (c.guardian_id) c.guardian_id, v.saved_at
+          FROM account_customer c
+          JOIN account a ON a.id = c.account_id AND a.tenant_id = c.tenant_id AND a.branch_id = ${ctx.branchId}::uuid
+          JOIN LATERAL (SELECT status, saved_at FROM account_version x WHERE x.account_id = a.id ORDER BY version DESC LIMIT 1) v ON true
+          WHERE v.status = 'COBRADA' AND v.saved_at >= ${new Date(inicioDeHoy)} AND c.guardian_id IS NOT NULL
+          ORDER BY c.guardian_id, v.saved_at DESC`;
+        const seFueron = [
+          ...salieron.map((s) => ({ guardianId: s.guardianId, en: s.endedAt!, detalle: "Salió del parque" })),
+          ...pagaron.map((p) => ({ guardianId: p.guardian_id, en: p.saved_at, detalle: "Pagó su cuenta" })),
+        ].sort((a, b) => b.en.getTime() - a.en.getTime());
+        for (const s of seFueron) await sumar(s.guardianId, "HOY", s.detalle, [], s.en);
         return { ok: true, valor: ClientesDeAquiSchema.parse({ clientes: aqui.slice(0, 24) }) };
       });
     },

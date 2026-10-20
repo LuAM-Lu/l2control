@@ -88,9 +88,12 @@ export type ClienteEncontradoDto = z.infer<typeof ClienteEncontradoSchema>;
  */
 export const ClienteDeAquiSchema = z.object({
   cliente: ClienteEncontradoSchema,
-  motivo: z.enum(["SALA", "CUENTA", "CUMPLEANOS"]),
-  /** «2 niños en la sala», «Mesa 4», «Cumpleaños de Sofía». */
+  /** HOY (T-24): vino hoy y ya se fue (salió del parque o pagó su cuenta); puede volver a la mesa o a la caja. */
+  motivo: z.enum(["SALA", "CUENTA", "CUMPLEANOS", "HOY"]),
+  /** «2 niños en la sala», «Mesa 4», «Cumpleaños de Sofía», «Salió del parque». */
   detalle: z.string().max(80),
+  /** Cuándo (T-24): a qué hora salió o pagó, para los que vinieron hoy; la pantalla la dice en su formato. */
+  en: TimestampSchema.nullable().default(null),
   /** Las estancias de sus niños en la sala (SALA): las que se llevan a la mesa al sentarla. */
   estancias: z.array(IdSchema).default([]),
 });

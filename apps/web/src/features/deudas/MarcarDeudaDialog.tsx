@@ -116,6 +116,7 @@ export function MarcarDeudaDialog({
             <>
               <p className="text-detalle text-ink-2">Esta cuenta no tiene cliente: escribe sus datos para poder cobrárselo.</p>
               <DatosDelCliente
+                para="CAJA"
                 valor={datos}
                 onCambio={(d) => {
                   setDatos(d);
