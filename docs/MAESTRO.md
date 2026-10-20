@@ -3462,7 +3462,8 @@ antes del cobro en servidor (orden de ejecución).
   mueve; asiento `mesa.de_pie`, tema mesas) sin tocar la versión de la cuenta. En la web, `DePieEnElPlano.tsx` (el icono
   arrastrable con su candado, dentro del SVG del plano) y `usePosicionesDePie`. `cuentas.test-db.ts` (1 nueva). Visto en
   el navegador en los dos temas: la tablet arrastra y fija; otro equipo lo ve en el mismo sitio.*
-- [ ] **B6-22 · Sentar «Más seguro» o «Más rápido»** (M-40). Antes de la 1.0.0.
+- [~] **B6-22 · Sentar «Más seguro» o «Más rápido»** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b6-22`.*
   → En Ajustes → Sucursal, administración elige qué pide el mesero al sentar: «Más seguro» (nombre, cédula y teléfono
   antes del primer pedido, como hoy, y con lo que el local arranca) o «Más rápido» (el nombre y cuántos son; la cédula
   antes del segundo pedido y antes de cobrar, con la mesa marcada «Falta la cédula» en la tablet y en la caja). El
