@@ -1040,7 +1040,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   en el navegador, en tablet táctil a 1280×800 y 800×1280 en los dos temas (sentar con el tiempo de 2 niños, «mar» con 6
   María y la deuda en rojo en la entrada) y en la laptop la lupa, «Factura a», cumpleaños y papel. «Paga …» no se vio: la
   caja de pruebas es de otro día y solo cobra una cuenta sin cliente.*
-- [ ] **T-24 · Un solo campo del cliente, cruzado en todo el local** (M-40). Antes de la 1.0.0.
+- [~] **T-24 · Un solo campo del cliente, cruzado en todo el local** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/t-24`.*
   → «Cédula o RIF» en la entrada del parque, al sentar, en «Factura a nombre de…» y en los buscadores de la caja y del
   salón: con una cédula del directorio pone el nombre y el teléfono; con un RIF de empresa, su razón social y su
   dirección de la última factura; si no está, se escriben solo los datos que faltan; «Buscar por nombre o teléfono»
