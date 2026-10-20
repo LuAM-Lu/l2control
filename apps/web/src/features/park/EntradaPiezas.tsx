@@ -279,19 +279,23 @@ export function CampoRepresentante({
             No es esta persona
           </button>
         </div>
-      ) : (
-        <CampoDelCliente elegido={elegido} onElegir={elegir} onDeshacer={deshacer} surface="pos" conDeuda={false} />
+      ) : !encontrado ? (
+        // T-24: un solo campo, la cédula (lo primero, T-19), con «Aquí ahora» y «Buscar por nombre o teléfono».
+        <CampoDelCliente
+          elegido={elegido}
+          onElegir={elegir}
+          onDeshacer={deshacer}
+          surface="pos"
+          conDeuda={false}
+          para="PARQUE"
+          label="Cédula del representante"
+          cedula={{ valor: e.cedula, onCambio: e.setCedula, inputRef: cedulaRef, required: true }}
+        />
+      ) : null}
+      {/* Reconocida la familia, su cédula sigue a la vista: para corregirla, o para escribirla si no la tenía. */}
+      {encontrado && (
+        <CampoCedula label="Cédula del representante" valor={e.cedula} onCambio={e.setCedula} inputRef={cedulaRef} surface="pos" required />
       )}
-      {/* T-19: la cédula, lo primero. Con ella se reconoce a la familia que vuelve. */}
-      <CampoCedula
-        label="Cédula del representante"
-        valor={e.cedula}
-        onCambio={e.setCedula}
-        inputRef={cedulaRef}
-        surface="pos"
-        required
-        hint={e.cedula ? undefined : "Lo primero: si ya vino, aparece sola"}
-      />
 
       {pedirTelefono && (
         <CampoTelefono

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.143.1 en `main` (publicada, la 0.143.0) · 143 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.144.0 en `main` (publicada, la 0.143.0) · 144 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1040,8 +1040,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   en el navegador, en tablet táctil a 1280×800 y 800×1280 en los dos temas (sentar con el tiempo de 2 niños, «mar» con 6
   María y la deuda en rojo en la entrada) y en la laptop la lupa, «Factura a», cumpleaños y papel. «Paga …» no se vio: la
   caja de pruebas es de otro día y solo cobra una cuenta sin cliente.*
-- [~] **T-24 · Un solo campo del cliente, cruzado en todo el local** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/t-24`.*
+- [x] **T-24 · Un solo campo del cliente, cruzado en todo el local** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.144.0).*
   → «Cédula o RIF» en la entrada del parque, al sentar, en «Factura a nombre de…» y en los buscadores de la caja y del
   salón: con una cédula del directorio pone el nombre y el teléfono; con un RIF de empresa, su razón social y su
   dirección de la última factura; si no está, se escriben solo los datos que faltan; «Buscar por nombre o teléfono»
@@ -1051,6 +1050,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   lector de pulseras sigue sin tocar el campo. Una sola base de clientes: lo que se registró en el parque aparece en la
   mesa y en la caja. Criterio: una madre que entró al parque con su cédula se sienta en una mesa con un toque en «Aquí
   ahora» y la factura sale a su nombre sin volver a escribirla.
+  *T-24: `clientes.deAqui` suma el motivo HOY (estancias cerradas y cuentas cobradas del día de negocio, con `en`). En la web, `CampoDelCliente` con `cedula` es el campo único (su cara de cédula con «Aquí ahora» filtrado por las cifras, y la de nombre o teléfono), con `para` (MESA, CAJA, PARQUE) para el orden; lo usan `DatosDelCliente`, `CampoRepresentante` y `ClienteFacturaDialog`. La cola: el campo siempre a la vista, los filtros con cola larga o buscando, y «En el directorio» debajo de la lista; `BuscadorDeClientes` con `textoInicial`. `campo-del-cliente.test-db.ts` (1 nueva). Visto en el navegador en los dos temas: sentar, la entrada, la factura y la cola.*
+
 - [ ] **T-25 · Clientes** (M-40). Antes de la 1.0.0. Reemplaza «Representantes y niños».
   → Una sección propia del panel para todos los clientes (las familias del parque y los de mesa), con el campo de T-24
   y los filtros Todos, Familias, De mesa, Con deuda y VIP. Cada uno: sus datos (editables, auditados), sus niños

@@ -49,7 +49,10 @@ export function BuscadorDeClientes({
   onCerrar,
   alAbrirCuenta,
   puedeAbrir = () => true,
+  textoInicial = "",
 }: {
+  /** Lo que llega escrito (T-24): la persona que se tocó en el directorio del campo de la cola. */
+  textoInicial?: string;
   /** Qué cuentas abre esta pantalla (la caja, las que están por cobrar). */
   puedeAbrir?: (c: FamilyAccountDto) => boolean;
   abierto: boolean;
@@ -57,7 +60,13 @@ export function BuscadorDeClientes({
   /** Lo que hace la pantalla con una cuenta abierta del cliente (la caja la elige; el salón abre su mesa). */
   alAbrirCuenta?: ((c: FamilyAccountDto) => void) | undefined;
 }) {
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(textoInicial);
+  // Cada vez que se abre, con lo que llega escrito.
+  const [estaba, setEstaba] = useState(abierto);
+  if (abierto !== estaba) {
+    setEstaba(abierto);
+    if (abierto) setTexto(textoInicial);
+  }
   const [respuesta, setRespuesta] = useState<{ texto: string; clientes: readonly ClienteEncontradoDto[] } | { texto: string; error: string } | null>(null);
   const { cuentas } = useCuentas();
   const { sala } = useSala();

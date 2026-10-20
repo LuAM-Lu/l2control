@@ -1,13 +1,15 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
-import { Baby, CalendarHeart, CircleDollarSign, Hash, Keyboard, LoaderCircle, Receipt, Search, UserCheck, UserRound, X } from "lucide-react";
+import { Baby, CalendarHeart, CircleDollarSign, Hash, History, Keyboard, LoaderCircle, Receipt, Search, UserCheck, UserRound, X } from "lucide-react";
 import { enmascararDocumento, type ClienteDeAquiDto, type ClienteEncontradoDto } from "@l2/contracts";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { documentoLegible } from "@l2/domain-park";
 import { addDays, calendarDay } from "@l2/domain-rates";
 import { Marquesina, cn, formatMoneyVE, useMediaQuery, type Surface } from "@l2/ui";
 import { useSucursal } from "../sucursal/SucursalProvider.tsx";
+import { formatClock } from "../park/time-format.ts";
+import { CampoCedula } from "./CamposDelCliente.tsx";
 import { clientesDeAqui, encontrarClientes } from "./clientes.acciones";
 
 /**
@@ -23,10 +25,26 @@ import { clientesDeAqui, encontrarClientes } from "./clientes.acciones";
  *  · En la **tablet y el teléfono**, el teclado numérico, con «Por nombre» para las letras; en la laptop, un solo campo.
  *
  * Lo buscado no va a ningún registro (el servidor cuenta cuántos, no qué) y la lista lleva `data-privado` (PLAN §7.6).
+ *
+ * T-24 (M-40): con `cedula`, es **el campo único** «Cédula o RIF» del formulario: el campo es la cédula (con su letra y sus
+ * puntos) y, al tocarlo, «Aquí ahora»; quien no la recuerda usa «Buscar por nombre o teléfono». «Aquí ahora» suma a los
+ * que vinieron hoy y se ordena según la pantalla (`para`): en la mesa, primero el parque y el cumpleaños; en la caja, las
+ * cuentas; seis como máximo.
  */
 
 /** Lo elegido: el cliente del directorio y, si se eligió de «aquí ahora», por qué está aquí (y sus niños en la sala). */
-export type ClienteElegido = ClienteEncontradoDto & Readonly<{ motivo?: ClienteDeAquiDto["motivo"]; detalle?: string; estancias?: readonly string[] }>;
+export type ClienteElegido = ClienteEncontradoDto &
+  Readonly<{ motivo?: ClienteDeAquiDto["motivo"]; detalle?: string; estancias?: readonly string[]; en?: string | null }>;
+
+/** Dónde se usa el campo (T-24): ordena «Aquí ahora» por lo que más se busca ahí. */
+export type ParaQue = "MESA" | "CAJA" | "PARQUE";
+const PRIORIDAD: Readonly<Record<ParaQue, readonly ClienteDeAquiDto["motivo"][]>> = {
+  MESA: ["SALA", "CUMPLEANOS", "CUENTA", "HOY"],
+  CAJA: ["CUENTA", "SALA", "CUMPLEANOS", "HOY"],
+  PARQUE: ["SALA", "HOY", "CUMPLEANOS", "CUENTA"],
+};
+/** Cuántos propone «Aquí ahora» (T-24): los demás, escribiendo. */
+const AQUI_MAXIMO = 6;
 
 /** «V-12···678»: la cédula reconocible sin enseñarla entera, como en el recibo (§7.6). */
 export function cedulaEnmascarada(cedula: string | null): string {
@@ -53,7 +71,7 @@ const sePuedeBuscar = (s: string) => {
   return /^[A-Za-z]-?\d{6,}/.test(t.replace(/[\s.]/g, "")) || t.length >= 3;
 };
 
-const ICONO_DE_MOTIVO = { SALA: Baby, CUENTA: Receipt, CUMPLEANOS: CalendarHeart } as const;
+const ICONO_DE_MOTIVO = { SALA: Baby, CUENTA: Receipt, CUMPLEANOS: CalendarHeart, HOY: History } as const;
 
 export function CampoDelCliente({
   elegido,
@@ -61,11 +79,26 @@ export function CampoDelCliente({
   onDeshacer,
   surface = "tablet",
   autoFocus = false,
-  label = "Cédula, teléfono o nombre",
+  label,
   aqui = true,
   conDeuda = true,
   className,
+  cedula,
+  para = "MESA",
 }: {
+  /**
+   * T-24: el campo único. Con esto, el campo es la cédula del formulario (lo escrito es su valor) y la búsqueda por nombre
+   * o teléfono queda en un enlace.
+   */
+  cedula?: Readonly<{
+    valor: string;
+    onCambio: (v: string) => void;
+    required?: boolean;
+    error?: string | undefined;
+    inputRef?: React.Ref<HTMLInputElement> | undefined;
+  }>;
+  /** Dónde se usa: ordena «Aquí ahora» (T-24). */
+  para?: ParaQue;
   /** «Debe» en el elegido; `false` donde el formulario ya lo dice con su detalle (la entrada). */
   conDeuda?: boolean;
   /** El que se eligió (se enseña «Es …» con «No es esta persona»); `null` si ninguno. */
@@ -81,6 +114,7 @@ export function CampoDelCliente({
   className?: string;
 }) {
   const id = useId();
+  const { ajustes } = useSucursal();
   const listaId = `${id}-lista`;
   const [texto, setTexto] = useState("");
   const [abierto, setAbierto] = useState(false);
@@ -92,9 +126,12 @@ export function CampoDelCliente({
   // En la tablet y el teléfono, el teclado numérico; «Por nombre», el de letras (T-23).
   const tactil = useMediaQuery("(pointer: coarse)");
   const [porNombre, setPorNombre] = useState(false);
+  // T-24: con el campo único, buscar por nombre o teléfono es la otra cara del campo.
+  const [porTexto, setPorTexto] = useState(false);
+  const etiqueta = label ?? (cedula && !porTexto ? "Cédula o RIF" : cedula ? "Nombre o teléfono" : "Cédula, teléfono o nombre");
+  const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria);
   const entrada = useRef<HTMLInputElement | null>(null);
   const ahora = useMemo(() => Date.now(), [abierto]);
-  const { ajustes } = useSucursal();
 
   // «Aquí ahora», una vez al entrar al campo.
   const cargarAqui = () => {
@@ -144,11 +181,14 @@ export function CampoDelCliente({
       });
     }
     const q = sinAcentos(buscado);
+    const orden = PRIORIDAD[para];
     return (deAqui ?? [])
       .filter((a) => q === "" || sinAcentos(a.cliente.nombre).includes(q) || (a.cliente.cedula ?? "").replace(/\D/g, "").includes(q.replace(/\D/g, "") || "~"))
-      .slice(0, 8)
-      .map((a) => ({ ...a.cliente, motivo: a.motivo, detalle: a.detalle, estancias: a.estancias }));
-  }, [encontrados, buscado, deAqui]);
+      .map((a, i) => ({ a, i }))
+      .sort((x, y) => orden.indexOf(x.a.motivo) - orden.indexOf(y.a.motivo) || x.i - y.i)
+      .slice(0, AQUI_MAXIMO)
+      .map(({ a }) => ({ ...a.cliente, motivo: a.motivo, detalle: a.detalle, estancias: a.estancias, en: a.en }));
+  }, [encontrados, buscado, deAqui, para]);
 
   useEffect(() => setActivo(0), [opciones]);
 
@@ -158,22 +198,84 @@ export function CampoDelCliente({
     setAbierto(false);
   }
 
-  function alTeclear(e: React.KeyboardEvent<HTMLInputElement>) {
+  function alTeclear(e: React.KeyboardEvent<HTMLElement>, lista: readonly ClienteElegido[] = opciones) {
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setAbierto(true);
-      setActivo((i) => Math.min(i + 1, Math.max(0, opciones.length - 1)));
+      setActivo((i) => Math.min(i + 1, Math.max(0, lista.length - 1)));
     } else if (e.key === "ArrowUp") {
       e.preventDefault();
       setActivo((i) => Math.max(0, i - 1));
-    } else if (e.key === "Enter" && abierto && opciones[activo]) {
+    } else if (e.key === "Enter" && abierto && lista[activo]) {
       e.preventDefault();
-      elegir(opciones[activo]!);
+      elegir(lista[activo]!);
     } else if (e.key === "Escape" && abierto) {
       e.preventDefault();
       setAbierto(false);
     }
   }
+
+  /** La lista de clientes (lo encontrado o «Aquí ahora»), la misma en las dos caras del campo. */
+  const lista = (items: readonly ClienteElegido[], conAqui: boolean, vacio: string | null) => (
+    <ul
+      id={listaId}
+      role="listbox"
+      aria-label="Clientes"
+      data-privado=""
+      className="absolute top-full right-0 left-0 z-30 mt-1 max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-line bg-surface py-1 shadow-card"
+    >
+      {conAqui && items.length > 0 && <li className="px-3 pt-1 pb-0.5 text-etiqueta font-semibold tracking-[0.06em] text-ink-3 uppercase">Aquí ahora</li>}
+      {error && <li className="px-3 py-2 text-detalle text-state-crit">{error}</li>}
+      {!error && items.length === 0 && vacio && <li className="px-3 py-2 text-detalle text-ink-3">{vacio}</li>}
+      {items.map((c, i) => {
+        const Icono = c.motivo ? ICONO_DE_MOTIVO[c.motivo] : UserRound;
+        const vino = cuandoVino(c.vinoEl, ahora, ajustes.zonaHoraria);
+        // Los que vinieron hoy (T-24): a qué hora salieron o pagaron.
+        const detalle = c.detalle && c.motivo === "HOY" && c.en ? `${c.detalle} a las ${hora(c.en)}` : c.detalle;
+        const partes = [cedulaEnmascarada(c.cedula), detalle ?? vino, c.ninos > 0 && !detalle ? `${c.ninos} ${c.ninos === 1 ? "niño" : "niños"}` : null].filter(Boolean);
+        return (
+          <li key={c.clienteId} id={`${listaId}-${i}`} role="option" aria-selected={i === activo}>
+            <button
+              type="button"
+              tabIndex={-1}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => elegir(c)}
+              onMouseEnter={() => setActivo(i)}
+              className={cn("flex w-full items-center gap-2.5 px-3 text-left", surface === "admin" ? "min-h-10" : "min-h-12", i === activo ? "bg-surface-2" : "hover:bg-surface-2")}
+            >
+              <Icono className={cn("size-(--icono-texto) shrink-0", c.motivo ? "text-brand" : "text-ink-3")} aria-hidden="true" />
+              <span className="min-w-0 flex-1">
+                <Marquesina className="text-cuerpo font-semibold text-ink">{c.nombre}</Marquesina>
+                <Marquesina className="tnum text-nota text-ink-3" titulo={[detalle, vino, c.ninos > 0 ? `${c.ninos} ${c.ninos === 1 ? "niño" : "niños"}` : null].filter(Boolean).join(" · ")}>
+                  {partes.join(" · ")}
+                </Marquesina>
+              </span>
+              <Deuda deudas={c.deudas} />
+            </button>
+          </li>
+        );
+      })}
+    </ul>
+  );
+
+  /** El enlace que cambia de cara: de la cédula a buscar por nombre o teléfono, y de vuelta. */
+  const cambiarDeCara = (a: boolean) => (
+    <button
+      type="button"
+      onMouseDown={(e) => e.preventDefault()}
+      onClick={() => {
+        setPorTexto(a);
+        setTexto("");
+        window.setTimeout(() => entrada.current?.focus(), 0);
+      }}
+      className={cn(
+        "self-start rounded-[var(--radius-control)] px-1 text-detalle font-semibold text-brand hover:underline focus-visible:outline-2 focus-visible:outline-brand",
+        surface === "admin" ? "min-h-8" : "min-h-10",
+      )}
+    >
+      {a ? "Buscar por nombre o teléfono" : "Escribir la cédula"}
+    </button>
+  );
 
   // Elegido: «Es …» con «No es esta persona».
   if (elegido) {
@@ -203,6 +305,37 @@ export function CampoDelCliente({
     );
   }
 
+  // T-24: la cara de la cédula. Lo escrito es la cédula del formulario; al tocarla, «Aquí ahora» (filtrado por las cifras
+  // escritas). Con una cédula completa, el formulario reconoce al cliente y rellena lo demás.
+  if (cedula && !porTexto) {
+    const cifras = cedula.valor.replace(/\D/g, "");
+    const sugeridas = cifras === "" ? opciones : opciones.filter((c) => (c.cedula ?? "").replace(/\D/g, "").startsWith(cifras));
+    return (
+      <div
+        className={cn("relative flex flex-col gap-1", className)}
+        onFocus={() => {
+          cargarAqui();
+          setAbierto(true);
+        }}
+        onBlur={() => window.setTimeout(() => setAbierto(false), 150)}
+        onKeyDown={(e) => alTeclear(e, sugeridas)}
+      >
+        <CampoCedula
+          label={etiqueta}
+          surface={surface}
+          valor={cedula.valor}
+          onCambio={cedula.onCambio}
+          {...(cedula.required ? { required: true } : {})}
+          {...(cedula.error ? { error: cedula.error } : {})}
+          autoFocus={autoFocus}
+          {...(cedula.inputRef ? { inputRef: cedula.inputRef } : {})}
+        />
+        {abierto && sugeridas.length > 0 && lista(sugeridas, true, null)}
+        {cambiarDeCara(true)}
+      </div>
+    );
+  }
+
   const numerico = tactil && !porNombre;
   const altura = surface === "pos" ? "min-h-14" : surface === "admin" ? "min-h-9" : "min-h-12";
   // B4-18: la letra de los campos (16 px o más en la tablet y la caja: así no se acerca la pantalla al escribir).
@@ -210,7 +343,7 @@ export function CampoDelCliente({
   return (
     <div className={cn("relative flex flex-col gap-1.5", className)}>
       <label htmlFor={`${id}-campo`} className="text-etiqueta font-semibold tracking-[0.06em] text-ink-2 uppercase">
-        {label}
+        {etiqueta}
       </label>
       <div className="flex gap-1.5">
         <div className={cn("flex min-w-0 flex-1 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-surface px-3 focus-within:border-brand", altura)}>
@@ -245,7 +378,7 @@ export function CampoDelCliente({
               setTexto(e.target.value);
               setAbierto(true);
             }}
-            onKeyDown={alTeclear}
+            onKeyDown={(e) => alTeclear(e)}
             className={cn("min-w-0 flex-1 bg-transparent text-ink outline-none placeholder:text-ink-3", letra)}
           />
         </div>
@@ -266,45 +399,9 @@ export function CampoDelCliente({
           </button>
         )}
       </div>
-      {abierto && (opciones.length > 0 || error || (encontrados && encontrados.texto === buscado)) && (
-        <ul
-          id={listaId}
-          role="listbox"
-          aria-label="Clientes"
-          data-privado=""
-          className="absolute top-full right-0 left-0 z-30 mt-1 max-h-72 overflow-y-auto rounded-[var(--radius-control)] border border-line bg-surface py-1 shadow-card"
-        >
-          {buscado === "" && opciones.length > 0 && <li className="px-3 pt-1 pb-0.5 text-etiqueta font-semibold tracking-[0.06em] text-ink-3 uppercase">Aquí ahora</li>}
-          {error && <li className="px-3 py-2 text-detalle text-state-crit">{error}</li>}
-          {!error && opciones.length === 0 && <li className="px-3 py-2 text-detalle text-ink-3">Nadie con eso en el directorio: escribe sus datos abajo.</li>}
-          {opciones.map((c, i) => {
-            const Icono = c.motivo ? ICONO_DE_MOTIVO[c.motivo] : UserRound;
-            const vino = cuandoVino(c.vinoEl, ahora, ajustes.zonaHoraria);
-            const partes = [cedulaEnmascarada(c.cedula), c.detalle ?? vino, c.ninos > 0 && !c.detalle ? `${c.ninos} ${c.ninos === 1 ? "niño" : "niños"}` : null].filter(Boolean);
-            return (
-              <li key={c.clienteId} id={`${listaId}-${i}`} role="option" aria-selected={i === activo}>
-                <button
-                  type="button"
-                  tabIndex={-1}
-                  onMouseDown={(e) => e.preventDefault()}
-                  onClick={() => elegir(c)}
-                  onMouseEnter={() => setActivo(i)}
-                  className={cn("flex w-full items-center gap-2.5 px-3 text-left", surface === "admin" ? "min-h-10" : "min-h-12", i === activo ? "bg-surface-2" : "hover:bg-surface-2")}
-                >
-                  <Icono className={cn("size-(--icono-texto) shrink-0", c.motivo ? "text-brand" : "text-ink-3")} aria-hidden="true" />
-                  <span className="min-w-0 flex-1">
-                    <Marquesina className="text-cuerpo font-semibold text-ink">{c.nombre}</Marquesina>
-                    <Marquesina className="tnum text-nota text-ink-3" titulo={[c.detalle, vino, c.ninos > 0 ? `${c.ninos} ${c.ninos === 1 ? "niño" : "niños"}` : null].filter(Boolean).join(" · ")}>
-                      {partes.join(" · ")}
-                    </Marquesina>
-                  </span>
-                  <Deuda deudas={c.deudas} />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      )}
+      {abierto && (opciones.length > 0 || error || (encontrados && encontrados.texto === buscado)) &&
+        lista(opciones, buscado === "", cedula ? "Nadie con eso en el directorio: escribe su cédula." : "Nadie con eso en el directorio: escribe sus datos abajo.")}
+      {cedula && cambiarDeCara(false)}
     </div>
   );
 }

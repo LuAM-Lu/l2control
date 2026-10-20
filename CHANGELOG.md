@@ -16,6 +16,19 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.144.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: un solo campo del cliente, cruzado en todo el local.
+
+### Cambiado
+- **Un solo campo, «Cédula o RIF»,** en la entrada del parque, al sentar en una mesa, al dejar pendiente una venta y en
+  «Factura a nombre de…»: con una cédula del directorio pone su nombre y su teléfono; al tocarlo, «Aquí ahora»; quien no
+  la recuerda, «Buscar por nombre o teléfono». Antes eran dos campos para lo mismo.
+- **«Aquí ahora» suma a los que vinieron hoy** (salió del parque o pagó su cuenta, con la hora) y se ordena según la
+  pantalla: en la mesa, primero el parque y el cumpleaños; en la caja, las cuentas abiertas. Seis como máximo.
+- **La caja tiene una sola búsqueda** (tecla / o C), siempre a la vista: arriba las cuentas de la cola que coinciden y
+  debajo «En el directorio»; tocar a una persona abre su ficha ya buscada. Se fueron la lupa y el botón de la persona.
+
 ## [0.143.1] — 2026-10-20 · Hacia la puesta en marcha
 
 Lo que se vio el 18 de octubre al cerrar una caja (el ticket n.º 3 de soporte, M-40).

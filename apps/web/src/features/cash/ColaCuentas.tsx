@@ -4,11 +4,13 @@ import { useEffect, useState, type RefObject } from "react";
 import { Baby, Cake, Check, Clock, Combine, HandCoins, Users, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { joinProblem, type JoinProblem } from "@l2/domain-cash";
-import { WristbandCodeSchema, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
+import { WristbandCodeSchema, type ClienteEncontradoDto, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
 import { Button, Marquesina, MoneyDisplay, ScannerField, cn, formatMoneyVE } from "@l2/ui";
 import { esDeMesa, esVentaDirecta, nombreDeCuenta, numeroDeOrden, pendiente } from "../cuentas/cuentas.ts";
 import { PistaTecla } from "./AtajosDialog.tsx";
 import { CumpleanosDeHoy } from "../eventos/CumpleanosDelDia.tsx";
+import { Deuda, cedulaEnmascarada } from "../clientes/CampoDelCliente.tsx";
+import { encontrarClientes } from "../clientes/clientes.acciones";
 
 /**
  * La cola de cuentas por cobrar — DEC-21, UX-MEJORAS §9 (C1, C2, C5).
@@ -162,8 +164,11 @@ export function ColaCuentas({
   onNuevaVentaDirecta: () => void;
   /** La entrada al parque desde la caja (B3-9); `null` para quien no registra entradas. */
   onEntrada: (() => void) | null;
-  /** El buscador de clientes (T-19): por nombre, cédula o teléfono, con lo que tienen abierto y lo que deben. */
-  onBuscarCliente: () => void;
+  /**
+   * El buscador de clientes (T-19): por nombre, cédula o teléfono, con lo que tienen abierto y lo que deben. T-24: lo abre
+   * el campo de la cola con la persona que se tocó del directorio.
+   */
+  onBuscarCliente: (texto?: string) => void;
   ventaNueva: boolean;
   /** El equipo desde el que se cobra (su turno, B3-1); `null` sin turno abierto. */
   puntoDeCobro: string | null;
@@ -231,10 +236,30 @@ export function ColaCuentas({
     return () => window.clearInterval(id);
   }, []);
 
-  const conBuscador = buscando || total > COLA_LARGA || busqueda !== "" || filtro !== "TODAS";
+  // T-24: el campo es uno solo y está siempre a la vista; los filtros por origen, con una cola larga o buscando.
+  const conFiltros = total > COLA_LARGA || busqueda !== "" || filtro !== "TODAS";
+  // T-24: debajo de la cola, el directorio: quien coincide con lo escrito (3 letras, o una cédula o un teléfono).
+  const [delDirectorio, setDelDirectorio] = useState<{ texto: string; clientes: readonly ClienteEncontradoDto[] } | null>(null);
+  const escrito = busqueda.trim();
+  const buscaEnElDirectorio = /^[\d\s.()+-]+$/.test(escrito) ? escrito.replace(/\D/g, "").length >= 6 : escrito.length >= 3 && !/^#?\d{1,5}$/.test(escrito);
+  useEffect(() => {
+    if (!buscaEnElDirectorio) {
+      setDelDirectorio(null);
+      return;
+    }
+    let vivo = true;
+    const t = window.setTimeout(() => {
+      encontrarClientes({ texto: escrito, limite: 3 })
+        .then((r) => vivo && setDelDirectorio(r.ok ? { texto: escrito, clientes: r.valor } : null))
+        .catch(() => undefined);
+    }, 300);
+    return () => {
+      vivo = false;
+      window.clearTimeout(t);
+    };
+  }, [escrito, buscaEnElDirectorio]);
 
-  // Pedir el buscador (lupa o «/») es para escribir ya: el foco va a él en
-  // cuanto existe.
+  // Pedir el buscador («/» o «C») es para escribir ya: el foco va a él.
   useEffect(() => {
     if (buscando) buscadorRef.current?.focus();
   }, [buscando, buscadorRef]);
@@ -259,26 +284,6 @@ export function ColaCuentas({
           Por cobrar <span className="tnum ml-1 text-[13px] font-semibold text-ink-3">{total}</span>
         </h2>
         <span className="flex items-center gap-0.5">
-          {!conBuscador && (
-            <button
-              type="button"
-              onClick={() => onBuscando(true)}
-              aria-label="Buscar en la cola"
-              title="Buscar (/)"
-              className="grid size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
-            >
-              <Search size={16} aria-hidden="true" />
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onBuscarCliente}
-            aria-label="Buscar cliente"
-            title="Buscar cliente por nombre, cédula o teléfono (C)"
-            className="grid size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink"
-          >
-            <UserSearch size={16} aria-hidden="true" />
-          </button>
           {/* B3-16: marcar varias cuentas para cobrarlas juntas. */}
           {puedeJuntar && (
             <button
@@ -353,7 +358,8 @@ export function ColaCuentas({
           className="min-h-12 gap-2 px-3 py-2 [&_[data-pista]]:hidden [&>span[role=status]]:truncate [&>span[role=status]]:text-[12.5px]"
         />
 
-        {conBuscador && (
+        {/* T-24: un solo campo para buscar: la cola arriba y, debajo, el directorio. */}
+        {(
           <div className="flex flex-col gap-1.5">
             <label className="flex h-12 items-center gap-2 rounded-[var(--radius-control)] border border-line bg-base px-2.5 focus-within:border-brand">
               <Search size={15} className="shrink-0 text-ink-3" aria-hidden="true" />
@@ -375,11 +381,11 @@ export function ColaCuentas({
                     e.currentTarget.blur();
                   }
                 }}
-                placeholder="Nombre, cédula o #orden"
+                placeholder="Nombre, cédula, teléfono o #orden"
                 autoComplete="off"
                 className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-ink-3 [&::-webkit-search-cancel-button]:hidden"
               />
-              {(busqueda !== "" || total <= COLA_LARGA) && (
+              {busqueda !== "" && (
                 <button
                   type="button"
                   onClick={cerrarBuscador}
@@ -390,6 +396,7 @@ export function ColaCuentas({
                 </button>
               )}
             </label>
+            {conFiltros && (
             <div role="radiogroup" aria-label="Origen de la cuenta" className="grid grid-cols-3 gap-1">
               {FILTROS.map((f) => (
                 <button
@@ -407,6 +414,7 @@ export function ColaCuentas({
                 </button>
               ))}
             </div>
+            )}
           </div>
         )}
       </div>
@@ -575,6 +583,28 @@ export function ColaCuentas({
             );
           })}
         </ul>
+      )}
+
+      {/* T-24: quien coincide en el directorio; tocarlo abre su ficha: lo que tiene abierto, sus niños y lo que debe. */}
+      {delDirectorio && delDirectorio.texto === escrito && delDirectorio.clientes.length > 0 && (
+        <section aria-label="En el directorio" className="flex max-h-40 shrink-0 flex-col gap-1 overflow-y-auto border-t border-line px-2 py-2" data-privado="">
+          <span className="px-1.5 text-etiqueta font-semibold tracking-[0.06em] text-ink-3 uppercase">En el directorio</span>
+          {delDirectorio.clientes.map((c) => (
+            <button
+              key={c.clienteId}
+              type="button"
+              onClick={() => onBuscarCliente(c.cedula ?? c.nombre)}
+              className="flex min-h-12 w-full cursor-pointer items-center gap-2 rounded-[var(--radius-control)] px-2 text-left hover:bg-surface-2 focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <UserSearch size={15} aria-hidden="true" className="shrink-0 text-ink-3" />
+              <span className="min-w-0 flex-1">
+                <Marquesina className="text-[13px] font-semibold text-ink">{c.nombre}</Marquesina>
+                <span className="tnum block text-[11.5px] text-ink-3">{cedulaEnmascarada(c.cedula)}</span>
+              </span>
+              <Deuda deudas={c.deudas} />
+            </button>
+          ))}
+        </section>
       )}
 
       {/* B4-19: las familias que siguen en la sala. «Pagar ahora» cobra su tiempo antes de salir. */}

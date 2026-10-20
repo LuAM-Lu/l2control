@@ -240,6 +240,15 @@ describe("quién está aquí (T-23)", () => {
     );
   });
 
+  test("la familia que ya salió del parque hoy sigue aquí, con la hora a la que salió (T-24)", async () => {
+    const fue = await familiaDePrueba(l, monitora, AHORA - 50 * MIN);
+    const salio = AHORA - 3 * MIN;
+    valor(await l.app.parque.salir(monitora, { idempotencyKey: randomUUID(), sessionIds: fue.sessionIds, disposition: { kind: "CAJA" }, recogida: { kind: "REPRESENTANTE" } }, salio));
+    const g = await l.base.conTenant(l.sistema.tenantId, (tx) => tx.parkSession.findFirstOrThrow({ where: { accountId: fue.id }, select: { guardianId: true } }));
+    const suyo = valor(await l.app.clientes.deAqui(mesero, AHORA)).clientes.find((a) => a.cliente.clienteId === g.guardianId);
+    assert.deepEqual([suyo?.motivo, suyo?.detalle, suyo?.en], ["HOY", "Salió del parque", new Date(salio).toISOString()]);
+  });
+
   test("lo de otro día no está aquí: la estancia olvidada está a revisar y la cuenta abierta la cierra la caja", async () => {
     assert.deepEqual(valor(await l.app.clientes.deAqui(mesero, AHORA + 2 * 24 * 60 * MIN)).clientes, []);
   });
