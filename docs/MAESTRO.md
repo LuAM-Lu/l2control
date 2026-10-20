@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.155.0 en `main` (publicada, la 0.143.0) · 155 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.155.0 en `main` y publicada (2026-10-20, 9:02 am) · 155 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -45,8 +45,10 @@ once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
 una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 entregado entero (2026-10-14, la
 visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.132.0 a v0.143.0, publicados juntos con la etiqueta
-v0.143.0. B8-4 preparado: la 1.0.0 va después del bloque M-40 (la 0.143.1 y doce pasos), publicado una vez y probado un fin de
-semana; el lunes 19 no se cortó.** M-28 y M-29
+v0.143.0. M-40 entregado entero (2026-10-20, el ticket n.º 3 y la auditoría de Mesero y Caja): la corrección v0.143.1 y doce
+pasos, v0.144.0 a v0.155.0, publicados juntos con la etiqueta v0.155.0 (el VPS la puso en 45 s, con respaldo antes y sus tres
+migraciones de expandir). B8-4 preparado: la 1.0.0 va un lunes con el local cerrado, después de probar el bloque un fin de
+semana (el primero posible, el lunes 26); el lunes 19 no se cortó.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -114,6 +116,11 @@ la 1.0.0.
      seis mesas sin cobrar ($ 128,80 antes del IVA) y una venta del 10 entró en el día 9; se resuelve con lo que ya tiene
      L2 (cobrar o «Se fue sin pagar» cada mesa, cerrar la caja del 9 con su justificación, abrir la del 10). B3-24 lo
      impide en adelante.
+  7. **M-40, Claude, hecho (2026-10-20):** la corrección v0.143.1 y los doce pasos (v0.144.0 a v0.155.0), en tanda y
+     publicados juntos con la etiqueta v0.155.0. Para mirar en el local el fin de semana: el campo «Cédula o RIF», sentar
+     «Más rápido», «Cobrar lo que va», «Pedir anulación», la fila de la mesa, Clientes y el cierre del parque. La PC de
+     los respaldos («PC Lenovo Laptop») no baja desde el 17: lo avisan Inicio y Respaldos, y desde B5-7, el turno al abrir y
+     al cerrar.
   Opcional del usuario: `L2_SMTP_URL` y `L2_CORREO_SOPORTE` en el VPS (el aviso por correo de los reportes).
 
 La historia de esta sección (qué decía al entregar cada paso y lo que se probó en la base local) está en §9.
@@ -3741,8 +3748,8 @@ F9-05).
   lista, con una hoja de detalle (la venta: líneas, totales, tasa, pagos, quién cobró, anulada o devuelta; lo demás, sus
   datos con nombre), y «Kárdex de inventario» como su otra vista (`?vista=kardex`). Probado en la base (3 pruebas) y en
   el navegador en los dos temas.*
-- [x] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Antes de la 1.0.0 (maqueta vista, sección 6). *A cargo:
-  LuAMi (Claude), en `feat/b11-8`.*
+- [x] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). *Hecho el 2026-10-20 (v0.154.0).* Antes de la 1.0.0
+  (maqueta vista, sección 6).
   → Con lo que ya tiene, de la pregunta a la respuesta: arriba las cifras clave (niños, dinero, promedio por niño,
   estancia, pico) con la diferencia contra el periodo anterior; cuándo viene la gente (por hora y día de la semana por
   hora); de dónde sale el dinero (paquetes, «Más tiempo», tiempo de más, en mesas; lo regalado aparte); qué se vende (los
@@ -3951,7 +3958,8 @@ F9-05).
   → Los totales de los dos sistemas coinciden todos los días del período.
 - [~] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10). *A cargo: LuAMi
   (Claude). Preparado el 2026-10-14, día 4 de la operación con la 0.143.0: listo para pasar a producción si el día
-  termina sin novedades; el corte, un lunes después del bloque M-40; falta B8-1 confirmado.*
+  termina sin novedades; el corte, un lunes después del bloque M-40, que se publicó el 2026-10-20 (v0.155.0) y se prueba
+  un fin de semana; falta B8-1 confirmado.*
   → (M-36) Sobre la base del VPS, sin corrida limpia: antes, la lista de lo que quedó de prueba (solo leyendo) y lo que
   el usuario decida; con el VPS en modo producción (D-ENT).
   → Lo que quedó de prueba (leído el 2026-10-14): nada con nombre de prueba entre productos (101), familias (38) y
@@ -4620,6 +4628,14 @@ Una línea por sesión que cambie el rumbo. El historial anterior está en la bi
 - **2026-10-14** · Publicada la v0.143.0 a pedido del usuario (3:04 pm): el VPS la puso en 42 s, con respaldo antes, y sus
   seis migraciones; la salud en verde. A las 3:11 pm se hizo el corte Z de la caja del día; su papel espera al agente de la
   laptop, que no se reporta desde las 2:25 pm (sigue en 0.131.0).
+- **2026-10-19** · El ticket n.º 3 (al cerrar la caja del 17, «Cobrar» no hacía nada con dos cuentas de pie que nunca
+  pidieron la cuenta), la revisión de la salud del VPS y la auditoría de Mesero y Caja (22 hallazgos) → M-40, decidido con
+  preguntas y maquetas: la corrección v0.143.1 y doce pasos, un solo bloque antes de la 1.0.0. La ruta pasa a 160.
+- **2026-10-20** · M-40 entregado entero, sin parar entre pasos (v0.143.1 y v0.144.0 a v0.155.0, tres migraciones de
+  expandir): un solo campo del cliente, sentar «Más seguro» o «Más rápido», las cuentas del salón a la vista de la caja,
+  «Cobrar lo que va», la caja más clara, «Pedir anulación», el mesero más ágil, los avisos a tiempo, Clientes, el cierre del
+  parque, Reportes → Parque y la ayuda al día. Publicado una vez con la etiqueta v0.155.0 (9:02 am): el VPS lo puso en
+  45 s, con respaldo antes; la salud en verde. Quedan B8-1 y B8-4.
 
 ---
 

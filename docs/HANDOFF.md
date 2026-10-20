@@ -7,21 +7,21 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-14 · v0.143.0 en `main` y publicada (el VPS en 0.143.0) · M-39 entregado entero; nada reclamado*
+*2026-10-20 · v0.155.0 en `main` y publicada (el VPS en 0.155.0) · M-40 entregado entero; nada reclamado salvo B8-4*
 
 ```text
-M-39 entero en main, sin parar entre pasos: v0.131.1 y B3-25 a B10-5 (v0.132.0 a v0.143.0), seis migraciones de expandir.
-Publicada a las 3:04 pm con la etiqueta v0.143.0: el VPS la puso en 42 s, con sus seis migraciones; la salud en verde.
-  Sin cobros todavía tras la actualización (sí un arqueo y el corte Z de las 3:11 pm). El agente de la laptop no se reporta
-  desde las 2:25 pm (sigue en 0.131.0): el papel del Z espera en la cola; al volver se pone al día solo y lo imprime.
-Quedan B8-1 (la red del local) y B8-4 (la 1.0.0), del usuario. B6-4, después del piloto.
-Decidido al programar, para mirar en el local: con partes iguales ya cobradas no se pide más a esa cuenta (B6-18); una mesa
-  sin cliente anotado (de antes de B6-9) no pregunta «otra familia» (B6-20); lo descontado en la quincena se marca con lo
-  que hay ese día (B3-26); administración y soporte no cierran su otra sesión (B1-7); lo contado sin entrada vale $ 0 (B9-14);
-  los lugares los guardan solo los cumpleaños con el anticipo cobrado (B10-4); la cuenta del cumpleaños con mesa no sale de
-  la cola al pedir y el mesero puede sentarlo y empezarlo (B10-5).
-La caja del día 9 ya se cerró. Por mirar en el local: la primera venta con la 0.143.0 y el agente (Ajustes → Impresoras).
-Cuidado: MAESTRO.md y muchos .ts van con CRLF. El día de negocio termina a las 4:00 am: un turno abierto antes es de ayer.
+M-40 entero en main, sin parar entre pasos: v0.143.1 y T-24 a T-26 (v0.144.0 a v0.155.0), tres migraciones de expandir.
+Publicada a las 9:02 am con la etiqueta v0.155.0: el VPS la puso en 45 s, con respaldo antes; salud en verde, sin errores.
+Lo nuevo, para mirarlo en el local el fin de semana: «Cédula o RIF» en un solo campo; sentar «Más rápido» o «Más seguro»
+  (Ajustes → Sucursal); la caja ve las cuentas del salón y ofrece «Traer a la caja y cobrar»; «Cobrar lo que va»; «Pedir
+  anulación» sin administración en el local; la fila de la mesa y «Lo más pedido hoy»; el aviso de la caja abierta a la
+  hora de cierre (10:00 pm de fábrica); Clientes (en lugar de Representantes); el cierre del parque; Reportes → Parque.
+La PC de los respaldos («PC Lenovo Laptop») no baja desde el 17 de octubre: correr su tarea en esa PC.
+Siguiente: B8-4, la 1.0.0 (MAESTRO §3): un lunes con el local cerrado tras probar el bloque un fin de semana (el primero
+  posible, el 26). Antes, del usuario: B8-1 (el 4G y la UPS), decidir «Linux Home andruwXOX» y «T an lwt», y «Actualizar
+  ahora» del agente de impresión si no se puso al día solo.
+Cuidado: el día de negocio termina a las 4:00 am; una pantalla nueva de la ayuda va en manual.ts con su ruta (y su
+  ?pestana= si la pide), y un paso nuevo de un recorrido lleva `desde` con su versión subida.
 ```
 
 ## aemorandin-coder
