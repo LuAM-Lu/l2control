@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.143.0 en `main` (publicada) · 143 de 151 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.143.0 en `main` (publicada) · 143 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -45,8 +45,8 @@ once pasos (los diez decididos y B6-16, la comanda de la venta directa), v0.111.
 con la etiqueta de la última. M-38 entregado entero (2026-10-11, tras la operación en paralelo y el día 9 sin cerrar):
 una corrección (v0.122.1 y v0.122.2) y nueve pasos, v0.123.0 a v0.131.0, publicados juntos al final con la etiqueta de la última. M-39 entregado entero (2026-10-14, la
 visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.132.0 a v0.143.0, publicados juntos con la etiqueta
-v0.143.0. B8-4 preparado: la 1.0.0 va después de la 0.143.1 y B3-27 (M-40), probadas un fin de semana; el lunes 19 no se
-cortó.** M-28 y M-29
+v0.143.0. B8-4 preparado: la 1.0.0 va después del bloque M-40 (la 0.143.1 y doce pasos), publicado una vez y probado un fin de
+semana; el lunes 19 no se cortó.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -178,7 +178,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-37** | **Lo visto en la operación en paralelo** (2026-10-09, el usuario tras trabajar con el sistema y el método escrito a la vez; decidido en diez rondas de preguntas) | U-1 a U-14, abajo en «M-37 en detalle». Primero **cuatro correcciones** (v0.111.1). Después, diez pasos, en este orden y sin pedir el sí entre ellos: B4-17 (una regla de precio para el parque: tiempo abierto, subir de paquete y tiempo de más en bloques de 30 min con tope) → B6-15 (desvincular una pulsera) → B3-16 (cobrar juntas) → B3-20 (dividir por ítems) → B3-19 (el vuelto: cómo se da y cuánto se puede dar) → B6-16 (la comanda de la venta directa, sumado el 2026-10-10) → B3-18 (anular y devolver, de administración; y devolver lo que un niño no usó) → B3-17 (el consumo del personal, con su vale) → T-20 (los puestos, por uso) → B11-6 (Reportes → Parque) → B11-7 (Movimientos: todo lo del día, con su detalle). **Se publica una sola vez al final**, ya probado todo. **Cambian:** D-AUT (supervisión ya no se autoriza sola para anular ni devolver), M-18 (en prepago se puede devolver lo no usado, con PIN de administración) y B3-14 (el tiempo del parque se devuelve por la salida). La ruta pasa a **127** (B6-16, sumado el 2026-10-10) | B3-16 a B11-7, B6-16, T-20 |
 | **M-38** | **Papel, tablet y caja** (2026-10-10, el usuario tras quedarse sin papel con la impresora por USB y no cerrar el día 9; definido con una propuesta dibujada y tres rondas de preguntas) | W-1 a W-11, abajo en «M-38 en detalle». Primero la corrección **v0.122.1** (los avisos legibles en el tema claro y la tarjeta de los puestos). Después, nueve pasos en este orden (ocho y T-23), en tanda y publicados una vez al final (con la 0.122.1): B3-24 (un día que no se cerró) → B5-6 (la impresora por red y por USB) → T-23 (el campo del cliente, añadido en la cuarta ronda) → B4-18 (la Entrada en tablet) → B6-17 (el mesero en tablet) → T-21 (la barra de las estaciones, por pantalla) → T-22 (las listas largas) → B3-21 (mover efectivo) → B3-22 (el fondo fijo, opcional). **Cambian:** cada impresora es principal o respaldo, y lo elige administración (red o USB, en cualquier orden); la caja de un día anterior deja de cobrar; los nueve formularios con cliente usan una sola pieza que busca también por nombre. La ruta pasa a **136** | B3-21 a B3-24, B4-18, B5-6, B6-17, T-21 a T-23 |
 | **M-39** | **La visita de Abby** (2026-10-13, la lista de la visita, el reporte n.º 2 de Dietina y tres rondas de preguntas) | X-1 a X-16, abajo en «M-39 en detalle». Primero la corrección **v0.131.1** (hecha el 2026-10-13; se publica con la tanda, decisión del usuario): la caja quita lo que añadió a una mesa y no salió a cocina (el reporte n.º 2), y lo que se vio al vincular el 13 (las medias van con su niño, el «Más tiempo» de un niño vinculado va a su mesa y anular su entrada anula lo de su mesa). Después, doce pasos en tanda y publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) → B6-20 (vincular la familia entera) → B6-21 (cambiar de mesa) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal en una pestaña) → B1-7 (una persona, un equipo) → B9-14 (el producto listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario y cambiar de fecha) → B10-4 (el aforo del cumpleaños y el exclusivo) → B10-5 (el cumpleaños en la caja, el parque y el salón). **Cambian:** el personal sigue pagando fuera del sistema (en su quincena) y administración lo marca descontado; supervisión da de alta productos y carga existencia; una persona trabaja en un solo equipo a la vez. La ruta pasa a **148** | B1-7, B3-25, B3-26, B4-19, B6-18 a B6-21, B9-14, B10-3 a B10-5 |
-| **M-40** | **La app explica por qué no se puede** (2026-10-19, el ticket n.º 3 de soporte y la revisión de la salud del VPS; decisiones del usuario con preguntas) | El ticket: al cerrar la caja del 17, «Cobrar» no hacía nada con dos cuentas de pie que nunca pidieron la cuenta (la caja solo abre las que la pidieron); se dieron por incobrables. Lo más seguro, cobradas a mano: falta de uso, pero la app debe decirlo. Se decide: **v0.143.1** (corrección) con el estado de cada cuenta en el cierre y el arrastre del icono de pie en táctil y el reintento del agente; **B3-27** (las cuentas del salón a la vista de la caja y sus avisos) antes de la 1.0.0; y después de ella, **B4-21** (el cierre del parque de la monitora, en pantalla y PDF, sin montos) y **B11-8** (Reportes → Parque rediseñado con lo que ya tiene), los dos con maquetas con datos reales antes de programar. La puesta en marcha (B8-4) va después de la 0.143.1 y B3-27, probadas un fin de semana. La ruta pasa a **151** | B3-27, B4-21, B11-8 |
+| **M-40** | **La app explica por qué no se puede, y el salón más ágil** (2026-10-19, el ticket n.º 3 de soporte, la revisión de la salud del VPS y la auditoría de Mesero y Caja; decisiones del usuario con preguntas y maquetas) | El ticket: al cerrar la caja del 17, «Cobrar» no hacía nada con dos cuentas de pie que nunca pidieron la cuenta; se dieron por incobrables. La auditoría (16 flujos del mesero, 27 de la caja, 22 hallazgos) y las maquetas (nueve secciones) dejan **un solo bloque antes de la 1.0.0**, sin fusionar el plan hasta el «listo» del usuario: la corrección **v0.143.1** y los pasos **T-24** (un solo campo del cliente, cruzado en parque, mesa y caja), **B6-22** (sentar «Más seguro» o «Más rápido»), **B3-27** (las cuentas del salón a la vista de la caja), **B3-28** («Cobrar lo que va»), **B3-29** (la caja más clara), **B3-30** («Pedir anulación»), **B6-23** (el mesero más ágil), **B5-7** (avisos a tiempo), **T-25** (Clientes, en lugar de Representantes y niños), **B4-21** (el cierre del parque), **B11-8** (Reportes → Parque) y **T-26** (la ayuda al día). Se publica una sola vez al final; después, la puesta en marcha (B8-4). La ruta pasa a **160** | T-24 a T-26, B3-27 a B3-30, B5-7, B6-22, B6-23, B4-21, B11-8 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -1040,6 +1040,33 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   en el navegador, en tablet táctil a 1280×800 y 800×1280 en los dos temas (sentar con el tiempo de 2 niños, «mar» con 6
   María y la deuda en rojo en la entrada) y en la laptop la lupa, «Factura a», cumpleaños y papel. «Paga …» no se vio: la
   caja de pruebas es de otro día y solo cobra una cuenta sin cliente.*
+- [ ] **T-24 · Un solo campo del cliente, cruzado en todo el local** (M-40). Antes de la 1.0.0.
+  → «Cédula o RIF» en la entrada del parque, al sentar, en «Factura a nombre de…» y en los buscadores de la caja y del
+  salón: con una cédula del directorio pone el nombre y el teléfono; con un RIF de empresa, su razón social y su
+  dirección de la última factura; si no está, se escriben solo los datos que faltan; «Buscar por nombre o teléfono»
+  como enlace. Antes de escribir, «Aquí ahora»: las familias con niños en el parque, las mesas abiertas, el cumpleaños
+  de hoy y los que vinieron hoy (en la mesa primero el parque y el cumpleaños; en la caja, las mesas; seis como
+  máximo). En la caja, la lupa y la persona se vuelven un solo campo (`/`): la cola arriba, el directorio debajo; el
+  lector de pulseras sigue sin tocar el campo. Una sola base de clientes: lo que se registró en el parque aparece en la
+  mesa y en la caja. Criterio: una madre que entró al parque con su cédula se sienta en una mesa con un toque en «Aquí
+  ahora» y la factura sale a su nombre sin volver a escribirla.
+- [ ] **T-25 · Clientes** (M-40). Antes de la 1.0.0. Reemplaza «Representantes y niños».
+  → Una sección propia del panel para todos los clientes (las familias del parque y los de mesa), con el campo de T-24
+  y los filtros Todos, Familias, De mesa, Con deuda y VIP. Cada uno: sus datos (editables, auditados), sus niños
+  (agregar, corregir, retirar), lo que hizo en el local (parque, mesas, cumpleaños, deudas), sus cifras (visitas,
+  gastado, debe, VIP) y «Juntar» si la misma persona quedó dos veces. La ven y corrigen administración, supervisión, caja
+  y la monitora; juntar, administración y supervisión; el mesero completa los datos al sentar. La ruta vieja queda en
+  `RUTAS_MOVIDAS`. Lo privado, con `data-privado`. Criterio: el cliente de una mesa y la familia del parque se
+  encuentran en la misma lista y se corrigen en un solo lugar.
+- [ ] **T-26 · La ayuda al día** (M-40). Antes de la 1.0.0, al final del bloque.
+  → Una revisión entera del panel «Ayuda» (?) contra la app de hoy, entrada por entrada. Hoy tiene 20 entradas para 31
+  pantallas: 14 caen en una general (las secciones de Inventario, Reportes y Ajustes) y Personal apunta a una ruta que se
+  mudó dentro de Deudas; se escribe la de cada pantalla y se corrige lo que quedó viejo (botones y textos que cambiaron). Y el de
+  cada pantalla que cambió en el bloque (caja, mesas, entrada, cierre del turno, Clientes, Ajustes →
+  Sucursal, el cierre del parque, Reportes → Parque, los avisos de respaldos y del agente) con «Cómo se usa» y «Si algo
+  pasa» con los mensajes nuevos («Falta la cédula», «Anulación pedida», «La caja sigue abierta»…); los recorridos
+  guiados de caja, mesas y parque con el flujo nuevo (quien ya los vio recibe solo «Lo nuevo»); y la ayuda de atajos.
+  Criterio: cada cosa nueva del bloque se encuentra buscándola en la ayuda de su pantalla.
 
 ### Etapa 0 · Cimientos del servidor (local)
 
@@ -2114,6 +2141,26 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   sin pedir la cuenta avisa al mesero y a la caja (los minutos, en los ajustes, como los demás avisos del salón), y al
   empezar el cierre del turno salen de primera. Criterio: una cuenta de pie abierta y sin pedir la cuenta se ve en la
   caja con quién la abrió, y la caja la cobra sin pasar por el mesero.
+- [ ] **B3-28 · «Cobrar lo que va»** (M-40). Antes de la 1.0.0.
+  → Una mesa o una cuenta de pie paga lo consumido hasta ahora y sigue abierta: desde la caja («Abiertas en el salón»,
+  sin esperar al mesero) o desde el mesero, que lo manda a la cola sin cerrar la mesa. Se cobra todo lo pedido, también
+  lo que falta servir (la caja lo ve marcado). Lo pagado se ve «Pagado» en la tablet al instante; lo que pidan después
+  queda pendiente en la misma cuenta, y se cierra al irse o cuando no queda nada. Si se cobra en la mesa, con el punto
+  de venta, se registra en la caja. Cambia la regla de que un cobro lleve todo lo pendiente (B3-20) solo para las
+  cuentas del salón; cada cosa se cobra una vez. Criterio: una mesa paga $ 20 de lo que va, pide un postre y la caja le
+  cobra solo el postre al irse.
+- [ ] **B3-29 · La caja más clara** (M-40). Antes de la 1.0.0.
+  → En la cabecera de la cuenta, «Añadir ítems» y «Más» (Cambiar de mesa, Se fue sin pagar, Pedir anulación, Cerrar
+  sin cobrar, cada uno si aplica), a cualquier ancho: en la laptop de 1366 px no caben con su texto. «El resto en…»
+  bajo el primer pago, con el monto que falta. Lo que el mesero suma mientras se cobra se ve marcado y no se pierde lo
+  tecleado. Las pistas de tecla en todos los botones que tienen atajo. «Cobrar juntas» con su texto. Criterio: en la
+  laptop de 1366 px toda acción de la cuenta se lee con su texto y dos medios se cobran en cuatro toques.
+- [ ] **B3-30 · «Pedir anulación»** (M-40). Antes de la 1.0.0.
+  → Sin administración en el local, la cajera pide la anulación de un cobro con su motivo; la venta queda marcada
+  «Anulación pedida» y la caja sigue. Administración la aprueba (con su PIN) o la rechaza desde «Por aprobar», en Inicio
+  y en su teléfono, en vivo. La Z no se hace con una pedida sin resolver. `cobro.anular` sigue siendo de
+  administración (D-AUT). Criterio: un cobro hecho dos veces se pide anular desde la caja y administración lo anula
+  desde su teléfono sin ir al local.
 
 ### Etapa 4 · Parque (F5, es el producto)
 
@@ -2523,7 +2570,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cobra ese paquete (`pagadaAntes`). En la web, `PagarAhoraDialog` en la caja (al pie de la cola y con la pulsera) y en
   la ficha de la sala; la salida no ofrece «por uso» con el paquete pagado. `pagar-ahora.test-db.ts` (4). Visto en el
   navegador en los dos temas: la caja cobra a los 20 minutos, la salida dice «Todo pagado» y la sala manda a la caja.*
-- [ ] **B4-21 · El cierre del parque** (M-40). Después de la 1.0.0, con maqueta antes.
+- [ ] **B4-21 · El cierre del parque** (M-40). Antes de la 1.0.0 (maqueta vista, sección 5).
   → La jornada de la monitora, como el corte de la caja: en su pantalla durante el día y en PDF al cerrar, **sin
   montos**. Los niños que entraron, las familias, el máximo a la vez y su hora, la estancia promedio y los que siguen en
   sala (cero para cerrar); por familia, el representante y sus niños (pulsera, entrada y salida, paquete, tiempo real,
@@ -2682,6 +2729,13 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   worker (6); en el navegador con una impresora de mentira por TCP y el agente desde su código (el USB, simulado: esta PC no
   tiene térmica; la cola de Windows se prueba con un PowerShell de mentira y queda por ver en la laptop real).*
   *· Visto en el local (2026-10-13): la USB como respaldo imprime.*
+- [ ] **B5-7 · Los avisos a tiempo** (M-40). Antes de la 1.0.0.
+  → «Hora de cierre del local» en Ajustes → Sucursal: desde esa hora y hasta el corte del día, Inicio y la caja dicen
+  «La caja sigue abierta: ciérrala antes de irte», con lo que falta. Que la PC del local no baje los respaldos sale
+  también en la apertura y el cierre del turno, solo a administración y supervisión, con «Cómo se arregla» (encender esa
+  PC, ejecutar su tarea «L2 Control - Respaldos» o prepararla otra vez); se quita solo cuando baja el de anoche.
+  Criterio: a las 10:20 pm con la caja abierta, la caja lo avisa; y una PC que no baja respaldos se ve al abrir el
+  turno.
 
 ### Etapa 9 · Catálogo e inventario (F8, M-9)
 
@@ -3404,6 +3458,20 @@ antes del cobro en servidor (orden de ejecución).
   mueve; asiento `mesa.de_pie`, tema mesas) sin tocar la versión de la cuenta. En la web, `DePieEnElPlano.tsx` (el icono
   arrastrable con su candado, dentro del SVG del plano) y `usePosicionesDePie`. `cuentas.test-db.ts` (1 nueva). Visto en
   el navegador en los dos temas: la tablet arrastra y fija; otro equipo lo ve en el mismo sitio.*
+- [ ] **B6-22 · Sentar «Más seguro» o «Más rápido»** (M-40). Antes de la 1.0.0.
+  → En Ajustes → Sucursal, administración elige qué pide el mesero al sentar: «Más seguro» (nombre, cédula y teléfono
+  antes del primer pedido, como hoy, y con lo que el local arranca) o «Más rápido» (el nombre y cuántos son; la cédula
+  antes del segundo pedido y antes de cobrar, con la mesa marcada «Falta la cédula» en la tablet y en la caja). El
+  teléfono: «Siempre» o «Solo si queda una deuda». En los dos, el directorio se cruza (T-24). El cambio vale al momento
+  para todas las tablets y queda en la auditoría. Ajusta la regla de B6-9 (M-33). Criterio: en «Más rápido» el primer
+  pedido sale sin cédula y el segundo no sale hasta que se completa.
+- [ ] **B6-23 · El mesero más ágil** (M-40). Antes de la 1.0.0.
+  → «Tomar pedido» grande y debajo una fila: «Pagar lo que va» (B3-28), «Cambiar de mesa» y «Más» (Pide la cuenta para
+  irse, Liberar la mesa, Cerrar sin cobrar), a 48 px. Un pedido a una mesa sin cuenta abre «Sentar» desde el aviso y sale
+  después, solo. Con partes iguales cobradas, «Abrir otra cuenta en esta mesa» en un toque. «Lo más pedido hoy» arriba
+  de la carta (los 8 del día; temprano, los de la semana), también en la venta directa. «¿Ya se sirvió todo?» solo con
+  platos de más de 10 minutos sin marcar (los minutos, en los avisos del salón). Criterio: tomar un pedido de los más
+  pedidos lleva tres toques y ninguna acción de la mesa queda debajo de los pedidos.
 
 ### Etapa 10 · Eventos: cumpleaños (M-15, V-10)
 
@@ -3654,7 +3722,7 @@ F9-05).
   lista, con una hoja de detalle (la venta: líneas, totales, tasa, pagos, quién cobró, anulada o devuelta; lo demás, sus
   datos con nombre), y «Kárdex de inventario» como su otra vista (`?vista=kardex`). Probado en la base (3 pruebas) y en
   el navegador en los dos temas.*
-- [ ] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Después de la 1.0.0, con maqueta antes.
+- [ ] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Antes de la 1.0.0 (maqueta vista, sección 6).
   → Con lo que ya tiene, de la pregunta a la respuesta: arriba las cifras clave (niños, dinero, promedio por niño,
   estancia, pico) con la diferencia contra el periodo anterior; cuándo viene la gente (por hora y día de la semana por
   hora); de dónde sale el dinero (paquetes, «Más tiempo», tiempo de más, en mesas; lo regalado aparte); qué se vende (los
@@ -3862,7 +3930,7 @@ F9-05).
   → Los totales de los dos sistemas coinciden todos los días del período.
 - [~] **B8-4 · Puesta en marcha con plan de reversión** (F11-07). **Es la versión 1.0.0** (M-10). *A cargo: LuAMi
   (Claude). Preparado el 2026-10-14, día 4 de la operación con la 0.143.0: listo para pasar a producción si el día
-  termina sin novedades; el corte, un lunes después de la 0.143.1 y B3-27 (M-40); falta B8-1 confirmado.*
+  termina sin novedades; el corte, un lunes después del bloque M-40; falta B8-1 confirmado.*
   → (M-36) Sobre la base del VPS, sin corrida limpia: antes, la lista de lo que quedó de prueba (solo leyendo) y lo que
   el usuario decida; con el VPS en modo producción (D-ENT).
   → Lo que quedó de prueba (leído el 2026-10-14): nada con nombre de prueba entre productos (101), familias (38) y
@@ -3873,7 +3941,7 @@ F9-05).
   mejoras como 1.x.0, cada una con su PR y su CI; en producción las pone administración desde Ajustes → Sistema
   («al cierre»), no solas.
   → **El plan (acordado con el usuario el 2026-10-14; no se borra nada, se corta por fecha).** **Fecha: un lunes con el local
-  cerrado (no abre los lunes), después de la 0.143.1 y B3-27 (M-40) probadas un fin de semana; el domingo antes, al
+  cerrado (no abre los lunes), después del bloque M-40 publicado y probado un fin de semana; el domingo antes, al
   cierre, cada caja con su Z; el martes, el primer día en producción. El lunes 19 no se cortó (2026-10-19).** No antes del fin de semana: viernes, sábado y domingo son los más movidos y sirven de
   última prueba con las correcciones del día 4.
   *Días antes:* (1) B8-1, con el internet principal desconectado la caja cobra y la sala se actualiza por el 4G
