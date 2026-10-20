@@ -2145,7 +2145,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   caja con quién la abrió, y la caja la cobra sin pasar por el mesero.
   *B3-27: la cuenta lleva `abiertaPor` (de `account.opened_by_name`), que pone la lectura (`cuentas.leer`, `vigenteDe`) como al cliente y que `guardarVersion` y `guardar` no toman de la pantalla. El ajuste `atencionSinCuentaMin` (45 de fábrica). En la web, `abiertasEnElSalon` y el aviso `SIN_CUENTA` en `avisosDelSalon` (desde el último pedido o lo último servido; al salón, si no espera un plato), la sección plegable en `ColaCuentas` y `TraerALaCaja` (como «Pide la cuenta»); en el cierre, las que no pidieron la cuenta primero. `pendientes-del-salon.test-db.ts` (1 nueva) y `avisos.test.ts` (1). Visto en el navegador en los dos temas: la sección plegada y abierta, el diálogo con una cuenta de otro día y «Traer a la caja y cobrar», y el ajuste.*
 
-- [ ] **B3-28 · «Cobrar lo que va»** (M-40). Antes de la 1.0.0.
+- [~] **B3-28 · «Cobrar lo que va»** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b3-28`.*
   → Una mesa o una cuenta de pie paga lo consumido hasta ahora y sigue abierta: desde la caja («Abiertas en el salón»,
   sin esperar al mesero) o desde el mesero, que lo manda a la cola sin cerrar la mesa. Se cobra todo lo pedido, también
   lo que falta servir (la caja lo ve marcado). Lo pagado se ve «Pagado» en la tablet al instante; lo que pidan después
