@@ -115,7 +115,7 @@ before(async () => {
   local = await abrirLocalDePrueba(URL_APP, "Cuentas");
   otro = await abrirLocalDePrueba(URL_APP, "Cuentas de otro");
   impresora = await impresoraDePrueba(local);
-  await planoDePrueba(local, 22);
+  await planoDePrueba(local, 23);
   admin = await crearPersona(local, { nombre: "Abigail Karam", role: "ADMIN", pin: "4826" });
   supervisor = await crearPersona(local, { nombre: "Luis Guerrero", role: "SUPERVISOR", pin: "5937" });
   cajera = await crearPersona(local, { nombre: "Marisol Prieto", role: "CAJERO", pin: "7391" });
@@ -738,18 +738,16 @@ describe("volver a pedir con la cuenta pedida (B6-18, M-39)", () => {
     imprimirRecibo: true,
   };
 
-  test("un pedido nuevo la devuelve a la mesa: sale de la cola y el cobro en curso de la caja se descarta", async () => {
+  test("un pedido nuevo la devuelve a la mesa: sale de la cola", async () => {
     const pedida = await enLaCola(await pedirEn("mesa-14"));
     assert.equal(pedida.status, "POR_COBRAR");
     assert.ok(pedida.pendingSince);
-    valor(await local.app.borradores.guardar(ctxCajera, { accountId: pedida.id, version: null, borrador: COBRO_EN_CURSO }, AHORA));
 
     const otra = await pedirEn("mesa-14", AHORA + MIN);
     assert.equal(otra.id, pedida.id, "es la misma cuenta");
     assert.equal(otra.status, "ABIERTA");
     assert.equal(otra.pendingSince, undefined);
     assert.equal(otra.lines.length, pedida.lines.length + 1);
-    assert.equal(valor(await local.app.borradores.leer(ctxCajera, pedida.id)), null, "lo tecleado sin cobrar se descartó");
     const cola = valor(await local.app.cuentas.leer(ctxCajera, AHORA + MIN)).cuentas.filter((c) => c.status === "POR_COBRAR");
     assert.ok(!cola.some((c) => c.id === pedida.id), "salió de la cola");
 
@@ -760,12 +758,27 @@ describe("volver a pedir con la cuenta pedida (B6-18, M-39)", () => {
     const suyo = asientos.find((x) => x.action === "pedido.enviar" && (x.after as { cuenta?: { id: string; version: number } }).cuenta?.version === otra.version && (x.after as { cuenta: { id: string } }).cuenta.id === otra.id);
     assert.deepEqual(
       { volvio: (suyo?.after as Record<string, unknown>).volvioDeLaCaja, descartado: (suyo?.after as Record<string, unknown>).cobroEnCursoDescartado },
-      { volvio: true, descartado: true },
+      { volvio: true, descartado: false },
     );
 
     // Pide la cuenta otra vez y se cobra entera.
     const deNuevo = await enLaCola(otra);
     const { cuenta } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(deNuevo, "500", "247"), AHORA + 2 * MIN));
+    assert.equal(cuenta.status, "COBRADA");
+  });
+
+  test("B3-29: si la caja la está cobrando, lo nuevo se queda en la cola y lo tecleado no se pierde", async () => {
+    const pedida = await enLaCola(await pedirEn("mesa-23"));
+    valor(await local.app.borradores.guardar(ctxCajera, { accountId: pedida.id, version: null, borrador: COBRO_EN_CURSO }, AHORA));
+    const otra = await pedirEn("mesa-23", AHORA + MIN);
+    assert.equal(otra.id, pedida.id);
+    assert.deepEqual([otra.status, otra.pendingSince], ["POR_COBRAR", pedida.pendingSince], "sigue en la cola, con su espera");
+    assert.equal(otra.lines.length, pedida.lines.length + 1);
+    const tecleado = valor(await local.app.borradores.leer(ctxCajera, pedida.id));
+    assert.ok(tecleado, "lo tecleado sigue");
+    assert.equal(tecleado!.borrador.pagos.length, 1);
+    // La caja cobra con la versión nueva: todo, también lo que llegó.
+    const { cuenta } = valor(await local.app.cuentas.cobrar(ctxCajera, enEfectivo(otra, "500", "247"), AHORA + 2 * MIN));
     assert.equal(cuenta.status, "COBRADA");
   });
 

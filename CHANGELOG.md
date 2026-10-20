@@ -16,6 +16,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.148.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: la caja más clara.
+
+### Cambiado
+- **La cabecera de la cuenta:** «Añadir ítems» y «Más» (Cambiar de mesa, Se fue sin pagar, cada uno si aplica), cada
+  acción con su texto a cualquier ancho: en la laptop de 1366 px quedaban como iconos sueltos.
+- **«El resto, $ …, en»** bajo el primer pago: lo que falta, ya calculado, en cada medio electrónico (en bolívares a la
+  tasa del cobro); un toque lo añade. Dos medios se cobran en cuatro toques.
+- **Lo que el mesero pide mientras la caja cobra** (con algo tecleado) se suma a ese cobro: la cuenta se queda en la
+  cola, lo nuevo sale marcado «Nuevo», un aviso lo dice y lo tecleado sigue. Sin nada tecleado, vuelve a la mesa como
+  antes.
+- «Juntar» con su texto en la cola; las pistas de tecla en «Añadir» (⏎), la búsqueda (/) y los atajos (?); los filtros
+  de la cola, de dos en dos.
+
 ## [0.147.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: «Cobrar lo que va».

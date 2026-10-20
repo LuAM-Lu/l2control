@@ -1,5 +1,6 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { Delete } from "lucide-react";
 import { cn } from "../cn";
 import type { Surface } from "../primitives/Button";
@@ -37,7 +38,8 @@ export function NumericKeypad({
   surface?: Surface;
   disabled?: boolean;
   onSubmit?: () => void;
-  submitLabel?: string;
+  /** El texto de la tecla de enviar; puede llevar su pista de teclado (B3-29). */
+  submitLabel?: ReactNode;
   className?: string;
 }) {
   const push = (d: string) => {

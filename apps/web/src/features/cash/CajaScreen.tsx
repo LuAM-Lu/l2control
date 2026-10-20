@@ -29,6 +29,7 @@ import {
   X,
   Zap,
   ChevronDown,
+  Sparkles,
   StickyNote,
 } from "lucide-react";
 import {
@@ -71,6 +72,7 @@ import {
   Container,
   Dialog,
   Marquesina,
+  MenuDeAcciones,
   MoneyDisplay,
   NumericKeypad,
   Stepper,
@@ -382,6 +384,18 @@ function CobroCuenta({
    * FALTA_LA_CEDULA): «Factura a» la pide, en el mismo campo «Cédula o RIF». Anotada, la factura sale a su nombre.
    */
   const faltaCedula = cuenta.cliente?.cedula === null;
+  /**
+   * B3-29 (M-40): lo que el mesero pide mientras la caja cobra se suma a esta cuenta, que sigue en la cola (el servidor lo
+   * decide si hay algo tecleado): se ve marcado «Nuevo», se avisa una vez, y lo tecleado sigue.
+   */
+  const [vistas] = useState(() => new Set(cuenta.lines.map((l) => l.id)));
+  const nuevas = useMemo(() => new Set(cuenta.lines.filter((l) => !vistas.has(l.id) && l.orderId !== undefined).map((l) => l.id)), [cuenta.lines, vistas]);
+  const avisadasNuevas = useRef(0);
+  useEffect(() => {
+    if (nuevas.size <= avisadasNuevas.current) return;
+    avisadasNuevas.current = nuevas.size;
+    avisar.info(`Llegó un pedido nuevo de ${nombreDeCuenta(cuenta)}`, { detalle: "Ya está en lo que se cobra, marcado «Nuevo». Lo tecleado sigue." });
+  }, [nuevas.size, cuenta]);
   const [completando, setCompletando] = useState(false);
   const cedulaDeLaCuenta = cuenta.cliente?.cedula ?? null;
   const [cedulaVista, setCedulaVista] = useState(cedulaDeLaCuenta);
@@ -1001,26 +1015,28 @@ function CobroCuenta({
 
   const tasaTexto = rate && tasaValor ? `${formatTasaVE(tasaValor)} Bs/$` : null;
 
+  /**
+   * Lo que falta, exacto, en un medio: en bolívares a la tasa del cobro; con IGTF, cubriéndolo también. Lo usan «+»
+   * (el medio elegido) y «El resto en …» (B3-29, los demás medios electrónicos).
+   */
+  const exactoEn = useCallback(
+    (m: MedioPago): Money | null => {
+      if (falta.amount <= 0n) return null;
+      if (m.currency === "VES") {
+        if (!aBolivares || aBolivares.from !== falta.currency) return null;
+        return convert(falta, aBolivares);
+      }
+      if (m.triggersIgtf) {
+        // El pago cubre la deuda Y su propio IGTF. El USDT se trata 1:1 con el
+        // dólar, como en el consolidado del IGTF (DEC-1).
+        return pagoQueCubreConIgtf(money(falta.amount, m.currency), igtfBasisPoints);
+      }
+      return falta;
+    },
+    [falta, aBolivares, igtfBasisPoints],
+  );
   // Monto exacto para cubrir 100% de la deuda con el medio activo en 1 toque
-  const montoExacto: Money | null = useMemo(() => {
-    if (falta.amount <= 0n) return null;
-
-    if (medioActivo.currency === "VES") {
-      if (!aBolivares || aBolivares.from !== falta.currency) return null;
-      return convert(falta, aBolivares);
-    }
-
-    if (medioActivo.triggersIgtf) {
-      // El pago cubre la deuda Y su propio IGTF. El USDT se trata 1:1 con el
-      // dólar, como en el consolidado del IGTF (DEC-1).
-      return pagoQueCubreConIgtf(
-        money(falta.amount, medioActivo.currency),
-        igtfBasisPoints,
-      );
-    }
-
-    return falta;
-  }, [falta, medioActivo, aBolivares, igtfBasisPoints]);
+  const montoExacto: Money | null = useMemo(() => exactoEn(medioActivo), [exactoEn, medioActivo]);
 
   function cobrarMontoExacto() {
     if (!montoExacto) return;
@@ -1202,35 +1218,21 @@ function CobroCuenta({
               <span>{mostrarCatalogo ? "Ocultar ítems" : "Añadir ítems"}</span>
             </button>
           )}
-          {/* Quien se sentó (o dejó pendiente la venta) y se fue sin pagar deja una deuda a su nombre (B3-11). Sin pagos
-              a medias: lo que ya se pagó se cobra o se anula antes. */}
-          {(cuenta.kind === "MESA" || cuenta.kind === "MOSTRADOR") && pagos.length === 0 && !cuenta.lines.some((l) => l.paid) && (
-            <button
-              type="button"
-              onClick={() => setSeFue(true)}
-              title="Se fue sin pagar: queda en deuda a su nombre"
-              aria-label="Se fue sin pagar"
-              aria-haspopup="dialog"
-              className="inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] font-semibold text-ink-2 transition-all hover:border-state-crit/50 hover:text-state-crit"
-            >
-              <UserX size={14} aria-hidden="true" />
-              <span className="hidden @lg/ticket:inline">Se fue sin pagar</span>
-            </button>
-          )}
-          {/* B6-21: se cambiaron de mesa (la caja también lo hace, sin PIN: no mueve dinero). También un cumpleaños (B10-5). */}
-          {(cuenta.kind === "MESA" || esMesaDelCumpleanos(cuenta)) && (
-            <button
-              type="button"
-              onClick={() => setCambiandoMesa(true)}
-              title="Cambiar de mesa: la cuenta pasa entera a otra"
-              aria-label="Cambiar de mesa"
-              aria-haspopup="dialog"
-              className="inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-base px-3 text-[13px] font-semibold text-ink-2 transition-all hover:border-brand/50 hover:text-ink"
-            >
-              <ArrowRightLeft size={14} aria-hidden="true" />
-              <span className="hidden @lg/ticket:inline">Cambiar de mesa</span>
-            </button>
-          )}
+          {/* B3-29: lo demás, en «Más», cada acción con su texto (en la laptop de 1366 px no cabían). */}
+          <MenuDeAcciones
+            surface="pos"
+            acciones={[
+              // B6-21: se cambiaron de mesa (la caja también lo hace, sin PIN: no mueve dinero). También un cumpleaños (B10-5).
+              ...(cuenta.kind === "MESA" || esMesaDelCumpleanos(cuenta)
+                ? [{ id: "mesa", texto: "Cambiar de mesa", icono: <ArrowRightLeft size={15} />, onElegir: () => setCambiandoMesa(true) }]
+                : []),
+              // Quien se sentó (o dejó pendiente la venta) y se fue sin pagar deja una deuda a su nombre (B3-11). Sin pagos a
+              // medias: lo que ya se pagó se cobra o se anula antes.
+              ...((cuenta.kind === "MESA" || cuenta.kind === "MOSTRADOR") && pagos.length === 0 && !cuenta.lines.some((l) => l.paid)
+                ? [{ id: "se-fue", texto: "Se fue sin pagar", icono: <UserX size={15} />, onElegir: () => setSeFue(true), peligro: true }]
+                : []),
+            ]}
+          />
         </div>
         {/* B6-14: una cuenta del salón dice su mesa, si pidió la cuenta, lo que falta servir y sus niños (B4-14: lo suyo
             en esta cuenta, o ya pagado aparte), con su tiempo si siguen en la sala. */}
@@ -1284,6 +1286,7 @@ function CobroCuenta({
                   pedidoDeFila !== null ||
                   (onCortesia !== undefined && permisoCortesia !== "DENEGADO"));
               const tachada = f.cortesia !== undefined || f.anulada !== undefined || f.porUso !== undefined;
+              const nueva = f.lineIds.some((id) => nuevas.has(id));
               const abierta = expandible && filaAbierta === f.clave;
 
               // La línea base de la cuenta, para pasarla al diálogo de cortesía.
@@ -1301,6 +1304,12 @@ function CobroCuenta({
                       <span className="line-clamp-2 break-words text-ink-2">
                         {f.concepto}
                       </span>
+                      {nueva && (
+                        <span className="inline-flex shrink-0 items-center gap-0.5 rounded bg-brand/15 px-1 text-[10.5px] font-semibold text-ink">
+                          <Sparkles size={10} aria-hidden="true" />
+                          Nuevo
+                        </span>
+                      )}
                       {f.item && (
                         <ShoppingBag
                           size={11}
@@ -1575,6 +1584,37 @@ function CobroCuenta({
                   );
                 })}
               </ul>
+              {/* B3-29: dos medios en cuatro toques. Con un pago puesto y algo por cubrir, lo que falta en otro medio
+                  electrónico, ya calculado: un toque lo añade (si pide datos, se piden). En efectivo no: se cuenta. */}
+              {falta.amount > 0n && !faltaTasa && (
+                <div className="mt-3 flex flex-col gap-1.5">
+                  <p className="tnum text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+                    El resto, {formatMoneyVE(toMajor(falta), FUNCIONAL)}, en
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {mediosDisponibles.flatMap((m) => {
+                      const exacto = m.canGiveChange ? null : exactoEn(m);
+                      if (!exacto) return [];
+                      const Icon = MEDIO_ICONS[m.code] ?? Banknote;
+                      return [
+                        <button
+                          key={m.code}
+                          type="button"
+                          onClick={() => {
+                            setMedioActivo(m);
+                            registrarPago(m, exacto);
+                          }}
+                          className="inline-flex min-h-12 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 text-[13px] font-semibold text-ink-2 transition-colors hover:border-brand/50 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+                        >
+                          <Icon size={14} aria-hidden="true" className="shrink-0" />
+                          {m.label}
+                          <span className="tnum font-normal text-ink-3">{formatMoneyVE(toMajor(exacto), exacto.currency)}</span>
+                        </button>,
+                      ];
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -2058,7 +2098,12 @@ function CobroCuenta({
           surface="tablet"
           disabled={cubierto}
           onSubmit={agregarPago}
-          submitLabel="Añadir"
+          // B3-29: la pista de su tecla, como los demás botones con atajo.
+          submitLabel={
+            <>
+              Añadir <PistaTecla tecla="⏎" />
+            </>
+          }
         />
 
         <div className="md:bajo:col-start-1 md:bajo:row-start-4 flex flex-col gap-2 empty:hidden">

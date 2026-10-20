@@ -303,18 +303,19 @@ export function ColaCuentas({
         <span className="flex items-center gap-0.5">
           {/* B3-16: marcar varias cuentas para cobrarlas juntas. */}
           {puedeJuntar && (
+            // B3-29: con su texto: el icono solo no decía qué hace.
             <button
               type="button"
               onClick={() => (juntando ? dejarDeJuntar() : onJuntando!(true))}
               aria-pressed={juntando}
-              aria-label="Cobrar juntas varias cuentas"
               title="Cobrar juntas: marca las cuentas (Mayús+clic, un rango)"
               className={cn(
-                "grid size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] transition-colors",
+                "inline-flex min-h-14 cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-2 text-[12.5px] font-semibold transition-colors",
                 juntando ? "bg-brand/20 text-ink" : "text-ink-3 hover:bg-surface-2 hover:text-ink",
               )}
             >
-              <Combine size={16} aria-hidden="true" />
+              <Combine size={15} aria-hidden="true" />
+              Juntar
             </button>
           )}
           {/* Solo donde hay teclado: en la tablet no hay teclas que enseñar. */}
@@ -323,9 +324,10 @@ export function ColaCuentas({
             onClick={onVerAtajos}
             aria-label="Atajos de teclado"
             title="Atajos de teclado (?)"
-            className="hidden size-14 cursor-pointer place-content-center rounded-[var(--radius-control)] text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink pointer-fine:grid"
+            className="hidden min-h-14 cursor-pointer items-center gap-1 rounded-[var(--radius-control)] px-2 text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink pointer-fine:inline-flex"
           >
             <Keyboard size={16} aria-hidden="true" />
+            <PistaTecla tecla="?" />
           </button>
         </span>
       </div>
@@ -402,6 +404,8 @@ export function ColaCuentas({
                 autoComplete="off"
                 className="min-w-0 flex-1 bg-transparent text-[13.5px] text-ink outline-none placeholder:text-ink-3 [&::-webkit-search-cancel-button]:hidden"
               />
+              {/* B3-29: su tecla, a la vista mientras está vacío. */}
+              {busqueda === "" && <PistaTecla tecla="/" />}
               {busqueda !== "" && (
                 <button
                   type="button"
@@ -414,7 +418,7 @@ export function ColaCuentas({
               )}
             </label>
             {conFiltros && (
-            <div role="radiogroup" aria-label="Origen de la cuenta" className="grid grid-cols-3 gap-1">
+            <div role="radiogroup" aria-label="Origen de la cuenta" className="grid grid-cols-2 gap-1">
               {FILTROS.map((f) => (
                 <button
                   key={f.id}
