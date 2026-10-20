@@ -16,6 +16,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.143.1] — 2026-10-20 · Hacia la puesta en marcha
+
+Lo que se vio el 18 de octubre al cerrar una caja (el ticket n.º 3 de soporte, M-40).
+
+### Corregido
+- **El cierre dice por qué una cuenta sigue pendiente:** de pie o de qué mesa, quién la abrió, a qué hora y su último
+  pedido, y si pidió la cuenta. Una mesa o cuenta de pie que nunca la pidió ofrece «Traer a la caja y cobrar»: pasa a la
+  cola y se abre para cobrarla. Antes «Cobrar» no hacía nada con ella.
+- **Llegar a la caja con una cuenta elegida la abre**, también con la caja ya abierta; si esa cuenta no pidió la cuenta,
+  la caja lo dice y ofrece «Traer a la caja».
+- **El icono de una cuenta de pie se arrastra con el dedo** en la tablet y el teléfono; antes solo con el mouse.
+- **El agente de impresión reintenta una actualización** que no se pudo descargar por la red, en la siguiente revisión
+  (cada 30 minutos); antes se quedaba en la versión vieja.
+- **Ya no sale «Este cobro cambió en otra caja»** al cobrar justo después de tocar los billetes.
+
 ## [0.143.0] — 2026-10-14 · Hacia la puesta en marcha
 
 M-39, X-13: el cumpleaños en la caja, el parque y el salón.

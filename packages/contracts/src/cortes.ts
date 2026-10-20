@@ -180,6 +180,14 @@ export const PendientesDelCierreSchema = z.object({
       status: AccountStatusSchema,
       pendiente: MoneySchema,
       version: z.number().int().positive(),
+      /**
+       * De dónde es y desde cuándo (v0.143.1, el ticket n.º 3): el cierre dice por qué no se cobró. Una cuenta del salón
+       * que nunca pidió la cuenta no está en la cola de la caja.
+       */
+      dePie: z.boolean().default(false),
+      mesa: z.string().nullable().default(null),
+      abierta: z.object({ en: TimestampSchema, por: z.string() }).nullable().default(null),
+      ultimoPedido: TimestampSchema.nullable().default(null),
     }),
   ),
   ninos: z.array(EstanciaSchema),

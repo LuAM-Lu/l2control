@@ -403,16 +403,32 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
   const pendientes = filas.map((f) => FamilyAccountSchema.parse({ ...(f.content as object), version: f.version })).filter(isPendingAtClose);
   const deSuDia = [];
   for (const c of pendientes) if (hasta === null || (await desdeCuandoEs(tx, c.id, c)).getTime() < hasta) deSuDia.push(c);
+  // Quién la abrió, cuándo y su último pedido (v0.143.1): el cierre explica por qué sigue pendiente.
+  const ids = deSuDia.map((c) => c.id);
+  const abiertas = new Map(
+    (await tx.account.findMany({ where: { id: { in: ids } }, select: { id: true, openedAt: true, openedByName: true } })).map((a) => [a.id, a]),
+  );
+  const ultimos = new Map(
+    (await tx.kitchenOrder.groupBy({ by: ["accountId"], where: { accountId: { in: ids } }, _max: { createdAt: true } })).map((p) => [p.accountId, p._max.createdAt]),
+  );
   const cuentas = deSuDia
-    .map((c) => ({
-      id: c.id,
-      orderNumber: c.orderNumber!,
-      kind: c.kind,
-      family: c.family,
-      status: c.status,
-      pendiente: dinero(pendienteDe(c, periodos, ahora, () => null, ivaIncluido)),
-      version: c.version!,
-    }))
+    .map((c) => {
+      const a = abiertas.get(c.id);
+      const ultimo = ultimos.get(c.id);
+      return {
+        id: c.id,
+        orderNumber: c.orderNumber!,
+        kind: c.kind,
+        family: c.family,
+        status: c.status,
+        pendiente: dinero(pendienteDe(c, periodos, ahora, () => null, ivaIncluido)),
+        version: c.version!,
+        dePie: c.dePie === true,
+        mesa: c.tableLabel ?? null,
+        abierta: a ? { en: a.openedAt.toISOString(), por: a.openedByName } : null,
+        ultimoPedido: ultimo ? ultimo.toISOString() : null,
+      };
+    })
     .sort((a, b) => a.orderNumber - b.orderNumber);
   const turnos = await tx.cashShift.findMany({
     where: { branchId: ctx.branchId, status: { not: "CERRADO_Z" }, ...(excepto ? { id: { not: excepto } } : {}) },

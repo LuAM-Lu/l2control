@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
-import { Baby, CalendarX2, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Baby, CalendarX2, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw, TriangleAlert } from "lucide-react";
 import type { PendientesDelCierreDto, Rechazo } from "@l2/contracts";
 import { money, toMajor } from "@l2/domain-money";
 import { can } from "@l2/domain-identity";
@@ -16,7 +17,7 @@ import { useReloj, useSucursal } from "../sucursal/SucursalProvider.tsx";
 import { formatClock } from "../park/time-format.ts";
 import { useAlCambiar } from "../operacion/TiempoRealProvider.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
-import { nombreDeCuenta } from "../cuentas/cuentas.ts";
+import { esMesaDelCumpleanos, nombreDeCuenta, pasarACaja } from "../cuentas/cuentas.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 
@@ -31,7 +32,15 @@ import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
  *
  * B3-24: la caja de un día anterior la usa como su asistente, con su propio título (de qué día es la caja) y llevando al
  * cierre; el servidor le pasa solo lo de ese día.
+ *
+ * v0.143.1 (el ticket n.º 3): cada cuenta dice de dónde es, quién la abrió y si pidió la cuenta. Una del salón que nunca
+ * la pidió no está en la cola de la caja: «Traer a la caja y cobrar» la pasa a la cola y la abre. Ningún botón queda sin
+ * efecto.
  */
+/** Cómo se llama una cuenta pendiente: «Mesa 3 · …», «De pie · …» o el nombre de la familia. */
+const nombreDePendiente = (c: PendientesDelCierreDto["cuentas"][number]) =>
+  nombreDeCuenta({ kind: c.kind, family: c.family, tableLabel: c.mesa, ...(c.dePie ? { dePie: true as const } : {}) });
+
 export function PendientesDelCierre({
   turnoId,
   onListo,
@@ -39,6 +48,7 @@ export function PendientesDelCierre({
   descripcion = "La jornada no se cierra con pendientes: resuelve cada uno y vuelve a comprobar.",
   listo = "Contar la gaveta",
   alerta = false,
+  onCobrar,
 }: {
   turnoId: string;
   onListo: () => void;
@@ -48,6 +58,8 @@ export function PendientesDelCierre({
   listo?: string;
   /** La caja de un día anterior (B3-24): el título va en rojo, con su icono. */
   alerta?: boolean;
+  /** Abrir una cuenta para cobrarla aquí mismo (la caja); sin esto, se va a la caja con ella. */
+  onCobrar?: (cuentaId: string) => void;
 }) {
   const [p, setP] = useState<PendientesDelCierreDto | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -55,7 +67,9 @@ export function PendientesDelCierre({
   const [incobrable, setIncobrable] = useState<PendientesDelCierreDto["cuentas"][number] | null>(null);
   /** La cuenta cuyo cliente se fue sin pagar (B3-11): queda en deuda a su nombre, no incobrable sin más. */
   const [seFue, setSeFue] = useState<string | null>(null);
-  const { cuentas: lasCuentas, adoptar } = useCuentas();
+  const { cuentas: lasCuentas, adoptar, guardar } = useCuentas();
+  const router = useRouter();
+  const [trayendo, setTrayendo] = useState<string | null>(null);
   const cuentaQueSeFue = seFue ? (lasCuentas.find((x) => x.id === seFue) ?? null) : null;
   const { ajustes } = useSucursal();
   const reloj = useReloj();
@@ -92,6 +106,30 @@ export function PendientesDelCierre({
 
   const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length + p.papel.length : 0;
   const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria);
+
+  /** Abre la cuenta para cobrarla: aquí mismo si la caja lo permite; si no, en la caja. */
+  const irACobrar = (id: string) => (onCobrar ? onCobrar(id) : router.push(`/caja?cuenta=${id}` as Route));
+
+  /**
+   * Una cuenta del salón que no pidió la cuenta (v0.143.1): se pasa a la cola, como «Pide la cuenta», y se abre para
+   * cobrarla. Sin nada que cobrar, se dice: se libera, no se cobra.
+   */
+  async function traerYCobrar(id: string) {
+    const cuenta = lasCuentas.find((x) => x.id === id);
+    if (!cuenta) return irACobrar(id);
+    const lista = pasarACaja(cuenta);
+    if (lista.status !== "POR_COBRAR") {
+      avisar.error(`${nombreDeCuenta(cuenta)} no tiene nada que cobrar: se libera desde Mesas.`);
+      return;
+    }
+    setTrayendo(id);
+    const r = await guardar(lista).catch(() => null);
+    setTrayendo(null);
+    if (!r) return avisar.error("Sin conexión con el servidor: la cuenta no pasó a la caja.");
+    if (!r.ok) return avisar.error(r.mensaje);
+    avisar.info(`${nombreDeCuenta(cuenta)} pasó a la cola de la caja`, { detalle: "Como si hubiera pedido la cuenta. Cóbrala aquí." });
+    irACobrar(id);
+  }
 
   return (
     <div className="flex min-h-0 flex-1 items-start justify-center overflow-y-auto p-4 md:px-6">
@@ -132,18 +170,46 @@ export function PendientesDelCierre({
           <div className="flex flex-col gap-4">
             {p.cuentas.length > 0 && (
               <Grupo icono={<ReceiptText size={15} aria-hidden="true" />} titulo="Cuentas por cobrar" n={p.cuentas.length}>
-                {p.cuentas.map((c) => (
-                  <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
+                {p.cuentas.map((c) => {
+                  const completa = lasCuentas.find((x) => x.id === c.id);
+                  // Del salón: una mesa, una de pie o un cumpleaños con su mesa. Si no pidió la cuenta, no está en la cola.
+                  const delSalon = c.kind === "MESA" || c.dePie || (completa ? esMesaDelCumpleanos(completa) : false);
+                  const sinPedir = delSalon && c.status === "ABIERTA";
+                  // Sin nada que cobrar no se trae a la caja: se libera en Mesas.
+                  const sinNada = BigInt(c.pendiente.minor) === 0n;
+                  return (
+                  <li key={c.id} className="flex flex-wrap items-center gap-x-3 gap-y-1.5 py-2">
                     <span className="tnum w-14 shrink-0 font-semibold text-ink">#{String(c.orderNumber).padStart(4, "0")}</span>
-                    <span className="min-w-0 flex-1 truncate text-ink-2">{nombreDeCuenta(c)}</span>
+                    <span className="min-w-0 flex-1 truncate text-ink-2">{nombreDePendiente(c)}</span>
                     <MoneyDisplay value={toMajor(money(BigInt(c.pendiente.minor), "USD"))} currency="USD" size="sm" />
-                    <span className="flex gap-2">
-                      <Link
-                        href={`/caja?cuenta=${c.id}` as Route}
-                        className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink hover:border-line-strong"
-                      >
-                        Cobrar
-                      </Link>
+                    {/* v0.143.1: de dónde es, quién la abrió y si pidió la cuenta. */}
+                    <span className="flex w-full flex-wrap items-center gap-x-2 gap-y-1 pl-[4.25rem] text-detalle text-ink-2">
+                      {sinPedir ? (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-state-warn-bg px-2 py-0.5 font-semibold text-state-warn">
+                          <TriangleAlert className="size-(--icono-etiqueta)" aria-hidden="true" />
+                          No pidió la cuenta
+                        </span>
+                      ) : delSalon ? (
+                        <span className="rounded-full bg-surface-2 px-2 py-0.5 font-semibold">Pidió la cuenta</span>
+                      ) : null}
+                      <span>
+                        {[c.abierta ? `Abierta por ${c.abierta.por} a las ${hora(c.abierta.en)}` : null, c.ultimoPedido ? `último pedido a las ${hora(c.ultimoPedido)}` : null]
+                          .filter(Boolean)
+                          .join(" · ")}
+                      </span>
+                    </span>
+                    <span className="flex w-full flex-wrap justify-end gap-2">
+                      {sinPedir && sinNada ? (
+                        <span className="self-center text-detalle text-ink-3">Nada que cobrar: se libera en Mesas</span>
+                      ) : sinPedir ? (
+                        <Button surface="tablet" variant="primary" disabled={trayendo === c.id} onClick={() => void traerYCobrar(c.id)}>
+                          {trayendo === c.id ? "Pasando a la caja…" : "Traer a la caja y cobrar"}
+                        </Button>
+                      ) : (
+                        <Button surface="tablet" variant="neutral" onClick={() => irACobrar(c.id)}>
+                          Cobrar
+                        </Button>
+                      )}
                       {(c.kind === "MESA" || c.kind === "MOSTRADOR") && lasCuentas.some((x) => x.id === c.id) && (
                         <Button surface="tablet" variant="neutral" onClick={() => setSeFue(c.id)} title="Queda en deuda a nombre de su cliente: se cobra cuando vuelva">
                           Se fue sin pagar
@@ -154,7 +220,8 @@ export function PendientesDelCierre({
                       </Button>
                     </span>
                   </li>
-                ))}
+                  );
+                })}
               </Grupo>
             )}
             {p.ninos.length > 0 && (
@@ -355,7 +422,7 @@ function IncobrableDialog({
         <div className="flex items-baseline justify-between gap-3 rounded-[var(--radius-control)] border border-line p-3">
           <span>
             <span className="tnum font-semibold text-ink">#{String(cuenta.orderNumber).padStart(4, "0")}</span>
-            <span className="text-ink-2"> · {nombreDeCuenta(cuenta)}</span>
+            <span className="text-ink-2"> · {nombreDePendiente(cuenta)}</span>
           </span>
           <MoneyDisplay value={toMajor(money(BigInt(cuenta.pendiente.minor), "USD"))} currency="USD" />
         </div>
