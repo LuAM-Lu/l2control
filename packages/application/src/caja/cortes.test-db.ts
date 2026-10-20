@@ -821,3 +821,68 @@ describe("los umbrales de la caja son del local (B4-4)", () => {
     }
   });
 });
+
+describe("pedir anulación (B3-30, M-40)", () => {
+  const anular = (m: Montado, ctx: Contexto, v: { cuenta: { id: string }; clave: string }, camino: "ANULAR_VENTA" | "COBRAR_DE_NUEVO", autorizacion: unknown, ahora: number) =>
+    m.l.app.cuentas.anular(
+      ctx,
+      { idempotencyKey: randomUUID(), accountId: v.cuenta.id, cobroKey: v.clave, motivo: "ERROR_EN_COBRO", detalle: "Se cobró dos veces", devoluciones: [{ paymentIndex: 0, via: "MISMO_MEDIO" }], camino, inventario: "ESTANTE" },
+      autorizacion,
+      ahora,
+    );
+  const pedir = (m: Montado, ctx: Contexto, v: { cuenta: { id: string }; clave: string }, camino: "ANULAR_VENTA" | "COBRAR_DE_NUEVO", ahora: number) =>
+    m.l.app.anulaciones.pedir(ctx, { idempotencyKey: randomUUID(), accountId: v.cuenta.id, cobroKey: v.clave, motivo: "ERROR_EN_COBRO", detalle: "Se cobró dos veces", camino, inventario: "ESTANTE" }, ahora);
+
+  test("el criterio: el cobro hecho dos veces se pide anular en la caja y administración lo aprueba desde su teléfono; mientras, no hay Z", async () => {
+    const { ctx, turno } = await caja(m, "Caja anulación pedida");
+    await vender(m, ctx);
+    const doble = await vender(m, ctx);
+    const pedida = valor(await pedir(m, ctx, doble, "ANULAR_VENTA", AHORA + MIN));
+    assert.deepEqual([pedida.estado, pedida.orden, pedida.pedidaPor], ["PEDIDA", pedida.orden, "Marisol Prieto"]);
+    const otraVez = await pedir(m, ctx, doble, "ANULAR_VENTA", AHORA + MIN);
+    assert.equal(!otraVez.ok && otraVez.motivo, "CONFLICTO", "ya está pedida");
+    // La caja no la hace sin la aprobación.
+    const antes = await anular(m, ctx, doble, "ANULAR_VENTA", { aprobacion: pedida.id }, AHORA + 2 * MIN);
+    assert.match(!antes.ok ? antes.mensaje : "", /todavía no la aprobó/);
+    // El cierre la lista y el Z no se hace mientras tanto. Esperado: $ 20,00 + 2 × $ 1,31.
+    assert.ok(valor(await m.l.app.cortes.pendientes(ctx, undefined, AHORA + 2 * MIN)).anulaciones.some((p) => p.id === pedida.id));
+    const a = await arquear(m, ctx, turno.id, 2262n, 150000n, AHORA + 2 * MIN);
+    const z = await m.l.app.cortes.corteZ(ctx, corteZ(turno.id, a.id), pinDe(m.cajera, PIN.cajera), AHORA + 2 * MIN);
+    assert.match(!z.ok ? z.mensaje : "", /una anulación pedida sin resolver/);
+    // Administración, desde su teléfono: sin su PIN no; con él, aprobada.
+    const responder = (aut: unknown) => m.l.app.anulaciones.responder(m.ctxAdmin, { idempotencyKey: randomUUID(), pedidoId: pedida.id, respuesta: "APROBAR" }, aut, AHORA + 3 * MIN);
+    const sinPin = await responder(undefined);
+    assert.equal(!sinPin.ok && sinPin.motivo, "NO_PERMITIDO");
+    const deSupervision = await m.l.app.anulaciones.responder(m.ctxSupervisor, { idempotencyKey: randomUUID(), pedidoId: pedida.id, respuesta: "APROBAR" }, pinDe(m.supervisor, PIN.supervisor), AHORA + 3 * MIN);
+    assert.equal(!deSupervision.ok, true, "supervisión no la aprueba (D-AUT)");
+    assert.equal(valor(await responder(pinDe(m.admin, PIN.admin, "Se cobró dos veces"))).estado, "APROBADA");
+    // La caja la hace sin PIN: la venta queda anulada con la autorización de administración.
+    valor(await anular(m, ctx, doble, "ANULAR_VENTA", { aprobacion: pedida.id }, AHORA + 4 * MIN));
+    assert.equal(valor(await m.l.app.anulaciones.leer(ctx, AHORA + 4 * MIN)).pedidas.find((p) => p.id === pedida.id)!.estado, "HECHA");
+    const hecha = await m.l.base.conTenant(m.l.sistema.tenantId, (tx) => tx.saleVoid.findFirstOrThrow({ where: { sale: { operationKey: doble.clave } } }));
+    assert.equal(hecha.authorizedBy, m.admin);
+    const [asiento] = (await asientosDe(m, "cuenta.anular_cobro")).filter((x) => (x.after as { porPedido?: string }).porPedido === pedida.id);
+    assert.ok(asiento, "el asiento dice que fue por el pedido");
+    // Resuelta, el Z se hace (con lo que volvió a la cliente fuera de la gaveta).
+    const a2 = await arquear(m, ctx, turno.id, 2131n, 150000n, AHORA + 5 * MIN);
+    valor(await m.l.app.cortes.corteZ(ctx, corteZ(turno.id, a2.id), pinDe(m.cajera, PIN.cajera), AHORA + 5 * MIN));
+  });
+
+  test("rechazada, dice por qué: la caja no la hace, se puede pedir otra vez, y solo administración responde", async () => {
+    const { ctx } = await caja(m, "Caja anulación rechazada");
+    const v = await vender(m, ctx);
+    const p = valor(await pedir(m, ctx, v, "COBRAR_DE_NUEVO", AHORA + MIN));
+    const deSupervision = await m.l.app.anulaciones.responder(m.ctxSupervisor, { idempotencyKey: randomUUID(), pedidoId: p.id, respuesta: "RECHAZAR", motivo: "No" }, undefined, AHORA + MIN);
+    assert.equal(!deSupervision.ok, true);
+    const r = valor(
+      await m.l.app.anulaciones.responder(m.ctxAdmin, { idempotencyKey: randomUUID(), pedidoId: p.id, respuesta: "RECHAZAR", motivo: "Es otra compra: no se cobró dos veces" }, undefined, AHORA + 2 * MIN),
+    );
+    assert.deepEqual([r.estado, r.respuesta?.por, r.respuesta?.motivo], ["RECHAZADA", "Abigail Karam", "Es otra compra: no se cobró dos veces"]);
+    const tarde = await anular(m, ctx, v, "COBRAR_DE_NUEVO", { aprobacion: p.id }, AHORA + 3 * MIN);
+    assert.match(!tarde.ok ? tarde.mensaje : "", /la rechazó/);
+    assert.equal(valor(await pedir(m, ctx, v, "COBRAR_DE_NUEVO", AHORA + 4 * MIN)).estado, "PEDIDA", "se puede pedir otra vez");
+    // Quien no cobra no lo ve; otro local, tampoco.
+    assert.equal((await m.l.app.anulaciones.leer(m.ctxMonitora, AHORA)).ok, false);
+    assert.equal(valor(await otro.l.app.anulaciones.leer(otro.ctxAdmin, AHORA)).pedidas.length, 0);
+  });
+});

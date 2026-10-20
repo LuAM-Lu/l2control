@@ -1,8 +1,9 @@
 "use client";
 
 import { useState } from "react";
-import { Banknote } from "lucide-react";
-import { MEDIO_CONSUMO_DEL_PERSONAL, type DevolucionDto, type MotivoAnulacion, type Rechazo, type VentaCerradaDto } from "@l2/contracts";
+import { Banknote, Send, ShieldCheck } from "lucide-react";
+import { MEDIO_CONSUMO_DEL_PERSONAL, type AnulacionPedidaDto, type DevolucionDto, type MotivoAnulacion, type Rechazo, type VentaCerradaDto } from "@l2/contracts";
+import { useHora } from "../sucursal/SucursalProvider.tsx";
 import { Button, Dialog, Input, cn } from "@l2/ui";
 import { CampoAutorizacion, erroresDeRechazo, useAutorizacion } from "./Autorizacion.tsx";
 import { MOTIVOS, efectivoEnGaveta, etiquetaReferencia, textoDinero, textoMotivo } from "./anulacion.ts";
@@ -23,6 +24,10 @@ const delPersonal = (p: VentaCerradaDto["payments"][number]) => p.methodCode ===
  *     alternativa con explicación, y solo si la gaveta lo tiene en esa moneda.
  *  3. **Quién autoriza** (`Autorizacion.tsx`): la lista y el PIN los comprueba el servidor, que
  *     revierte el libro y guarda la anulación con todo esto.
+ *
+ * B3-30 (M-40): sin administración en el local, «Pedir a administración» deja la venta «Anulación pedida» con el motivo y
+ * el camino; administración la aprueba desde su teléfono. Aprobada (`aprobada`), el motivo y el camino son los aprobados
+ * y la caja la hace sin PIN: la aprobación es la autorización.
  */
 
 type Via = DevolucionDto["via"];
@@ -41,7 +46,13 @@ export function AnularCobroDialog({
   ventas,
   onAnular,
   onCerrar,
+  onPedir,
+  aprobada = null,
 }: {
+  /** B3-30: pedirla a administración, sin PIN; devuelve el rechazo, si lo hay. */
+  onPedir?: (venta: VentaCerradaDto, pedido: Omit<PedidoDeAnulacion, "devoluciones">) => Promise<Rechazo | null>;
+  /** B3-30: el pedido ya aprobado: se hace con lo aprobado y sin PIN. */
+  aprobada?: AnulacionPedidaDto | null;
   venta: VentaCerradaDto | null;
   /** Todas las ventas: para saber cuánto efectivo hay para devolver. */
   ventas: readonly VentaCerradaDto[];
@@ -59,6 +70,9 @@ export function AnularCobroDialog({
   const [inventario, setInventario] = useState<PedidoDeAnulacion["inventario"]>("ESTANTE");
   const [para, setPara] = useState<string | null>(null);
   const a = useAutorizacion("cobro.anular", venta !== null);
+  const hora = useHora();
+  /** Aprobada (B3-30): el motivo y el camino no se cambian. */
+  const fijo = aprobada !== null;
 
   // Cada venta abre el formulario limpio. Derivado en el render, sin efecto.
   if ((venta?.id ?? null) !== para) {
@@ -70,6 +84,12 @@ export function AnularCobroDialog({
     setErrores({});
     setCamino("COBRAR_DE_NUEVO");
     setInventario("ESTANTE");
+    if (aprobada) {
+      setMotivo(aprobada.motivo);
+      setNota(aprobada.detalle ?? "");
+      setCamino(aprobada.camino);
+      setInventario(aprobada.inventario);
+    }
   }
 
   if (!venta) return null;
@@ -93,7 +113,7 @@ export function AnularCobroDialog({
 
   async function confirmar() {
     if (!venta || enviando) return;
-    const nuevos: Record<string, string> = { ...(a.falta() ?? {}) };
+    const nuevos: Record<string, string> = { ...(fijo ? {} : (a.falta() ?? {})) };
     if (!motivo) nuevos.motivo = "Elige el motivo";
     if (motivo === "OTRO" && nota.trim().length < 3) nuevos.nota = "Explica el motivo en unas palabras";
     if (efectivoAlternativo && nota.trim().length < 5) nuevos.nota = "Explica por qué se devuelve en efectivo";
@@ -120,7 +140,8 @@ export function AnularCobroDialog({
       })),
     };
     setEnviando(true);
-    const rechazo = await onAnular(venta, pedido, a.autorizacion(`${textoMotivo(motivo!)}${nota.trim() ? ` · ${nota.trim()}` : ""}`)).catch(
+    const autorizacion = aprobada ? { aprobacion: aprobada.id } : a.autorizacion(`${textoMotivo(motivo!)}${nota.trim() ? ` · ${nota.trim()}` : ""}`);
+    const rechazo = await onAnular(venta, pedido, autorizacion).catch(
       () => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se anuló nada." }) as Rechazo,
     );
     setEnviando(false);
@@ -130,6 +151,24 @@ export function AnularCobroDialog({
     setErrores(e as Record<string, string>);
   }
 
+  /** B3-30: sin administración en el local, se le pide; la venta queda «Anulación pedida» y la caja sigue. */
+  async function pedirAdministracion() {
+    if (!venta || !onPedir || enviando) return;
+    const nuevos: Record<string, string> = {};
+    if (!motivo) nuevos.motivo = "Elige el motivo";
+    if (motivo === "OTRO" && nota.trim().length < 3) nuevos.nota = "Explica el motivo en unas palabras";
+    if (Object.keys(nuevos).length > 0) {
+      setErrores(nuevos);
+      return;
+    }
+    setEnviando(true);
+    const rechazo = await onPedir(venta, { motivo: motivo!, camino, inventario, ...(nota.trim() ? { detalle: nota.trim() } : {}) }).catch(
+      () => ({ ok: false, motivo: "NO_DISPONIBLE", mensaje: "Sin conexión con el servidor: no se pidió nada." }) as Rechazo,
+    );
+    setEnviando(false);
+    if (rechazo) setErrores({ general: rechazo.mensaje });
+  }
+
   return (
     <Dialog
       abierto
@@ -137,13 +176,17 @@ export function AnularCobroDialog({
       // Dos columnas desde tablet: a 1366×768 todo cabe sin desplazar hasta el PIN.
       className="md:w-[min(52rem,calc(100vw-2rem))]"
       titulo={`Anular cobro · Orden #${String(venta.orderNumber).padStart(4, "0")}`}
-      descripcion={`${nombreDeCuenta(venta.cuenta)} · ${textoDinero(venta.total)}. Con el PIN de administración; nada se borra.`}
+      descripcion={
+        aprobada
+          ? `${nombreDeCuenta(venta.cuenta)} · ${textoDinero(venta.total)}. Aprobada por ${aprobada.respuesta?.por ?? "administración"}: la haces tú, sin PIN; nada se borra.`
+          : `${nombreDeCuenta(venta.cuenta)} · ${textoDinero(venta.total)}. Con el PIN de administración; nada se borra.`
+      }
       pie={
         <div className="grid grid-cols-2 gap-2">
           <Button surface="pos" variant="neutral" onClick={onCerrar}>
             Cancelar
           </Button>
-          <Button surface="pos" variant="danger" onClick={() => void confirmar()} disabled={a.permiso === "DENEGADO" || enviando}>
+          <Button surface="pos" variant="danger" onClick={() => void confirmar()} disabled={(!fijo && a.permiso === "DENEGADO") || enviando}>
             {enviando ? "Anulando…" : camino === "ANULAR_VENTA" ? "Anular la venta" : "Anular y devolver"}
           </Button>
         </div>
@@ -151,8 +194,8 @@ export function AnularCobroDialog({
     >
       <div className="flex flex-col gap-4 md:grid md:grid-cols-2 md:items-start md:gap-6">
         {/* ── 1. por qué ── */}
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">1 · Motivo</legend>
+        <fieldset className="flex flex-col gap-2" disabled={fijo}>
+          <legend className="mb-1 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">1 · Motivo{fijo ? " (el aprobado)" : ""}</legend>
           <div role="radiogroup" aria-label="Motivo de la anulación" className="grid grid-cols-2 gap-1.5">
             {MOTIVOS.map((m) => (
               <button
@@ -298,14 +341,42 @@ export function AnularCobroDialog({
         </fieldset>
 
         {/* ── 3. quién autoriza ── */}
-        <CampoAutorizacion
-          a={a}
-          numero={3}
-          denegado="Tu puesto no puede anular cobros."
-          errores={errores}
-          deshabilitado={enviando}
-          onConfirmar={() => void confirmar()}
-        />
+        {aprobada ? (
+          <fieldset className="flex flex-col gap-2">
+            <legend className="mb-1 flex items-center gap-1.5 text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
+              <ShieldCheck size={13} aria-hidden="true" /> 3 · Autorización
+            </legend>
+            <p className="flex items-start gap-1.5 rounded-[var(--radius-control)] border border-state-ok/40 bg-state-ok/10 px-3 py-2 text-detalle text-ink">
+              <ShieldCheck className="mt-0.5 size-(--icono-texto) shrink-0 text-state-ok" aria-hidden="true" />
+              Aprobada por {aprobada.respuesta?.por ?? "administración"}
+              {aprobada.respuesta ? ` a las ${hora(Date.parse(aprobada.respuesta.el))}` : ""}. Sin PIN: la aprobación es la autorización.
+            </p>
+          </fieldset>
+        ) : (
+          <>
+            <CampoAutorizacion
+              a={a}
+              numero={3}
+              denegado="Tu puesto no puede anular cobros."
+              errores={errores}
+              deshabilitado={enviando}
+              onConfirmar={() => void confirmar()}
+            />
+            {/* B3-30: sin administración en el local, se le pide. */}
+            {onPedir && a.permiso === "REQUIERE_AUTORIZACION" && (
+              <div className="flex flex-col gap-2 rounded-[var(--radius-control)] border border-line bg-base/60 p-3">
+                <p className="text-detalle text-ink-2">
+                  ¿Sin administración en el local? Pídesela: la venta queda «Anulación pedida», la caja sigue y administración la aprueba desde su
+                  teléfono. Aprobada, la haces aquí sin PIN.
+                </p>
+                <Button surface="tablet" variant="neutral" onClick={() => void pedirAdministracion()} disabled={enviando}>
+                  <Send className="size-(--icono-texto)" aria-hidden="true" />
+                  Pedir a administración
+                </Button>
+              </div>
+            )}
+          </>
+        )}
         </div>
 
         {errores.general && (

@@ -73,6 +73,7 @@ import { CON_FONDOS, finDelTurno, turnoDto, turnoSinCorteDe, type ConFondos } fr
 import { dinero, gavetaDe, libroDelTurno, type Libro } from "./gaveta.ts";
 import { movimientosDelTurno } from "./efectivo.ts";
 import { fondoFijoDe } from "../identidad/dispositivos.ts";
+import { pedidosSinResolverDe, pedidosSinResolverDelTurno } from "./anulaciones.ts";
 
 const FUNCIONAL: CurrencyCode = "USD";
 
@@ -455,7 +456,9 @@ async function pendientesEn(tx: Transaccion, ctx: Contexto, excepto: string | nu
       registros: await tx.paperLoadItem.count({ where: { loadId: c.id } }),
     });
   }
-  return PendientesDelCierreSchema.parse({ cuentas, ninos: enSala, huerfanas, turnos: turnos.map(turnoDto), papel });
+  // B3-30: lo que se pidió anular y no se resolvió.
+  const anulaciones = await pedidosSinResolverDe(tx, ctx.branchId);
+  return PendientesDelCierreSchema.parse({ cuentas, ninos: enSala, huerfanas, turnos: turnos.map(turnoDto), papel, anulaciones });
 }
 
 /** El fin del día de un turno si ya pasó (es de un día anterior, B3-24); `null` mientras su día sigue. */
@@ -473,6 +476,7 @@ function textoDePendientes(p: PendientesDelCierreDto): string | null {
     cuantos(p.huerfanas.length, "estancia huérfana sin cerrar", "estancias huérfanas sin cerrar"),
     cuantos(p.turnos.length, "turno abierto en otro equipo", "turnos abiertos en otros equipos"),
     cuantos(p.papel.length, "carga desde papel sin revisar", "cargas desde papel sin revisar"),
+    cuantos(p.anulaciones.length, "anulación pedida sin resolver", "anulaciones pedidas sin resolver"),
   ].filter((x): x is string => x !== null);
   if (partes.length === 0) return null;
   return partes.length === 1 ? partes[0]! : `${partes.slice(0, -1).join(", ")} y ${partes.at(-1)}`;
@@ -631,6 +635,17 @@ export function casosCortes(base: Base): CasosCortes {
               ok: false,
               motivo: "CONFLICTO",
               mensaje: `Este turno tiene ${sinRevisar === 1 ? "una carga" : `${sinRevisar} cargas`} desde papel sin revisar: supervisión ${sinRevisar === 1 ? "la revisa" : "las revisa"} antes del corte Z.`,
+            };
+          }
+
+          // B3-30: una anulación pedida de una venta de este turno se resuelve antes del Z: administración la aprueba o la
+          // rechaza, y aprobada, la caja la hace. Si no, el Z contaría un cobro que quizá se devuelve.
+          const pedidas = await pedidosSinResolverDelTurno(tx, o.turno.id);
+          if (pedidas > 0) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `Este turno tiene ${pedidas === 1 ? "una anulación pedida" : `${pedidas} anulaciones pedidas`} sin resolver: administración responde en «Por aprobar» y, aprobada, se hace desde la venta. Después, el corte Z.`,
             };
           }
 

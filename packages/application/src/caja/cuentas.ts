@@ -21,6 +21,7 @@
 import { createHash, randomUUID } from "node:crypto";
 import {
   AnularCobroCommandSchema,
+  AprobacionDeAnulacionSchema,
   enmascararDatos,
   AnularPedidoCommandSchema,
   CerrarMesaSinCobrarCommandSchema,
@@ -131,6 +132,7 @@ import { sinCajaAbiertaEnElLocal, turnoParaCobrar } from "./turnos.ts";
 import { esperadoEnGaveta } from "./gaveta.ts";
 import { imprimirVentaDelCobro, ventaDelCobro, type DevolucionGuardada } from "./ventas.ts";
 import { borrarBorradorEn } from "./borrador.ts";
+import { aprobacionPara } from "./anulaciones.ts";
 import { imprimirValeEn } from "./personal.ts";
 import { asentarExistencias, comprobarExistencias, existenciasDe } from "../inventario/existencias.ts";
 import { asentarAjuste } from "../inventario/salidas.ts";
@@ -1006,7 +1008,12 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               }
             }
           }
-          const permiso = await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora, CON_PIN);
+          // B3-30: aprobada por administración desde «Por aprobar», la caja la hace sin PIN: la aprobación es la
+          // autorización (D-AUT), del mismo cobro, motivo y camino.
+          const conAprobacion = AprobacionDeAnulacionSchema.safeParse(autorizacion);
+          const permiso = conAprobacion.success
+            ? await aprobacionPara(tx, ctx, conAprobacion.data.aprobacion, cmd)
+            : await exigirPermisoOAutorizacion(tx, ctx, "cobro.anular", autorizacion, ahora, CON_PIN);
           if (!permiso.ok) return permiso;
           const autorizador = await tx.staffUser.findUniqueOrThrow({ where: { id: permiso.autorizadoPor! }, select: { fullName: true, role: true } });
 
@@ -1090,7 +1097,15 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             ...(permiso.autorizadoPor ? { authorizedBy: permiso.autorizadoPor } : {}),
             reason: cmd.motivo,
             before: resumenDe(vigente),
-            after: { ...resumenDe(nueva), cobroKey: cmd.cobroKey, detalle: cmd.detalle ?? null, camino: cmd.camino, ...(cmd.camino === "ANULAR_VENTA" ? { inventario: cmd.inventario } : {}) },
+            after: {
+              ...resumenDe(nueva),
+              cobroKey: cmd.cobroKey,
+              detalle: cmd.detalle ?? null,
+              camino: cmd.camino,
+              ...(cmd.camino === "ANULAR_VENTA" ? { inventario: cmd.inventario } : {}),
+              // B3-30: hecha por la caja con la aprobación de administración.
+              ...("pedidoId" in permiso ? { porPedido: permiso.pedidoId } : {}),
+            },
           });
           await tx.saleVoid.create({
             data: {

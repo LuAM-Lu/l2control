@@ -13,6 +13,7 @@ import { z } from "zod";
 import { AccountKindSchema, AccountStatusSchema } from "./account.ts";
 import { MovimientoDeEfectivoSchema } from "./efectivo.ts";
 import { CargaPendienteSchema } from "./papel.ts";
+import { AnulacionPedidaSchema } from "./anulaciones.ts";
 import { EstanciaSchema } from "./park.ts";
 import { FechaSchema, IdSchema, IdempotencyKeySchema, MoneySchema, TimestampSchema } from "./primitives.ts";
 import { ConteoMonedaSchema, TurnoSchema } from "./turno.ts";
@@ -195,6 +196,8 @@ export const PendientesDelCierreSchema = z.object({
   turnos: z.array(TurnoSchema),
   /** Las cargas desde papel sin revisar (abiertas o cerradas): ni el turno se sella ni la jornada se cierra. */
   papel: z.array(CargaPendienteSchema).default([]),
+  /** B3-30: las anulaciones pedidas sin resolver (esperan a administración, o aprobadas sin hacer): la Z no se hace con ellas. */
+  anulaciones: z.array(AnulacionPedidaSchema).default([]),
 });
 export type PendientesDelCierreDto = z.infer<typeof PendientesDelCierreSchema>;
 

@@ -58,6 +58,10 @@ export const TEMAS_DE_ACCION: Readonly<Record<AccionAuditada, readonly Tema[]>> 
   "deuda.perder": ["cuentas"],
   // El cobro en curso de otra caja (B3-13): quien lo tenía abierto lo vuelve a leer.
   "cobro.borrador": [],
+  // B3-30: el pedido marca la venta y lo ve Inicio; la respuesta, la caja; el cierre no se hace con uno sin resolver.
+  "cobro.pedir_anulacion": ["ventas", "turno"],
+  "cobro.aprobar_anulacion": ["ventas", "turno"],
+  "cobro.rechazar_anulacion": ["ventas", "turno"],
   "cobro.retomar": ["cuentas"],
   "cobro.descartar": ["cuentas"],
   // Una regla nueva o retirada cambia lo que la caja ofrece; marcar una familia VIP, también, y el directorio.

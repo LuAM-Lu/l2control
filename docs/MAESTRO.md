@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.148.0 en `main` (publicada, la 0.143.0) · 148 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.149.0 en `main` (publicada, la 0.143.0) · 149 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2163,13 +2163,13 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   laptop de 1366 px toda acción de la cuenta se lee con su texto y dos medios se cobran en cuatro toques.
   *B3-29: `MenuDeAcciones` en `@l2/ui` (el «Más» con cada acción y su texto; se cierra al elegir, al tocar fuera o con Esc; flechas), que usarán también la tablet (B6-23). `exactoEn` generaliza el monto exacto de «+» y lo usa «El resto en …» (sin efectivo: se cuenta). `pedidos.enviar` deja en la cola la cuenta que se está cobrando (con borrador) y no lo descarta (`sumadoAlCobroEnCurso` en el asiento); sin borrador, B6-18 como antes. La caja marca «Nuevo» lo que llegó con su pedido desde que abrió el cobro. `NumericKeypad` acepta su texto con pista. `cuentas.test-db.ts` (1 nueva; la de B6-18 ya no descarta lo tecleado). Visto en el navegador a 1366 px en los dos temas: «Más», «El resto en …» y el pedido que llega mientras se cobra.*
 
-- [~] **B3-30 · «Pedir anulación»** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b3-30`.*
+- [x] **B3-30 · «Pedir anulación»** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.149.0).*
   → Sin administración en el local, la cajera pide la anulación de un cobro con su motivo; la venta queda marcada
   «Anulación pedida» y la caja sigue. Administración la aprueba (con su PIN) o la rechaza desde «Por aprobar», en Inicio
   y en su teléfono, en vivo. La Z no se hace con una pedida sin resolver. `cobro.anular` sigue siendo de
   administración (D-AUT). Criterio: un cobro hecho dos veces se pide anular desde la caja y administración lo anula
   desde su teléfono sin ir al local.
+  *B3-30: migración `20261214000000_anulacion_pedida` (solo expande: `annulment_request` y `annulment_request_outcome`, de solo agregar, con RLS). `anulaciones.pedir` (quien cobra), `anulaciones.leer` (quien cobra y administración), `anulaciones.responder` (aprobar con `cobro.anular` y PIN; rechazar, administración); el estado se deduce (RECHAZADA, HECHA si la venta tiene su `sale_void`, APROBADA, PEDIDA). `cuentas.anular` acepta `{ aprobacion }` como autorización del mismo cobro, motivo y camino (`aprobacionPara`; el asiento lleva `porPedido`); `cobro.anular` sigue siendo de administración (D-AUT). El Z niega con un pedido sin resolver de sus ventas, y `cortes.pendientes` los lista. Temas en vivo: ventas y turno. En la web, `PorAprobar` en Inicio, «Pedir a administración» y la anulación aprobada en `AnularCobroDialog`, la marca en Ventas del turno y el grupo del cierre. `cortes.test-db.ts` (2 nuevas, con el criterio). Visto en el navegador en los dos temas: la caja pide, administración aprueba desde un teléfono de 390 px y la caja la hace sin PIN.*
 
 ### Etapa 4 · Parque (F5, es el producto)
 
