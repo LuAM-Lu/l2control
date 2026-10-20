@@ -20,6 +20,7 @@ import {
   type Rechazo,
   type Resultado,
 } from "@l2/contracts";
+import { allocate, money } from "@l2/domain-money";
 import { picoDeAforo } from "@l2/domain-park";
 import { importeVE } from "@l2/domain-printing";
 import { addDays, calendarDay, startOfDay } from "@l2/domain-rates";
@@ -42,6 +43,26 @@ export interface CasosInformeDelParque {
   parque(ctx: Contexto, entrada: unknown, ahora?: number): Promise<Resultado<InformeDelParqueDto>>;
 }
 
+/**
+ * Contra qué se compara un periodo (B11-8): hasta una semana, los mismos días de la semana anterior (hoy contra el mismo día
+ * de la semana pasada; esta semana contra la anterior hasta el mismo día); un mes desde su día 1, los mismos días del mes
+ * anterior; si no, un periodo igual de largo, justo antes.
+ */
+export function periodoAnterior(desde: string, hasta: string): { desde: string; hasta: string; con: "SEMANA" | "MES" | "PERIODO" } {
+  const largo = Math.round((Date.parse(`${hasta}T00:00:00Z`) - Date.parse(`${desde}T00:00:00Z`)) / 86_400_000) + 1;
+  if (largo <= 7) return { desde: addDays(desde, -7), hasta: addDays(hasta, -7), con: "SEMANA" };
+  if (desde.endsWith("-01") && largo <= 31 && desde.slice(0, 7) === hasta.slice(0, 7)) {
+    const [a, m] = desde.split("-").map(Number) as [number, number];
+    const mes = m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, "0")}`;
+    const ultimo = new Date(Date.UTC(Number(mes.slice(0, 4)), Number(mes.slice(5, 7)), 0)).getUTCDate();
+    // Un mes entero contra el mes anterior entero; si no, hasta el mismo día.
+    const entero = Number(hasta.slice(8, 10)) === new Date(Date.UTC(a, m, 0)).getUTCDate();
+    const dia = entero ? ultimo : Math.min(Number(hasta.slice(8, 10)), ultimo);
+    return { desde: `${mes}-01`, hasta: `${mes}-${String(dia).padStart(2, "0")}`, con: "MES" };
+  }
+  return { desde: addDays(desde, -largo), hasta: addDays(desde, -1), con: "PERIODO" };
+}
+
 export function casosInformeDelParque(base: Base): CasosInformeDelParque {
   return {
     async parque(ctx, entrada, ahora = Date.now()) {
@@ -54,11 +75,16 @@ export function casosInformeDelParque(base: Base): CasosInformeDelParque {
         const quien = await nombreDe(tx, ctx);
         const ajustes = await ajustesDe(tx, ctx.branchId);
         const zona = ajustes.zonaHoraria;
-        const inicio = new Date(startOfDay(q.desde, zona));
-        const fin = new Date(startOfDay(addDays(q.hasta, 1), zona));
         const hoy = calendarDay(new Date(ahora).toISOString(), zona);
         const diaDe = (d: Date) => calendarDay(d.toISOString(), zona);
         const HORA = new Intl.DateTimeFormat("en-US", { hour: "numeric", hourCycle: "h23", timeZone: zona });
+        const SEMANA = new Intl.DateTimeFormat("en-US", { weekday: "short", timeZone: zona });
+        const DIA_DE_LA_SEMANA: Readonly<Record<string, number>> = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+
+        // B11-8: el periodo pedido y el anterior se calculan igual.
+        const calcular = async (desde: string, hasta: string) => {
+        const inicio = new Date(startOfDay(desde, zona));
+        const fin = new Date(startOfDay(addDays(hasta, 1), zona));
 
         const estancias = await tx.parkSession.findMany({
           where: { branchId: ctx.branchId, startedAt: { gte: inicio, lt: fin } },
@@ -138,14 +164,17 @@ export function casosInformeDelParque(base: Base): CasosInformeDelParque {
           return Math.max(0, hasta - pausa.at.getTime());
         };
 
-        // Por día y por hora de entrada.
+        // Por día, por hora de entrada y por día de la semana y hora (B11-8: cuándo viene la gente).
         const dias = new Map<string, (typeof estancias)[number][]>();
         const horas = new Map<number, number>();
+        const semana = new Map<string, number>();
         for (const e of estancias) {
           const d = diaDe(e.startedAt);
           dias.set(d, [...(dias.get(d) ?? []), e]);
           const h = Number(HORA.format(e.startedAt)) % 24;
           horas.set(h, (horas.get(h) ?? 0) + 1);
+          const clave = `${DIA_DE_LA_SEMANA[SEMANA.format(e.startedAt)] ?? 1}|${h}`;
+          semana.set(clave, (semana.get(clave) ?? 0) + 1);
         }
         const porDia = [...dias].map(([dia, xs]) => {
           const s = xs.reduce((a, e) => {
@@ -203,16 +232,19 @@ export function casosInformeDelParque(base: Base): CasosInformeDelParque {
         const pico = picoDeAforo(estancias.map(intervalo));
         const total = (dinero.paquetes![1] ?? 0n) + (dinero.recargas![1] ?? 0n) + (dinero.tiempoDeMas![1] ?? 0n);
         const conCuanto = (k: string) => ({ cantidad: dinero[k]![0], monto: USD(dinero[k]![1]) });
-        return InformeDelParqueSchema.parse({
-          encabezado: { local: ajustes.nombre, generadoEn: new Date(ahora).toISOString(), generadoPor: quien.nombre },
-          periodo: { desde: q.desde, hasta: q.hasta },
+        return {
           resumen: {
             ninos: estancias.length,
             pico: pico ? { ninos: pico.ninos, en: new Date(pico.en).toISOString() } : null,
             aforo,
             minutosPromedio: promedio(salieron.map(usado)),
             dinero: USD(total),
+            // B11-8: lo del tiempo entre los niños que entraron (la parte entera: allocate da el resto a los primeros).
+            porNino: estancias.length > 0 ? USD(allocate(money(total, "USD"), estancias.length).at(-1)!.amount) : USD(0n),
           },
+          porSemanaYHora: [...semana]
+            .map(([k, ninos]) => ({ dia: Number(k.split("|")[0]), hora: Number(k.split("|")[1]), ninos }))
+            .sort((a, b) => a.dia - b.dia || a.hora - b.hora),
           porDia,
           porHora: [...horas].sort((a, b) => a[0] - b[0]).map(([hora, ninos]) => ({ hora, ninos })),
           dinero: {
@@ -238,6 +270,24 @@ export function casosInformeDelParque(base: Base): CasosInformeDelParque {
             invitadosDeCumpleanos: estancias.filter((e) => e.eventReservationId !== null).length,
           },
           excepciones,
+        };
+        };
+
+        const actual = await calcular(q.desde, q.hasta);
+        const previo = periodoAnterior(q.desde, q.hasta);
+        const antes = await calcular(previo.desde, previo.hasta);
+        return InformeDelParqueSchema.parse({
+          encabezado: { local: ajustes.nombre, generadoEn: new Date(ahora).toISOString(), generadoPor: quien.nombre },
+          periodo: { desde: q.desde, hasta: q.hasta },
+          ...actual,
+          anterior: {
+            ...previo,
+            ninos: antes.resumen.ninos,
+            dinero: antes.resumen.dinero,
+            porNino: antes.resumen.porNino,
+            minutosPromedio: antes.resumen.minutosPromedio,
+            pico: antes.resumen.pico?.ninos ?? null,
+          },
         });
       });
       return "ok" in r ? r : { ok: true, valor: r };

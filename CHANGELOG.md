@@ -16,6 +16,18 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.154.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: Reportes → Parque, más fácil de analizar.
+
+### Añadido
+- Reportes → Parque abre en **«De un vistazo»**: los niños, el dinero del parque, el promedio por niño, la estancia y el
+  pico, cada uno con su diferencia contra el periodo anterior (hasta una semana, la semana anterior; un mes, el mes
+  anterior); cuándo viene la gente, por hora y en un mapa de día de la semana por hora; de dónde sale el dinero, en una
+  barra (lo pagado en mesas y lo regalado, aparte); qué se vende, cada paquete con su parte; y las excepciones, con su
+  detalle a un toque.
+- El PDF lleva las cifras con su diferencia, el día de la semana por hora y «Qué se vende».
+
 ## [0.153.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: el cierre del parque.

@@ -10,6 +10,7 @@ import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 import type { Contexto } from "../index.ts";
 import { abrirLocalDePrueba, cedulaDePrueba, contextoDe, crearEquipo, crearPersona, type LocalDePrueba } from "../para-pruebas.ts";
+import { periodoAnterior } from "./parque.ts";
 
 const URL_APP = process.env.L2_DB_TEST_APP_URL!;
 // Viernes 9 de octubre de 2026, 2:00 pm en Caracas.
@@ -76,6 +77,18 @@ after(async () => {
   await local.cerrar();
 });
 
+describe("contra qué se compara (B11-8)", () => {
+  test("hasta una semana, la anterior; un mes, el anterior; si no, uno igual de largo justo antes", () => {
+    assert.deepEqual(periodoAnterior("2026-10-20", "2026-10-20"), { desde: "2026-10-13", hasta: "2026-10-13", con: "SEMANA" });
+    assert.deepEqual(periodoAnterior("2026-10-19", "2026-10-20"), { desde: "2026-10-12", hasta: "2026-10-13", con: "SEMANA" });
+    assert.deepEqual(periodoAnterior("2026-10-01", "2026-10-20"), { desde: "2026-09-01", hasta: "2026-09-20", con: "MES" });
+    assert.deepEqual(periodoAnterior("2026-09-01", "2026-09-30"), { desde: "2026-08-01", hasta: "2026-08-31", con: "MES" });
+    assert.deepEqual(periodoAnterior("2026-03-01", "2026-03-31"), { desde: "2026-02-01", hasta: "2026-02-28", con: "MES" });
+    assert.deepEqual(periodoAnterior("2026-01-01", "2026-01-31"), { desde: "2025-12-01", hasta: "2025-12-31", con: "MES" });
+    assert.deepEqual(periodoAnterior("2026-10-05", "2026-10-25"), { desde: "2026-09-14", hasta: "2026-10-04", con: "PERIODO" });
+  });
+});
+
 describe("el informe del parque (B11-6)", () => {
   test("niños por día y por hora, el aforo pico y el dinero del tiempo", async () => {
     const i = valor(await local.app.reportes.parque(supervisora, { desde: DIA, hasta: DIA }, AHORA + 2 * 60 * MIN));
@@ -91,6 +104,17 @@ describe("el informe del parque (B11-6)", () => {
     assert.deepEqual(i.dinero.tiempoDeMas, { cantidad: 1, monto: usd("300") });
     assert.equal(i.resumen.dinero.minor, String(1500 + Number(i.dinero.recargas.monto.minor) + 300));
     assert.deepEqual(i.dinero.porPaquete.map((p) => [p.paquete, p.ninos]), [["1 hora", 3]]);
+    // B11-8: lo del tiempo por niño, y cuándo vinieron: un viernes a las 2 pm.
+    assert.equal(i.resumen.porNino.minor, String(Math.floor(Number(i.resumen.dinero.minor) / 3)));
+    assert.deepEqual(i.porSemanaYHora, [{ dia: 5, hora: 14, ninos: 3 }]);
+    assert.deepEqual([i.anterior?.con, i.anterior?.desde, i.anterior?.hasta, i.anterior?.ninos], ["SEMANA", "2026-10-02", "2026-10-02", 0]);
+  });
+
+  test("B11-8: contra la semana anterior, el mismo día", async () => {
+    const i = valor(await local.app.reportes.parque(supervisora, { desde: "2026-10-16", hasta: "2026-10-16" }, AHORA + 8 * 24 * 60 * MIN));
+    assert.equal(i.resumen.ninos, 0);
+    assert.deepEqual([i.anterior?.desde, i.anterior?.ninos, i.anterior?.pico], [DIA, 3, 2]);
+    assert.equal(i.anterior?.minutosPromedio, 55);
   });
 
   test("las estancias y las excepciones", async () => {

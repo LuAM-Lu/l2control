@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.153.0 en `main` (publicada, la 0.143.0) · 153 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.154.0 en `main` (publicada, la 0.143.0) · 154 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3740,7 +3740,7 @@ F9-05).
   lista, con una hoja de detalle (la venta: líneas, totales, tasa, pagos, quién cobró, anulada o devuelta; lo demás, sus
   datos con nombre), y «Kárdex de inventario» como su otra vista (`?vista=kardex`). Probado en la base (3 pruebas) y en
   el navegador en los dos temas.*
-- [~] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Antes de la 1.0.0 (maqueta vista, sección 6). *A cargo:
+- [x] **B11-8 · Reportes → Parque, más fácil de analizar** (M-40). Antes de la 1.0.0 (maqueta vista, sección 6). *A cargo:
   LuAMi (Claude), en `feat/b11-8`.*
   → Con lo que ya tiene, de la pregunta a la respuesta: arriba las cifras clave (niños, dinero, promedio por niño,
   estancia, pico) con la diferencia contra el periodo anterior; cuándo viene la gente (por hora y día de la semana por
@@ -3748,6 +3748,7 @@ F9-05).
   paquetes con su porcentaje); lo que pide atención (las excepciones, cada una con su detalle); atajos de periodo (hoy,
   ayer, esta semana, este mes). El PDF, igual. Criterio: supervisión responde de un vistazo cuándo viene la gente, qué
   se vende y qué cambió contra la semana anterior.
+  *B11-8: `reportes.parque` calcula el periodo pedido y el anterior con la misma función (`calcular`); `periodoAnterior` elige contra qué: hasta 7 días, los mismos días de la semana anterior; un mes desde su día 1, el mes anterior (entero si el pedido es entero); si no, uno igual de largo justo antes. El contrato gana, con sus valores de fábrica (una respuesta de antes sigue valiendo): `resumen.porNino` (con `allocate`, sin dividir a mano), `anterior` (sus cifras clave y `con`) y `porSemanaYHora` (1 lunes … 7 domingo). En la web, la pestaña «De un vistazo» (`DeUnVistazo`: las barras por hora con `horaCorta`, el mapa de día y hora, la barra del dinero en tonos de la marca —no de estado: no dicen bien ni mal— y los paquetes con su `porciento`), las cifras con `diferencia` y `diferenciaEnMinutos` (cortas: contra qué fechas lo dice el renglón del periodo) y, en el PDF y sus secciones, «Día de la semana por hora» y «Qué se vende». `parque.test-db.ts` (2 nuevas y los casos de `periodoAnterior`). Visto en el navegador a 1366 y 1280 px en los dos temas, con un mes contra el mes anterior y una semana contra la anterior, y su PDF.*
 
 ### Etapa 7 · Staging en VPS
 

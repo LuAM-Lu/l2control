@@ -2,14 +2,43 @@ import { Baby, Footprints, ScanLine, Shirt } from "lucide-react";
 import type { ExcepcionDelParqueDto, InformeDelParqueDto } from "@l2/contracts";
 import { TAMANO_ICONO, cn } from "@l2/ui";
 import type { Reloj } from "../sucursal/SucursalProvider.tsx";
-import { diaDelInforme, importe, type SeccionDeInforme } from "./informe.tsx";
+import { diaDelInforme, importe, porciento, type SeccionDeInforme } from "./informe.tsx";
 
 /**
  * Las secciones del informe del parque (B11-6, M-37): por día, por hora de entrada, el dinero del tiempo, las estancias
  * y las excepciones. Las pintan la pantalla (una por pestaña) y el documento A4 (todas, compactas).
  */
 
-export type SeccionDelParque = "dias" | "horas" | "dinero" | "estancias" | "excepciones";
+export type SeccionDelParque = "dias" | "horas" | "semana" | "dinero" | "paquetes" | "estancias" | "excepciones";
+
+/** Contra qué se compara (B11-8), en palabras. */
+export const CONTRA: Readonly<Record<NonNullable<InformeDelParqueDto["anterior"]>["con"], string>> = {
+  SEMANA: "la semana anterior",
+  MES: "el mes anterior",
+  PERIODO: "el periodo anterior",
+};
+
+/**
+ * La diferencia de una cifra contra el periodo anterior (B11-8), corta para que quepa bajo la cifra: «+18 % vs. anterior»,
+ * «igual que antes» o, si antes no hubo nada, «antes: nada». Contra qué fechas, lo dice el renglón del periodo. Sin coma
+ * flotante: las cifras van en enteros (los montos, en unidades menores).
+ */
+export function diferencia(ahora: bigint, antes: bigint, _con: keyof typeof CONTRA): string {
+  if (antes === 0n) return ahora === 0n ? "igual que antes" : "antes: nada";
+  const pct = ((ahora - antes) * 100n + (ahora >= antes ? antes / 2n : -antes / 2n)) / antes;
+  return pct === 0n ? "igual que antes" : `${pct > 0n ? "+" : "−"}${pct > 0n ? pct : -pct} % vs. anterior`;
+}
+
+/** La diferencia en minutos (la estancia promedio): «+9 min vs. anterior». */
+export function diferenciaEnMinutos(ahora: number | null, antes: number | null, _con: keyof typeof CONTRA): string {
+  if (ahora === null) return "nadie salió todavía";
+  if (antes === null) return "antes: nadie salió";
+  const d = ahora - antes;
+  return d === 0 ? "igual que antes" : `${d > 0 ? "+" : "−"}${duracion(Math.abs(d))} vs. anterior`;
+}
+
+/** Los días de la semana del mapa (1 lunes … 7 domingo). */
+export const DIAS_DE_LA_SEMANA = ["Lun", "Mar", "Mié", "Jue", "Vie", "Sáb", "Dom"] as const;
 
 /** La dirección del informe: su periodo. */
 export function direccionDelParque(base: string, p: { desde: string; hasta: string }): string {
@@ -21,6 +50,12 @@ export function horaDelDia(h: number, formato: "12h" | "24h"): string {
   if (formato === "24h") return `${String(h).padStart(2, "0")}:00`;
   const doce = h % 12 === 0 ? 12 : h % 12;
   return `${doce}:00 ${h < 12 ? "am" : "pm"}`;
+}
+
+/** La hora en el eje de una gráfica (B11-8): «10a», «2p» (o «14» con 24 h): cabe en la columna de una hora. */
+export function horaCorta(h: number, formato: "12h" | "24h"): string {
+  if (formato === "24h") return String(h);
+  return `${h % 12 === 0 ? 12 : h % 12}${h < 12 ? "a" : "p"}`;
 }
 
 /** «1 h 25 min», «40 min». */
@@ -79,6 +114,24 @@ export function seccionesDelParque(i: InformeDelParqueDto, reloj: Reloj, formato
       vacio: "Ningún niño entró en este periodo.",
       nota: "Los que entraron a cada hora, sumando los días del periodo.",
     },
+    // B11-8: día de la semana por hora, para el papel (la pantalla lo pinta como un mapa en «De un vistazo»).
+    ...((): SeccionDeInforme<SeccionDelParque>[] => {
+      const horas = [...new Set(i.porSemanaYHora.map((x) => x.hora))].sort((a, b) => a - b);
+      const de = new Map(i.porSemanaYHora.map((x) => [`${x.dia}|${x.hora}`, x.ninos]));
+      return [
+        {
+          id: "semana",
+          titulo: "Día de la semana por hora",
+          columnas: [{ titulo: "Día" }, ...horas.map((h) => ({ titulo: horaDelDia(h, formatoHora).replace(":00", ""), derecha: true }))],
+          filas: DIAS_DE_LA_SEMANA.flatMap((nombre, k) => {
+            const fila = horas.map((h) => de.get(`${k + 1}|${h}`) ?? 0);
+            return fila.some((n) => n > 0) ? [[nombre, ...fila.map((n, j) => <span key={j} className={cn("tnum", n === 0 && "opacity-40")}>{n || "·"}</span>)]] : [];
+          }),
+          vacio: "Ningún niño entró en este periodo.",
+          nota: "Los niños que entraron a cada hora, por día de la semana, sumando las semanas del periodo.",
+        },
+      ];
+    })(),
     {
       id: "dinero",
       titulo: "El dinero del tiempo",
@@ -94,6 +147,19 @@ export function seccionesDelParque(i: InformeDelParqueDto, reloj: Reloj, formato
       pie: ["Total del parque", "", <span key="t" className="tnum">{importe(i.resumen.dinero)}</span>],
       vacio: "Sin dinero del parque en este periodo.",
       nota: "Lo anulado y lo cambiado por uso no cuentan: cuenta lo que se cobró en su lugar. El IVA va aparte, en Ventas.",
+    },
+    {
+      id: "paquetes",
+      titulo: "Qué se vende",
+      columnas: [{ titulo: "Paquete" }, { titulo: "Niños", derecha: true }, { titulo: "Del total", derecha: true }, { titulo: "Monto", derecha: true }],
+      filas: d.porPaquete.map((p) => [
+        p.paquete,
+        <span key="n" className="tnum">{p.ninos}</span>,
+        <span key="p" className="tnum">{porciento(BigInt(p.ninos), BigInt(i.resumen.ninos))}</span>,
+        <span key="m" className="tnum">{importe(p.monto)}</span>,
+      ]),
+      vacio: "Ningún paquete en este periodo.",
+      nota: "Los niños que entraron con cada paquete y lo cobrado de esos paquetes.",
     },
     {
       id: "estancias",
