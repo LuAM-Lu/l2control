@@ -1401,9 +1401,11 @@ export function casosParque(base: Base): CasosParque {
           await tx.kid.update({ where: { id: kidId }, data: datos });
         } else {
           // Si la familia ya tiene un niño con ese nombre, es él; si no, nace en el directorio.
-          const suyos = await tx.kid.findMany({ where: { guardianId: f.guardianId }, select: { id: true, name: true } });
-          const mismo = suyos.find((k) => claveDeNombre(k.name) === claveDeNombre(cmd.name));
-          if (mismo) await tx.kid.update({ where: { id: mismo.id }, data: datos });
+          const suyos = await tx.kid.findMany({ where: { guardianId: f.guardianId }, select: { id: true, name: true, retiredAt: true } });
+          const mismos = suyos.filter((k) => claveDeNombre(k.name) === claveDeNombre(cmd.name));
+          // El que está antes que el retirado (T-25); si era retirado, vuelve: está en la sala.
+          const mismo = mismos.find((k) => k.retiredAt === null) ?? mismos[0];
+          if (mismo) await tx.kid.update({ where: { id: mismo.id }, data: { ...datos, retiredAt: null, retiredByName: null } });
           kidId =
             mismo?.id ??
             (await tx.kid.create({ data: { tenantId: ctx.tenantId, guardianId: f.guardianId, ...datos, createdAt: new Date(ahora) }, select: { id: true } })).id;
@@ -1833,8 +1835,11 @@ async function ninoDeLaEntrada(
     return k && k.guardianId === guardianId ? kid.id : "AJENO";
   }
   if (!kid.name) return null;
-  const suyos = await tx.kid.findMany({ where: { guardianId }, select: { id: true, name: true } });
-  const mismo = suyos.find((k) => claveDeNombre(k.name) === claveDeNombre(kid.name!));
+  const suyos = await tx.kid.findMany({ where: { guardianId }, select: { id: true, name: true, retiredAt: true } });
+  // El que está antes que el retirado (T-25); un retirado que vuelve a entrar deja de estarlo: volvió a venir.
+  const mismos = suyos.filter((k) => claveDeNombre(k.name) === claveDeNombre(kid.name!));
+  const mismo = mismos.find((k) => k.retiredAt === null) ?? mismos[0];
+  if (mismo?.retiredAt) await tx.kid.update({ where: { id: mismo.id }, data: { retiredAt: null, retiredByName: null } });
   if (mismo) return mismo.id;
   const nuevo = await tx.kid.create({
     data: { tenantId: ctx.tenantId, guardianId, name: kid.name, nickname: kid.nickname ?? null, createdAt: new Date(ahora) },

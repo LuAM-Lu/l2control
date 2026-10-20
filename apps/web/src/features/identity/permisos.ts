@@ -70,6 +70,8 @@ export const ETIQUETAS: Readonly<Record<Action, { etiqueta: string; area: Area }
   "parque.anularEntrada": { etiqueta: "Anular una entrada registrada por error", area: "Parque" },
   "parque.vincularMesa": { etiqueta: "Vincular pulsera a una mesa", area: "Parque" },
   "parque.verContacto": { etiqueta: "Ver contacto del representante", area: "Parque" },
+  "clientes.ver": { etiqueta: "Ver y corregir los clientes (Clientes)", area: "Parque" },
+  "clientes.juntar": { etiqueta: "Juntar a la misma persona en Clientes", area: "Parque" },
   "evento.reservar": { etiqueta: "Reservar y cancelar cumpleaños", area: "Parque" },
 
   "tasa.confirmar": { etiqueta: "Confirmar la tasa del día", area: "Administración" },

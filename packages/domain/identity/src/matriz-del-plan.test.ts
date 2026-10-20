@@ -74,6 +74,8 @@ const DESPUES: Readonly<Partial<Record<Action, { fila: Fila; decision: string }>
   "cuenta.deuda": { fila: ["✅", "✅", "🔐", "🔐", "❌", "❌"], decision: "B3-11, M-33: «se fue sin pagar», con el PIN de supervisión" },
   "efectivo.mover": { fila: ["✅", "✅", "✅", "❌", "❌", "❌"], decision: "B3-21, M-38 (W-8): mover efectivo, hasta el tope" },
   "efectivo.sobreTope": { fila: ["✅", "✅", "🔐", "❌", "❌", "❌"], decision: "B3-21, M-38: por encima del tope, y todo retiro, con el PIN de supervisión" },
+  "clientes.ver": { fila: ["✅", "✅", "✅", "❌", "✅", "❌"], decision: "T-25, M-40: Clientes lo ven y corrigen quienes atienden al cliente" },
+  "clientes.juntar": { fila: ["✅", "✅", "❌", "❌", "❌", "❌"], decision: "T-25, M-40: juntar a la misma persona, administración y supervisión" },
 };
 
 const VALOR: Readonly<Record<Celda, string>> = { "✅": "PERMITIDO", "🔐": "REQUIERE_AUTORIZACION", "❌": "DENEGADO" };

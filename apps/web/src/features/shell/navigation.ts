@@ -6,6 +6,7 @@ import {
   LayoutGrid,
   Package,
   Settings,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import type { Route } from "next";
@@ -115,16 +116,6 @@ export const MODULOS: readonly Modulo[] = [
           "Un solo lector: una pulsera nueva abre la entrada; una que está en la sala, su ficha con su salida. Las estancias, por urgencia, con el reloj del servidor.",
       },
       {
-        id: "representantes",
-        nombre: "Representantes y niños",
-        href: rutaSeccion("parque", "representantes"),
-        // Ver el contacto de una familia es un permiso propio (§7.6).
-        accion: "parque.verContacto",
-        proposito:
-          "El histórico mínimo: nombre, apodo, edad y una referencia de contacto. Nada más — es lo menos sensible que permite operar (DEC-9).",
-        tarea: "F5-01",
-      },
-      {
         id: "eventos",
         nombre: "Cumpleaños",
         href: rutaSeccion("parque", "eventos"),
@@ -202,6 +193,26 @@ export const MODULOS: readonly Modulo[] = [
         proposito:
           "Lo que dejaron sin pagar los clientes (B3-11), para cobrarlo cuando vuelven, y lo del personal (B3-26): sus vales y adelantos de la quincena, que administración marca «Descontado» y deja de estar pendiente.",
         tarea: "B3-26",
+      },
+    ],
+  },
+  {
+    // T-25 (M-40): Clientes, en lugar de «Representantes y niños» (que era del parque): las familias y los clientes de
+    // mesa son el mismo directorio.
+    id: "clientes",
+    nombre: "Clientes",
+    icon: Users,
+    accion: "clientes.ver",
+    resumen: "Las familias del parque y los clientes de mesa en un solo lugar: lo que hizo cada uno en el local, sus datos y sus niños.",
+    secciones: [
+      {
+        id: "directorio",
+        nombre: "Directorio",
+        href: rutaSeccion("clientes", "directorio"),
+        accion: "clientes.ver",
+        proposito:
+          "Cada cliente con sus visitas, lo gastado, lo que debe y su VIP; sus datos y sus niños se corrigen aquí, y la misma persona que quedó dos veces se junta.",
+        tarea: "T-25",
       },
     ],
   },
@@ -466,7 +477,9 @@ export const MODULOS: readonly Modulo[] = [
 export const RUTAS_MOVIDAS: Readonly<Record<string, Route>> = {
   personas: rutaModulo("ajustes"),
   configuracion: rutaModulo("ajustes"),
-  "personas/representantes": rutaSeccion("parque", "representantes"),
+  // T-25: «Representantes y niños» es ahora Clientes.
+  "personas/representantes": rutaSeccion("clientes", "directorio"),
+  "parque/representantes": rutaSeccion("clientes", "directorio"),
   // B9-3: «Compras y mermas» se partió en entradas (B9-3) y salidas con conteo (B9-4).
   "inventario/compras": rutaSeccion("inventario", "entradas"),
   "inventario/mermas": rutaSeccion("inventario", "salidas"),

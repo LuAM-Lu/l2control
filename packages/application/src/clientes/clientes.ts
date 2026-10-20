@@ -53,6 +53,7 @@ import { businessDayAt, businessDayEnd } from "@l2/domain-cash";
 import { exigidoAlCompletar, type Exigido } from "@l2/domain-orders";
 import { ajustesDe } from "../sucursal/ajustes.ts";
 import { addDays, calendarDay } from "@l2/domain-rates";
+import { quienQueda } from "./directorio.ts";
 export { clientesDeCuentas } from "./de-cuentas.ts";
 
 /** El cliente que se le pone a una cuenta, ya reconocido (o dado de alta) en el directorio. */
@@ -125,7 +126,11 @@ export async function resolverCliente(tx: Transaccion, ctx: Contexto, datos: Dat
     if (porCedula) return { ...base, guardianId: porCedula.id, nuevo: false, completado: false };
   }
 
-  const porTelefono = telefonoKey ? await tx.guardian.findFirst({ where: { contactKey: telefonoKey }, select: { id: true, document: true, documentKey: true } }) : null;
+  // T-25: el teléfono de uno que se juntó con otro lleva al que queda.
+  const delTelefono = telefonoKey ? await tx.guardian.findFirst({ where: { contactKey: telefonoKey }, select: { id: true } }) : null;
+  const porTelefono = delTelefono
+    ? await tx.guardian.findUnique({ where: { id: await quienQueda(tx, delTelefono.id) }, select: { id: true, document: true, documentKey: true } })
+    : null;
   if (porTelefono) {
     // Ese teléfono ya tiene su cédula: con otra, es otra persona (comparten número) y no se enlaza; sin ninguna (B6-22),
     // es él, y su cédula viene del directorio.
@@ -214,7 +219,7 @@ async function encontradoDe(tx: Transaccion, g: Ficha): Promise<ClienteEncontrad
   const [entrada, cuenta, conNombre] = [
     await tx.parkSession.findFirst({ where: { guardianId: g.id }, orderBy: { startedAt: "desc" }, select: { startedAt: true, accountId: true } }),
     await tx.accountCustomer.findFirst({ where: { guardianId: g.id }, orderBy: { setAt: "desc" }, select: { setAt: true } }),
-    await tx.kid.count({ where: { guardianId: g.id } }),
+    await tx.kid.count({ where: { guardianId: g.id, retiredAt: null } }),
   ];
   const vino = Math.max(entrada?.startedAt.getTime() ?? 0, cuenta?.setAt.getTime() ?? 0);
   // Sus niños: los que tienen ficha o, si entraron sin nombre, los de su última visita.
@@ -278,7 +283,9 @@ export function casosClientes(base: Base): CasosClientes {
           (cedulaKey ? await tx.guardian.findFirst({ where: { documentKey: cedulaKey } }) : null) ??
           (telefonoKey ? await tx.guardian.findFirst({ where: { contactKey: telefonoKey } }) : null);
         if (!g) return null;
-        return encontradoDe(tx, g);
+        // T-25: el que se juntó con otro lleva al que queda.
+        const queda = await quienQueda(tx, g.id);
+        return encontradoDe(tx, queda === g.id ? g : (await tx.guardian.findUniqueOrThrow({ where: { id: queda } })));
       });
       return r !== null && "ok" in r ? r : { ok: true, valor: r };
     },
@@ -305,7 +312,14 @@ export function casosClientes(base: Base): CasosClientes {
               : { fullName: { contains: texto, mode: "insensitive" as const } };
         const filas = await tx.guardian.findMany({ where: donde, orderBy: { fullName: "asc" }, take: v.data.limite ?? 12 });
         const encontrados: ClienteEncontradoDto[] = [];
-        for (const g of filas) encontrados.push(await encontradoDe(tx, g));
+        // T-25: el que se juntó con otro sale como el que queda, una vez.
+        const vistos = new Set<string>();
+        for (const f of filas) {
+          const queda = await quienQueda(tx, f.id);
+          if (vistos.has(queda)) continue;
+          vistos.add(queda);
+          encontrados.push(await encontradoDe(tx, queda === f.id ? f : await tx.guardian.findUniqueOrThrow({ where: { id: queda } })));
+        }
         // PLAN §7.6: cuántos, no cuáles ni qué se escribió.
         await auditar(tx, ctx, { action: "cliente.buscar", entityType: "guardian", after: { encontrados: encontrados.length } });
         return { ok: true, valor: encontrados };
@@ -319,10 +333,11 @@ export function casosClientes(base: Base): CasosClientes {
         const aqui: ClienteDeAquiDto[] = [];
         const vistos = new Set<string>();
         const sumar = async (guardianId: string, motivo: ClienteDeAquiDto["motivo"], detalle: string, estancias: string[] = [], en: Date | null = null) => {
-          if (vistos.has(guardianId)) return;
-          const g = await tx.guardian.findFirst({ where: { id: guardianId } });
+          const id = await quienQueda(tx, guardianId);
+          if (vistos.has(id)) return;
+          const g = await tx.guardian.findFirst({ where: { id } });
           if (!g) return;
-          vistos.add(guardianId);
+          vistos.add(id);
           aqui.push({ cliente: await encontradoDe(tx, g), motivo, detalle: detalle.slice(0, 80), estancias, en: en ? en.toISOString() : null });
         };
         // Las familias con niños en la sala, la más reciente primero: son las que suelen pasar a una mesa. Una estancia

@@ -1330,6 +1330,9 @@ model Guardian {
   eventReservations EventReservation[]
   accountCustomers  AccountCustomer[]
   debts             CustomerDebt[]
+  /// T-25: si se juntó con otra (la misma persona, dos veces), a cuál pasó; y las que se juntaron con esta.
+  mergedInto        GuardianMerge?     @relation("seVa")
+  absorbed          GuardianMerge[]    @relation("queda")
 
   @@unique([tenantId, id])
   @@unique([tenantId, contactKey])
@@ -1481,6 +1484,9 @@ model Kid {
   name       String
   nickname   String?
   createdAt  DateTime @map("created_at") @db.Timestamptz(3)
+  /// T-25: retirado de su familia (un error, o ya no viene). Sus estancias lo siguen nombrando; la entrada no lo ofrece.
+  retiredAt     DateTime? @map("retired_at") @db.Timestamptz(3)
+  retiredByName String?   @map("retired_by_name")
 
   guardian Guardian      @relation(fields: [tenantId, guardianId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   sessions ParkSession[]
@@ -1488,6 +1494,27 @@ model Kid {
   @@unique([tenantId, id])
   @@index([tenantId, guardianId])
   @@map("kid")
+}
+
+/// T-25 (M-40): la misma persona quedó dos veces en el directorio y se juntó. La que se va (`absorbedId`) pasa a la
+/// que queda (`intoId`): sus niños cambian de familia (el disparador lo deja solo así) y su historia se lee con la que
+/// queda; buscarla por su cédula o su teléfono lleva a la que queda. Una vez por representante; de solo agregar.
+model GuardianMerge {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  absorbedId   String   @map("absorbed_id") @db.Uuid
+  intoId       String   @map("into_id") @db.Uuid
+  mergedAt     DateTime @map("merged_at") @db.Timestamptz(3)
+  mergedBy     String?  @map("merged_by") @db.Uuid
+  mergedByName String   @map("merged_by_name")
+
+  absorbed Guardian @relation("seVa", fields: [tenantId, absorbedId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  into     Guardian @relation("queda", fields: [tenantId, intoId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, absorbedId])
+  @@index([tenantId, intoId])
+  @@map("guardian_merge")
 }
 
 /// Una estancia en el parque (B4-2, F5-02, ADR-010): una pulsera, un niño, un paquete. El reloj es

@@ -32,6 +32,7 @@ import type { Contexto } from "../contexto.ts";
 import { auditar } from "../auditoria/auditar.ts";
 import { exigirPermiso } from "../identidad/actor.ts";
 import { marcasVip } from "../caja/reglas-de-descuento.ts";
+import { quienQueda } from "../clientes/directorio.ts";
 
 export interface CasosRepresentantes {
   /** La familia de ese contacto, o `null` si no ha venido nunca. */
@@ -61,11 +62,13 @@ export function casosRepresentantes(base: Base): CasosRepresentantes {
       const r = await base.conTenant(ctx.tenantId, async (tx): Promise<RepresentanteEncontradoDto | null | Rechazo> => {
         const rechazo = await exigirPermiso(tx, ctx, "parque.checkIn");
         if (rechazo) return rechazo;
-        const g = await tx.guardian.findFirst({
-          where: porCedula ? { documentKey: porCedula } : { contactKey: llave! },
-          include: { kids: { select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
+        const hallado = await tx.guardian.findFirst({ where: porCedula ? { documentKey: porCedula } : { contactKey: llave! }, select: { id: true } });
+        if (!hallado) return null;
+        // T-25: el que se juntó con otro lleva al que queda; sus niños retirados no se ofrecen.
+        const g = await tx.guardian.findUniqueOrThrow({
+          where: { id: await quienQueda(tx, hallado.id) },
+          include: { kids: { where: { retiredAt: null }, select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
         });
-        if (!g) return null;
         return RepresentanteEncontradoSchema.parse({
           id: g.id,
           fullName: g.fullName,
@@ -105,7 +108,8 @@ export function casosRepresentantes(base: Base): CasosRepresentantes {
           buscados AS (
             SELECT g.id, g.full_name, u.ultima
             FROM guardian g LEFT JOIN ultima u ON u.guardian_id = g.id
-            WHERE (
+            -- T-25: el que se juntó con otro no sale: sale el que queda.
+            WHERE NOT EXISTS (SELECT 1 FROM guardian_merge m WHERE m.absorbed_id = g.id) AND (
                 ${q} = ''
                 OR position(${q} IN translate(lower(g.full_name), 'áéíóúüñ', 'aeiouun')) > 0
                 OR (${conCifras} <> '' AND (position(${conCifras} IN g.contact_key) > 0 OR position(${conCifras} IN coalesce(g.document_key, '')) > 0))
@@ -220,7 +224,7 @@ export async function representanteDeLaEntrada(
     return { id: g.id, fullName: g.fullName };
   };
   if (cmd.guardianId) {
-    const g = await tx.guardian.findUnique({ where: { id: cmd.guardianId }, select: { id: true, fullName: true, documentKey: true } });
+    const g = await tx.guardian.findUnique({ where: { id: await quienQueda(tx, cmd.guardianId) }, select: { id: true, fullName: true, documentKey: true } });
     return g ? completar(g) : { ...noEsta, problemas: [{ path: ["guardianId"], message: "REPRESENTANTE_DESCONOCIDO" }] };
   }
   if (cedula) {
@@ -237,7 +241,8 @@ export async function representanteDeLaEntrada(
       problemas: [{ path: ["guardian", "contactReference"], message: "CONTACTO_SIN_NUMEROS" }],
     };
   }
-  const ya = await tx.guardian.findFirst({ where: { contactKey: llave }, select: { id: true, fullName: true, documentKey: true } });
+  const delContacto = await tx.guardian.findFirst({ where: { contactKey: llave }, select: { id: true } });
+  const ya = delContacto ? await tx.guardian.findUnique({ where: { id: await quienQueda(tx, delContacto.id) }, select: { id: true, fullName: true, documentKey: true } }) : null;
   if (ya) return completar(ya);
   if (exigirCedula && !cedula) {
     return { ok: false, motivo: "INVALIDO", mensaje: "Escribe la cédula del representante.", problemas: [{ path: ["guardianDocument"], message: "FALTA_LA_CEDULA" }] };
@@ -263,7 +268,7 @@ const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, 
 async function contarBuscados(tx: Transaccion, q: string, cifras: string, letra: string | null): Promise<number> {
   const [c] = await tx.$queryRaw<{ n: bigint }[]>`
     SELECT count(*) AS n FROM guardian g
-    WHERE (
+    WHERE NOT EXISTS (SELECT 1 FROM guardian_merge m WHERE m.absorbed_id = g.id) AND (
         ${q} = ''
         OR position(${q} IN translate(lower(g.full_name), 'áéíóúüñ', 'aeiouun')) > 0
         OR (${cifras} <> '' AND (position(${cifras} IN g.contact_key) > 0 OR position(${cifras} IN coalesce(g.document_key, '')) > 0))
@@ -281,7 +286,7 @@ async function contarBuscados(tx: Transaccion, q: string, cifras: string, letra:
 async function representantesDe(tx: Transaccion, ids: readonly string[]) {
   const familias = await tx.guardian.findMany({
     where: { id: { in: [...ids] } },
-    include: { kids: { select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
+    include: { kids: { where: { retiredAt: null }, select: { id: true, name: true, nickname: true }, orderBy: { createdAt: "asc" } } },
   });
   const visitas = await tx.$queryRaw<{ guardian_id: string; visitas: bigint; ultima: Date }[]>`
     SELECT guardian_id, count(DISTINCT check_in_key) AS visitas, max(started_at) AS ultima

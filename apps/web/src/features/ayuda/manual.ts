@@ -647,18 +647,35 @@ export const MANUAL: readonly EntradaDelManual[] = [
     problemas: GENERALES,
   },
   {
-    id: "representantes",
-    ruta: "/panel/parque/representantes",
-    titulo: "Representantes y niños",
-    roles: ["MONITOR_PARQUE", "SUPERVISOR", "ADMIN"],
-    proposito: "El directorio de familias: quién vino, con qué niños y cuántas veces. La entrada busca aquí para no volver a pedir los datos.",
+    id: "clientes",
+    ruta: "/panel/clientes/directorio",
+    titulo: "Clientes",
+    roles: OPERACION_PARQUE,
+    proposito:
+      "Las familias del parque y los clientes de mesa en un solo lugar (antes, «Representantes y niños»): lo que hizo cada uno en el local, y sus datos y sus niños, corregidos aquí. La entrada, la mesa y la caja los encuentran por lo mismo.",
     pasos: [
-      "Busca por el nombre del representante o de un niño, por su teléfono o su cédula (desde 3 cifras). El servidor trae las 50 que más recientemente vinieron; «Cargar más · 50 de N» trae las siguientes y dice cuántas faltan.",
-      "La fila de letras filtra por la inicial del representante (sin acento; la Ñ en su sitio). «Todas» la quita.",
-      "Tres vistas a la derecha (Tarjetas, Lista y Compacta): cada persona elige la suya y se recuerda en este equipo.",
-      "Toca una familia para ver su detalle: sus datos, su descuento VIP y sus niños, con «Corregir». En la tablet en vertical se abre en una hoja.",
+      "Busca por el nombre, la cédula, el teléfono (desde 3 cifras) o el nombre de un niño. Los chips filtran, con cuántos hay: Todos, Familias, De mesa, Con deuda y VIP. Salen primero los que vinieron más recientemente; «Cargar más» trae los siguientes.",
+      "Cada renglón: su nombre, su cédula a medias, dónde vino la última vez y cuándo, y si debe, es VIP o le falta la cédula.",
+      "Tócalo para ver su ficha (en la tablet en vertical, en una hoja): sus visitas, lo gastado, lo que debe y su descuento VIP; sus niños; y «Lo que hizo en el local»: sus entradas al parque, sus mesas, sus cumpleaños y sus deudas, con lo que se cobró.",
+      "«Editar datos»: el nombre, la cédula y el teléfono, con los mismos campos que la mesa y la caja. Queda en la auditoría. La cédula se anota o se corrige; no se quita. Si es la de otro cliente, lo dice: si es la misma persona, se juntan.",
+      "Sus niños: «Agregar», «Corregir» (el nombre y el apodo) y retirar (el botón de la persona con el signo menos): un error, o ya no viene. Sus visitas siguen en su historia y la entrada deja de ofrecerlo; si vuelve a entrar con su nombre, vuelve a la familia. Uno que está en la sala no se retira.",
+      "«Parece la misma persona»: otro cliente con el mismo nombre. «Ver» abre su ficha; «Juntar» (supervisión y administración) deja este y pasa aquí los niños, la historia y lo que debe del otro, y su cédula si este no la tiene. Buscarlo por su teléfono lleva aquí. No se deshace; con dos cédulas distintas no se juntan.",
+      "El descuento VIP lo pone administración aquí mismo, con su identidad confirmada (las reglas, en Ajustes → Descuentos).",
     ],
-    problemas: [],
+    problemas: [
+      {
+        sintoma: "«Esa cédula ya es de …» al editar los datos",
+        solucion: "Esa cédula es de otro cliente del directorio. Si es la misma persona que quedó dos veces, ábrelo y júntalos; si no, revisa qué cédula está mal escrita.",
+      },
+      {
+        sintoma: "«… está en la sala ahora: retíralo cuando salga»",
+        solucion: "Su salida del parque lo nombra: espera a que salga y retíralo después.",
+      },
+      {
+        sintoma: "«Tienen cédulas distintas: no son la misma persona» al juntar",
+        solucion: "Dos cédulas son dos personas, aunque se llamen igual: no se juntan. Si una cédula está mal escrita, corrígela primero en su ficha.",
+      },
+    ],
   },
   {
     id: "eventos",

@@ -67,6 +67,7 @@ import { casosEventos, type CasosEventos } from "./park/eventos.ts";
 import { casosPedidos, type CasosPedidos } from "./restaurante/pedidos.ts";
 import { casosMesas, type CasosMesas } from "./restaurante/mesas.ts";
 import { casosClientes, type CasosClientes } from "./clientes/clientes.ts";
+import { casosDirectorio, type CasosDirectorio } from "./clientes/directorio.ts";
 import { casosEmpresas, type CasosEmpresas } from "./clientes/empresas.ts";
 import { casosDeudas, type CasosDeudas } from "./deudas/deudas.ts";
 import { casosAnulaciones, type CasosAnulaciones } from "./caja/anulaciones.ts";
@@ -208,6 +209,8 @@ export interface Aplicacion {
   readonly mesas: CasosMesas;
   /** El cliente de una cuenta del salón o del mostrador: buscarlo y ponérselo (B6-9, M-33). */
   readonly clientes: CasosClientes;
+  /** Clientes (T-25, M-40): el directorio de todos, cada uno con lo que hizo en el local; corregir, sus niños y juntar. */
+  readonly directorio: CasosDirectorio;
   /** La empresa de una factura por su RIF (T-23). */
   readonly empresas: CasosEmpresas;
   /** Las deudas de clientes: quien se va sin pagar, cobrarlas cuando vuelve o darlas por perdidas (B3-11, M-33). */
@@ -313,6 +316,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     dividir: casosDividir(base),
     vuelto: casosVuelto(base),
     clientes: casosClientes(base),
+    directorio: casosDirectorio(base),
     empresas: casosEmpresas(base),
     deudas: casosDeudas(base),
     anulaciones: casosAnulaciones(base),

@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.151.0 en `main` (publicada, la 0.143.0) · 151 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.152.0 en `main` (publicada, la 0.143.0) · 152 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -1052,8 +1052,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   ahora» y la factura sale a su nombre sin volver a escribirla.
   *T-24: `clientes.deAqui` suma el motivo HOY (estancias cerradas y cuentas cobradas del día de negocio, con `en`). En la web, `CampoDelCliente` con `cedula` es el campo único (su cara de cédula con «Aquí ahora» filtrado por las cifras, y la de nombre o teléfono), con `para` (MESA, CAJA, PARQUE) para el orden; lo usan `DatosDelCliente`, `CampoRepresentante` y `ClienteFacturaDialog`. La cola: el campo siempre a la vista, los filtros con cola larga o buscando, y «En el directorio» debajo de la lista; `BuscadorDeClientes` con `textoInicial`. `campo-del-cliente.test-db.ts` (1 nueva). Visto en el navegador en los dos temas: sentar, la entrada, la factura y la cola.*
 
-- [~] **T-25 · Clientes** (M-40). Antes de la 1.0.0. Reemplaza «Representantes y niños». *A cargo: LuAMi
-  (Claude), en `feat/t-25`.*
+- [x] **T-25 · Clientes** (M-40). Antes de la 1.0.0. Reemplaza «Representantes y niños». *Hecho el 2026-10-20 (v0.152.0).*
   → Una sección propia del panel para todos los clientes (las familias del parque y los de mesa), con el campo de T-24
   y los filtros Todos, Familias, De mesa, Con deuda y VIP. Cada uno: sus datos (editables, auditados), sus niños
   (agregar, corregir, retirar), lo que hizo en el local (parque, mesas, cumpleaños, deudas), sus cifras (visitas,
@@ -1061,6 +1060,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   y la monitora; juntar, administración y supervisión; el mesero completa los datos al sentar. La ruta vieja queda en
   `RUTAS_MOVIDAS`. Lo privado, con `data-privado`. Criterio: el cliente de una mesa y la familia del parque se
   encuentran en la misma lista y se corrigen en un solo lugar.
+  *T-25: migración `20261215000000_clientes` (solo expande: `kid.retired_at` y `retired_by_name`, y `guardian_merge`, de solo agregar, una vez por representante, con RLS; el disparador `l2_nino_de_su_familia_siempre` deja pasar a un niño solo a la familia con que se juntó la suya). `clientes/directorio.ts` (`app.directorio`): `pagina` (una consulta con lo buscado, el filtro como parámetro, la página y la cuenta de cada filtro; vigentes = sin fusión, su actividad con los suyos), `ficha` (visitas por día de negocio, lo cobrado de sus cuentas sin lo anulado, lo que debe por representante, cédula o teléfono, sus niños con sus visitas, la historia de hasta 40 y los parecidos: el mismo nombre y sin otra cédula), `corregir`, `nino` (agregar, corregir, retirar; no en la sala) y `juntar` (la cédula y el VIP pasan si la que queda no los tiene). `quienQueda` lo siguen la entrada (`representanteDeLaEntrada`, `representantes.buscar`), el salón y la caja (`resolverCliente`, `clientes.buscar`, `encontrar`, `deAqui`); el directorio viejo y la entrada dejan fuera a los juntados y a los niños retirados, y un retirado que vuelve a entrar con su nombre vuelve. Acciones `clientes.ver` (P,P,P,D,P,D) y `clientes.juntar` (P,P,D,D,D,D) en la matriz y en DESPUES; asientos `cliente.consultar`, `cliente.corregir` (con `cambio`, sin los datos), `cliente.juntar`, `nino.agregar` y `nino.retirar`; tema en vivo `clientes`. En la web, el módulo Clientes (`clientes/directorio`, `ClientesScreen`) con `CampoCedula` y `CampoTelefono`, `Marquesina` en los nombres y lo privado con `data-privado`; el VIP se marca ahí; «Representantes y niños» se va (`RUTAS_MOVIDAS`). `directorio.test-db.ts` (4, con el criterio). Visto en el navegador a 1366 y 1280 px y en un teléfono de 390 px, en los dos temas: la lista y sus filtros, la ficha, «Editar datos», agregar y retirar un niño y «Juntar» de punta a punta (dos registros quedan en uno, con los dos niños y «Se juntó con»).*
+
 - [ ] **T-26 · La ayuda al día** (M-40). Antes de la 1.0.0, al final del bloque.
   → Una revisión entera del panel «Ayuda» (?) contra la app de hoy, entrada por entrada. Hoy tiene 20 entradas para 31
   pantallas: 14 caen en una general (las secciones de Inventario, Reportes y Ajustes) y Personal apunta a una ruta que se
