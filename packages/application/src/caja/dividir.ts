@@ -71,6 +71,8 @@ async function sePuedeDividir(tx: Transaccion, ctx: Contexto, accountId: string,
   if (c.status !== "POR_COBRAR") return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta no está en la cola de la caja." };
   if (c.kind === "EVENTO") return { ok: false, motivo: "CONFLICTO", mensaje: "La cuenta de un cumpleaños se cobra entera, con su reserva." };
   if (c.split) return { ok: false, motivo: "CONFLICTO", mensaje: "Ya está dividida en partes iguales: quita esa división antes de dividir por ítems." };
+  // B3-28: paga lo que va y sigue en su mesa; dividirla la sacaría de ella.
+  if (c.loQueVa) return { ok: false, motivo: "CONFLICTO", mensaje: "Paga lo que va y sigue en su mesa: se cobra entera (o en partes iguales)." };
   if (c.descuento) return { ok: false, motivo: "CONFLICTO", mensaje: "Lleva un descuento sobre su total: quítalo antes de dividir por ítems." };
   if (await tx.customerDebtCollection.findFirst({ where: { accountId }, select: { id: true } })) {
     return { ok: false, motivo: "CONFLICTO", mensaje: "Cobra una deuda: se cobra entera." };

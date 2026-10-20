@@ -308,6 +308,11 @@ export const FamilyAccountSchema = z
      * «Abiertas en el salón». Como el cliente, no viaja en el contenido: el servidor lo pone al leerla, desde su fila.
      */
     abiertaPor: z.string().trim().min(1).max(120).optional(),
+    /**
+     * «Cobrar lo que va» (B3-28, M-40): la cuenta del salón está en la cola para pagar lo consumido hasta ahora y, cobrada,
+     * vuelve a la mesa abierta. Lo pone la mesa o la caja al mandarla; lo quitan el cobro, «Pide la cuenta» y volver a pedir.
+     */
+    loQueVa: z.literal(true).optional(),
     /** Se juntó en otra para cobrarse con ella (B3-16): lo que debía está en esa cuenta. */
     juntadaEn: z.object({ cuentaId: IdSchema, orderNumber: z.number().int().positive().optional() }).optional(),
     /** La cuenta de una persona al dividir por ítems (B3-20): de qué cuenta salió y qué persona es (de la 2 en adelante). */

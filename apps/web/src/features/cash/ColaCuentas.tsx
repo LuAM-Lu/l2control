@@ -56,6 +56,7 @@ const NO_SE_JUNTA: Record<JoinProblem, string> = {
   COBRO_EN_CURSO: "Tiene partes cobradas",
   CON_DESCUENTO: "Lleva un descuento",
   SIN_PENDIENTE: "Nada que cobrar",
+  LO_QUE_VA: "Paga lo que va: se cobra sola",
 };
 
 /**
@@ -580,6 +581,13 @@ export function ColaCuentas({
                         <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 font-semibold whitespace-nowrap text-state-warn">
                           <UserX size={11} aria-hidden="true" />
                           Sin datos
+                        </span>
+                      )}
+                      {/* B3-28: paga lo consumido y sigue en su mesa. */}
+                      {c.loQueVa && (
+                        <span className="flex shrink-0 items-center gap-0.5 rounded bg-brand/15 px-1 font-semibold whitespace-nowrap text-ink">
+                          <HandCoins size={11} aria-hidden="true" />
+                          Lo que va
                         </span>
                       )}
                       {sinCedula && (

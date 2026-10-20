@@ -72,6 +72,8 @@ import {
   isDiscardedDraft,
   linesPaidBetween,
   markPartPaid,
+  markPartPaidSoFar,
+  loQueVaProblem,
   refundableByTender,
   revertPaid,
   withAnulacion,
@@ -253,6 +255,7 @@ const MENSAJE_CAMBIO: Record<AccountChangeProblem, string> = {
   POR_USO_DESDE_LA_PANTALLA: "Cobrar el parque por uso lo decide la salida, no al guardar la cuenta.",
   EVENTO_DESDE_LA_PANTALLA: "La cuenta de un cumpleaños la abre su reserva: aquí solo se cobra (o se anula su cobro).",
   PEDIDO_DESDE_LA_PANTALLA: "Lo que va a la cocina lo manda su pedido o el cobro: una pantalla no lo marca enviado.",
+  LO_QUE_VA_NO_VALE: "«Cobrar lo que va» es de una mesa o una cuenta de pie abierta, con algo que cobrar: la que pidió la cuenta se cobra entera.",
 };
 
 const MENSAJE_ANULACION: Record<AnulacionProblem, string> = {
@@ -690,7 +693,9 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
           // Su comanda (B6-16), con su pedido puesto en esas líneas: así no vuelven a salir.
           const aQuien = cmd.cliente?.kind === "IDENTIFICADO" ? cmd.cliente.name : (cuenta.cliente?.nombre ?? cuenta.family);
           const conPedido = porSalir ? await asentarComandaDeCaja(tx, ctx, cuenta, porSalir, aQuien, ahora) : cuenta;
-          const { pendingSince, ...pagada } = markPartPaid(conPedido);
+          // «Cobrar lo que va» (B3-28): pagado lo consumido, la cuenta del salón vuelve a la mesa abierta.
+          const loQueVa = cuenta.loQueVa === true && loQueVaProblem({ ...cuenta, status: "ABIERTA" }) !== "NO_ES_DEL_SALON";
+          const { pendingSince, ...pagada } = loQueVa ? markPartPaidSoFar(conPedido) : markPartPaid(conPedido);
           const quien = await nombreDe(tx, ctx);
           // Mientras queden partes sigue en la cola, con la hora a la que llegó.
           const nueva = FamilyAccountSchema.parse({
@@ -715,6 +720,7 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               sobra: { minor: String(sobra.amount), currency: FUNCIONAL, destino: sobra.amount > 0n ? cmd.destinoSobra : null },
               ...(carga && papel ? { desdePapel: marcaDePapel(carga, papel, ahora) } : {}),
               ...(firmo?.ok ? { personal: firmo.nombre } : {}),
+              ...(loQueVa ? { loQueVa: true, sigueAbierta: nueva.status === "ABIERTA" } : {}),
             },
           });
 
@@ -1048,7 +1054,14 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
             const devolucion = await comprobarExistencias(tx, ctx, cmd.accountId, vigente.lines, vigente.lines.filter((l) => !lineIds.includes(l.id)), () => ["accountId"]);
             if ("ok" in devolucion) throw new CierreDeshecho(devolucion);
             const { pendingSince: _, ...sinEspera } = conAnulacion;
-            nueva = FamilyAccountSchema.parse({ ...sinEspera, status: conAnulacion.lines.some((l) => l.paid) ? "COBRADA" : "SIN_CONSUMO", version: vigente.version! + 1 });
+            // B3-28: la que pagó lo que va y sigue en su mesa, sigue abierta.
+            const sigueEnSuMesa = vigente.status === "ABIERTA" && loQueVaProblem(vigente) !== "NO_ES_DEL_SALON";
+            const { loQueVa: _loQueVa, ...sinLoQueVa } = sinEspera;
+            nueva = FamilyAccountSchema.parse({
+              ...sinLoQueVa,
+              status: sigueEnSuMesa ? "ABIERTA" : conAnulacion.lines.some((l) => l.paid) ? "COBRADA" : "SIN_CONSUMO",
+              version: vigente.version! + 1,
+            });
             await guardarVersion(tx, ctx, nueva, { cause: "ANULACION", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
             await asentarExistencias(tx, ctx, devolucion, { accountId: cmd.accountId, version: nueva.version!, ahora, quien: quien.nombre });
             if (cmd.inventario === "MERMA") {
@@ -1065,6 +1078,8 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               ...anulada,
               version: vigente.version! + 1,
               pendingSince: vigente.status === "POR_COBRAR" ? (vigente.pendingSince ?? instante) : instante,
+              // B3-28: la que pagó lo que va y sigue en su mesa vuelve a la cola a pagar lo que va, no a cerrarse.
+              ...(vigente.status === "ABIERTA" && loQueVaProblem(vigente) !== "NO_ES_DEL_SALON" ? { loQueVa: true } : {}),
             });
             await guardarVersion(tx, ctx, nueva, { cause: "ANULACION", operationKey: cmd.idempotencyKey, ahora, quien: quien.nombre });
           }

@@ -16,6 +16,20 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.147.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: «Cobrar lo que va».
+
+### Añadido
+- **«Pagar lo que va»** en la mesa de la tablet y **«Cobrar lo que va»** en «Abiertas en el salón» de la caja: una mesa
+  o una cuenta de pie paga lo consumido hasta ahora (también lo que falta servir) y sigue abierta. En la cola dice «Lo
+  que va» y la caja lo explica arriba de la cuenta. Cobrada, sus pedidos dicen «Pagado» en la tablet; lo que pidan
+  después se cobra al final, cada cosa una vez, y sin nada más «Liberar mesa» la cierra cobrada.
+
+### Cambiado
+- Anular el cobro de lo que va no cierra la mesa, y «Cobrarla de nuevo» la devuelve a pagar lo que va. Mientras paga lo
+  que va no se junta con otras ni se divide por ítems (en partes iguales, sí).
+
 ## [0.146.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: las cuentas del salón a la vista de la caja.
