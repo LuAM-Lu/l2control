@@ -1052,7 +1052,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   ahora» y la factura sale a su nombre sin volver a escribirla.
   *T-24: `clientes.deAqui` suma el motivo HOY (estancias cerradas y cuentas cobradas del día de negocio, con `en`). En la web, `CampoDelCliente` con `cedula` es el campo único (su cara de cédula con «Aquí ahora» filtrado por las cifras, y la de nombre o teléfono), con `para` (MESA, CAJA, PARQUE) para el orden; lo usan `DatosDelCliente`, `CampoRepresentante` y `ClienteFacturaDialog`. La cola: el campo siempre a la vista, los filtros con cola larga o buscando, y «En el directorio» debajo de la lista; `BuscadorDeClientes` con `textoInicial`. `campo-del-cliente.test-db.ts` (1 nueva). Visto en el navegador en los dos temas: sentar, la entrada, la factura y la cola.*
 
-- [ ] **T-25 · Clientes** (M-40). Antes de la 1.0.0. Reemplaza «Representantes y niños».
+- [~] **T-25 · Clientes** (M-40). Antes de la 1.0.0. Reemplaza «Representantes y niños». *A cargo: LuAMi
+  (Claude), en `feat/t-25`.*
   → Una sección propia del panel para todos los clientes (las familias del parque y los de mesa), con el campo de T-24
   y los filtros Todos, Familias, De mesa, Con deuda y VIP. Cada uno: sus datos (editables, auditados), sus niños
   (agregar, corregir, retirar), lo que hizo en el local (parque, mesas, cumpleaños, deudas), sus cifras (visitas,
