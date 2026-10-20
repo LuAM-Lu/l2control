@@ -3478,7 +3478,8 @@ antes del cobro en servidor (orden de ejecución).
   pedido sale sin cédula y el segundo no sale hasta que se completa.
   *B6-22: los ajustes `sentar` (SEGURO, de fábrica) y `telefonoDelCliente` (SIEMPRE, de fábrica) y la regla pura `exigidoAlSentar`, `exigidoAlCompletar` y `pideLaCedula` en `@l2/domain-orders`, que usan la tablet y el servidor. Migración `20261213000000_cliente_sin_cedula` (solo expande: la cédula y el teléfono de `account_customer` y de `customer_debt` admiten NULL, con su llave al lado). `mesas.abrir` pide lo que dice la sucursal (`FALTA_LA_CEDULA`, `FALTA_EL_TELEFONO`); `pedidos.enviar` niega el segundo pedido de una cuenta sin cédula; `cuentas.cobrar` no cobra sin ella; `clientes.asignar` completa sin autorización a la cuenta sin cédula (y el teléfono que faltaba), y la venta que queda pendiente sigue pidiendo el teléfono. Sin teléfono, el cliente nuevo no entra al directorio (lo exige: el parque llama al representante); el que ya está, por su teléfono, trae su cédula. El asiento dice qué falta (`faltan`), sin los datos. En la web, `CompletarClienteDialog` (tablet y caja), `exige` en `DatosDelCliente`, la tarjeta en `EditorSucursal`. `sentar-rapido.test-db.ts` (10 nuevas) y `sentar.test.ts` (3). Visto en el navegador en los dos temas: la tarjeta, sentar con el nombre, el primer pedido, el segundo que pide la cédula, la cola y «Factura a».*
 
-- [ ] **B6-23 · El mesero más ágil** (M-40). Antes de la 1.0.0.
+- [~] **B6-23 · El mesero más ágil** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b6-23`.*
   → «Tomar pedido» grande y debajo una fila: «Pagar lo que va» (B3-28), «Cambiar de mesa» y «Más» (Pide la cuenta para
   irse, Liberar la mesa, Cerrar sin cobrar), a 48 px. Un pedido a una mesa sin cuenta abre «Sentar» desde el aviso y sale
   después, solo. Con partes iguales cobradas, «Abrir otra cuenta en esta mesa» en un toque. «Lo más pedido hoy» arriba
