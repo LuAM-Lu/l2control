@@ -2570,7 +2570,9 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   cobra ese paquete (`pagadaAntes`). En la web, `PagarAhoraDialog` en la caja (al pie de la cola y con la pulsera) y en
   la ficha de la sala; la salida no ofrece «por uso» con el paquete pagado. `pagar-ahora.test-db.ts` (4). Visto en el
   navegador en los dos temas: la caja cobra a los 20 minutos, la salida dice «Todo pagado» y la sala manda a la caja.*
-- [ ] **B4-21 · El cierre del parque** (M-40). Antes de la 1.0.0 (maqueta vista, sección 5).
+- [ ] **B4-21 · El cierre del parque** (M-40). Antes de la 1.0.0 (maqueta vista, sección 5). *Decidido el 2026-10-19: se ve en
+  cualquier momento como corte del momento y el PDF de cierre sale con la sala en cero; el teléfono del representante, a
+  medias (el completo, en Clientes).*
   → La jornada de la monitora, como el corte de la caja: en su pantalla durante el día y en PDF al cerrar, **sin
   montos**. Los niños que entraron, las familias, el máximo a la vez y su hora, la estancia promedio y los que siguen en
   sala (cero para cerrar); por familia, el representante y sus niños (pulsera, entrada y salida, paquete, tiempo real,
