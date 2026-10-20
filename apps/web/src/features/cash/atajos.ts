@@ -135,6 +135,7 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "R", que: "Ver el recibo del último cobro" },
   { teclas: "M", que: "Mover efectivo: sencillo, compras, proveedor, adelanto o retiro a resguardo" },
   { teclas: "Mayús + clic", que: "En la cola: marcar un rango de cuentas para cobrarlas juntas (Esc lo suelta)" },
-  { teclas: "Alt + 1 – 5", que: "Abrir Cobrar, Turno, Papel, Deudas o Personal" },
+  // T-26: Personal vive dentro de Deudas (B3-26): las pestañas de la caja son cuatro.
+  { teclas: "Alt + 1 – 4", que: "Abrir Cobrar, Turno, Papel o Deudas (clientes y personal)" },
   { teclas: "?", que: "Ver estos atajos" },
 ];

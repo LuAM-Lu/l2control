@@ -16,6 +16,20 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.155.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: la ayuda al día.
+
+### Cambiado
+- La ayuda (?) tiene una entrada por pantalla: las de Inventario (productos, la carta, entradas y salidas), Reportes (ventas,
+  inventario, movimientos, deudas, parque y personal) y Ajustes (tarifas, cumpleaños, plano, medios, descuentos, tasas y
+  feriados, impuestos, sucursal, versión, respaldos y semilla) ya no caen en una general. Cada pestaña que lo pide abre la
+  suya, y la del personal se encuentra en Deudas → Personal.
+- «Si algo pasa» con los mensajes del bloque: «La caja sigue abierta», «Anulación pedida», «Esa cuenta ya no está
+  abierta», «La caja está cobrando esta cuenta en partes», «La PC no baja los respaldos»…
+- Los recorridos de la caja, las mesas y el parque, con lo nuevo; quien ya los vio recibe solo **«Lo nuevo»**.
+- La ayuda de atajos de la caja: Alt + 1 – 4 (Personal vive en Deudas).
+
 ## [0.154.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: Reportes → Parque, más fácil de analizar.

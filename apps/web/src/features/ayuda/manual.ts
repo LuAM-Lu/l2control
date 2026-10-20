@@ -25,7 +25,10 @@ export type Problema = Readonly<{
 
 export type EntradaDelManual = Readonly<{
   id: string;
-  /** La ruta de la pantalla; vale también para sus subrutas (la más larga que coincida gana). */
+  /**
+   * La ruta de la pantalla; vale también para sus subrutas (la más larga que coincida gana). T-26: puede pedir su pestaña o
+   * su vista («/panel/ajustes/sistema?pestana=respaldos», «/deudas?vista=personal»): gana sobre la de la sección.
+   */
   ruta: string;
   titulo: string;
   /** Quién la usa. Sin roles, la ve cualquiera. */
@@ -278,6 +281,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "La cola «Por cobrar» va de la más antigua a la más nueva. Elige una cuenta, o pasa la pulsera de un niño para traer la de su familia.",
       "Pasada la hora de cierre del local, arriba sale «La caja sigue abierta: ciérrala antes de irte», con lo que falta; «Cerrar la caja» lleva a su cierre.",
+      "Con teclado, «?» (o el botón del teclado, arriba de la cola) abre la lista de atajos: N venta directa, A entrada, / o C buscar, R el último recibo, M mover efectivo, las letras de cada medio, Ctrl+Intro cobrar…",
       "Varias cuentas del mismo cliente (la de su familia, que salió sin vincular la pulsera, y la de su mesa): «Juntar» arriba de la cola, toca cada cuenta (Mayús+clic, un rango) y «Cobrar juntas». Eliges cuál queda; lo que deben las otras pasa a ella, cada cosa dice de qué cuenta vino, y se cobra una vez con un solo recibo. Las otras salen de la cola juntadas en ella. No se juntan un cumpleaños, una con partes cobradas, una con descuento ni la que otra persona está cobrando.",
       "Una familia que llega directo a la caja: «Entrada» (tecla A), o pasa una pulsera que no está en la sala. En el panel, cada pulsera suma un niño (si no se lee, «Escribir» su número; «Sin pulsera» con su nombre), el paquete y la cédula del representante; «Registrar y cobrar» deja su cuenta lista. Se paga ahora: la cuenta abierta y los invitados de un cumpleaños, en Entrada.",
       "Si dejas una venta del mostrador sin cobrar (eliges otra cuenta, empiezas otra venta o la entrada), la caja pregunta: cobrarla ahora, dejarla pendiente a nombre del cliente (cédula, teléfono y nombre) o descartarla. En la cola, una venta pendiente sin datos dice «Sin datos». La búsqueda de la cola encuentra también por cédula y teléfono.",
@@ -312,6 +316,17 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "El cumpleaños de hoy va arriba de la cola: su hora, sus invitados y su mesa. Tócalo para ver los de hoy y los de la semana (con el anticipo cobrado o por cobrar) y «Empezar en una mesa». La cuenta del cumpleaños espera en la cola desde que empieza y se cobra de una vez: el saldo, lo que pidió su mesa y lo incluido, a $ 0.",
     ],
     problemas: [
+      {
+        sintoma: "Una venta dice «Anulación pedida» o «Aprobada: hazla»",
+        solucion:
+          "Se pidió a administración anular ese cobro (no estaba en el local): espera su respuesta, que llega sola. Aprobada, en la venta, «Hacer la anulación aprobada», sin PIN. Rechazada, dice por qué; se puede pedir otra vez.",
+        reconoce: ["anulacion pedida", "aprobada: hazla"],
+      },
+      {
+        sintoma: "«La caja sigue abierta: ciérrala antes de irte» arriba",
+        solucion: "Pasó la hora de cierre del local: cuando termines lo que falta, «Cerrar la caja». La hora se cambia en Ajustes → Sucursal.",
+        reconoce: ["la caja sigue abierta"],
+      },
       {
         sintoma: "«Cobrar» dice «Falta la cédula: Factura a (I)» o «Antes de cobrar, la cédula de …»",
         solucion: "La cuenta se sentó «Más rápido», solo con el nombre. Toca «Factura a» (tecla I): pide su cédula en el mismo campo, sin PIN. Anotada, se cobra a su nombre.",
@@ -380,7 +395,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
   },
   {
     id: "personal",
-    ruta: "/personal",
+    ruta: "/deudas?vista=personal",
     titulo: "Deudas del personal",
     roles: CAJA,
     proposito: "Caja → Deudas → «Personal»: los vales de lo que consumió el equipo y sus adelantos, por quincena. El descuento del sueldo se hace fuera del sistema; administración lo marca «Descontado en la quincena».",
@@ -526,6 +541,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
           "El turno se abre en el equipo de la caja. Si ese equipo falló, pide a administración que ponga su PIN y escribe el motivo («La laptop de caja no enciende»); el turno se abre aquí y queda avisado. Si este equipo pasa a ser la caja, administración lo marca en Ajustes → Personas y equipos → Dispositivos.",
         reconoce: ["no es el punto de cobro", "pin de administracion"],
       },
+      {
+        sintoma: "«La PC … no baja los respaldos desde el …» al abrir o cerrar el turno",
+        solucion:
+          "Solo lo ven administración y supervisión. Sigue «Cómo se arregla»: encender esa PC y ejecutar su tarea «L2 Control - Respaldos», o prepararla otra vez en Ajustes → Sistema → Respaldos. Se quita solo cuando baja el de anoche.",
+        reconoce: ["no baja los respaldos"],
+      },
     ],
   },
   {
@@ -649,6 +670,16 @@ export const MANUAL: readonly EntradaDelManual[] = [
         solucion: "Un pedido o una pulsera no abren una mesa: primero «Sentar» al cliente con sus datos, y después se pide o se vincula.",
         reconoce: ["no tiene cuenta abierta"],
       },
+      {
+        sintoma: "«Esa cuenta ya no está abierta en esta mesa» al enviar un pedido",
+        solucion: "Otro equipo la cobró o la liberó mientras pedías. El aviso trae «Sentar»: siéntala otra vez y el pedido sale solo en su cuenta nueva.",
+        reconoce: ["ya no esta abierta", "vuelve a mirar la mesa"],
+      },
+      {
+        sintoma: "«La caja está cobrando esta cuenta en partes»",
+        solucion: "Ya se cobró una de las partes iguales: lo nuevo no entra en esa cuenta. El aviso trae «Abrir otra cuenta en esta mesa»: la abre con el mismo cliente y el pedido sale en ella.",
+        reconoce: ["cobrando esta cuenta en partes"],
+      },
     ],
     recorrido: "mesas",
   },
@@ -663,9 +694,17 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Las cifras del día y quién está en cada puesto, en vivo.",
       "Los puestos (Caja, Parque y Mesas) se ocupan por uso: quien trabajó en uno hace poco, sea del rol que sea (también supervisión o administración). Si no, «sin actividad desde 2:10 pm», en gris; debajo, a qué hora llegó la primera persona del día. Con la caja abierta, un puesto vigilado que pasa de los minutos sin nadie avisa una vez, y no vuelve a avisar hasta que alguien vuelva. Qué puestos se vigilan y los minutos (15, de fábrica), en Ajustes → Sucursal.",
       "La Puesta a punto dice qué falta configurar; se tacha sola.",
+      "De noche, «La caja sigue abierta: ciérrala antes de irte» (desde la hora de cierre del local), con lo que falta; tócalo para cerrarla. «Respaldo sin bajar»: la PC del local no baja los respaldos (en Ajustes → Sistema → Respaldos, cómo se arregla).",
       "«Por aprobar» (solo administración): lo que la caja pidió anular sin administración en el local, con la venta, quién la cobró, quién la pide, el motivo y qué se hará. «Aprobar» con tu PIN (es la autorización: la caja la hace después, sin PIN) o «Rechazar» con tu motivo. En vivo, también en tu teléfono.",
     ],
-    problemas: GENERALES,
+    problemas: [
+      {
+        sintoma: "«La caja sigue abierta: ciérrala antes de irte»",
+        solucion: "Pasó la hora de cierre del local y queda una caja abierta: ciérrala con su corte Z antes de irte. La hora se cambia en Ajustes → Sucursal.",
+        reconoce: ["la caja sigue abierta", "cajas siguen abiertas"],
+      },
+      ...GENERALES,
+    ],
   },
   {
     id: "clientes",
@@ -736,19 +775,10 @@ export const MANUAL: readonly EntradaDelManual[] = [
     ruta: "/panel/inventario",
     titulo: "Inventario",
     roles: DIRECCION,
-    proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo.",
+    proposito: "Los productos con su existencia, las entradas de mercancía, las salidas y el conteo: cada uno en su sección.",
     pasos: [
-      "Productos: la existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
-      "«Nuevo producto» pregunta «¿Cuántos hay?» (opcional): con un número, también 0, nace contado y se vende al momento; en blanco nace «Sin contar» y se cuenta con una entrada o un conteo. Lo da de alta administración o supervisión; cambiar el precio de uno ya creado es de administración.",
-      "Tres vistas a la derecha (Tarjetas, Lista y Compacta): la Lista es la tabla, donde se eligen productos para editarlos en lote; cada persona elige la suya y se recuerda en este equipo. El estado del stock va en chips con su cuenta (Agotados, Bajo mínimo…), y sin una categoría elegida, las tarjetas y la compacta se agrupan por categoría con su nombre arriba.",
-      "«Editar» en cada fila abre su ficha: los datos arriba (nombre, categoría, presentación), el precio debajo. La categoría se elige de la lista; «Escribir una nueva…» para la que no está.",
-      "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",
-      "Productos → En la carta: qué platos ofrece el mesero, su precio con su día (un solo sitio para el precio) y dónde se prepara.",
-      "Dónde se prepara cada producto (en su ficha, en «Alta en lote», en la carta o con varios elegidos): Cocina, Barra o Sin papel. Sin elegir, lo preparado va a cocina, lo de nevera a barra y un servicio sin papel.",
-      "Entradas de mercancía: una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay). Cada fila dice la categoría y la presentación del producto, y «Ver o editar su ficha» la abre encima sin perder la lista.",
-      "Una entrada mal cargada (una compra, una reposición o el inventario inicial): «Anular», con el motivo y el PIN de administración. Cada línea sale a su costo de esa entrada y el costo promedio se recalcula; queda tachada, con quién y por qué. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.",
-      "La lista abre con las vigentes de este mes. Arriba, «Vigentes», «Anuladas» o «Todas» (con cuántas hay) y el periodo: hoy, esta semana, este mes, el anterior o entre dos fechas; abajo, las páginas. Las anuladas no se borran: se ocultan, y en «Anuladas» se ven con quién y por qué.",
-      "Salidas y conteo: merma, consumo interno, regalo o devolución, con motivo; el conteo deja la existencia igual a lo contado.",
+      "Productos: el catálogo, su existencia y la carta del mesero. Entradas de mercancía: lo que llega. Salidas y conteo: lo que sale sin venderse y el conteo físico.",
+      "Nada se borra: un producto creado por error se retira (y se devuelve al catálogo); una entrada mal cargada se anula con su motivo.",
     ],
     problemas: [
       {
@@ -762,10 +792,91 @@ export const MANUAL: readonly EntradaDelManual[] = [
           "Se dio de alta sin cantidades y todavía no se contó: no se vende hasta entonces. Cuéntalo en Entradas → Inventario inicial (escribe 0 si no hay ninguno) o en un conteo.",
         reconoce: ["sin inventario inicial", "sin contar", "inventario inicial"],
       },
+    ],
+  },
+  {
+    id: "productos",
+    ruta: "/panel/inventario/productos",
+    titulo: "Productos",
+    roles: DIRECCION,
+    proposito: "Lo que la caja vende en el mostrador o añade a una cuenta: categoría, IVA y precio con su día, su existencia, su mínimo y su costo promedio.",
+    pasos: [
+      "La existencia de cada uno, su mínimo y su costo promedio. «Alta en lote» carga el catálogo en una hoja, sin cantidades.",
+      "«Nuevo producto» pregunta «¿Cuántos hay?» (opcional): con un número, también 0, nace contado y se vende al momento; en blanco nace «Sin contar» y se cuenta con una entrada o un conteo. Lo da de alta administración o supervisión; cambiar el precio de uno ya creado es de administración.",
+      "Tres vistas a la derecha (Tarjetas, Lista y Compacta): la Lista es la tabla, donde se eligen productos para editarlos en lote; cada persona elige la suya y se recuerda en este equipo. El estado del stock va en chips con su cuenta (Agotados, Bajo mínimo…), y sin una categoría elegida, las tarjetas y la compacta se agrupan por categoría con su nombre arriba.",
+      "«Editar» en cada fila abre su ficha: los datos arriba (nombre, categoría, presentación), el precio debajo. La categoría se elige de la lista; «Escribir una nueva…» para la que no está.",
+      "Uno creado por error (también en la carga inicial): en su ficha, «Retirar». Sale de la caja, la carta, la tablet y las listas de carga; si le queda existencia, se elige cómo sale. Lo autoriza administración con su PIN. Nada se borra: «Retirados» los muestra y, en su ficha, «Devolver al catálogo».",
+      "Dónde se prepara cada producto (en su ficha, en «Alta en lote», en la carta o con varios elegidos): Cocina, Barra o Sin papel. Sin elegir, lo preparado va a cocina, lo de nevera a barra y un servicio sin papel.",
+      "La pestaña «En la carta»: qué platos ofrece el mesero.",
+    ],
+    problemas: [
+      {
+        sintoma: "Un producto sale «Agotado» en la caja",
+        solucion: "Sin existencia no se vende. Carga su entrada de mercancía.",
+        reconoce: ["agotado", "no queda"],
+      },
+      {
+        sintoma: "Un producto sale «Sin contar» o «Sin inventario inicial»",
+        solucion:
+          "Se dio de alta sin cantidades y todavía no se contó: no se vende hasta entonces. Cuéntalo en Entradas → Inventario inicial (escribe 0 si no hay ninguno) o en un conteo.",
+        reconoce: ["sin inventario inicial", "sin contar", "inventario inicial"],
+      },
+    ],
+  },
+  {
+    id: "carta",
+    ruta: "/panel/inventario/productos?pestana=carta",
+    titulo: "En la carta",
+    roles: ["ADMIN"],
+    proposito: "Qué platos ofrece el mesero en la tablet, su precio con su día (un solo sitio para el precio) y dónde se prepara.",
+    pasos: [
+      "Cada plato de la carta con su precio y su categoría; lo que no está en la carta no lo ve el mesero (la caja lo sigue vendiendo).",
+      "Dónde se prepara: Cocina, Barra o Sin papel. La comanda de cada área sale en su impresora.",
+      "Un precio nuevo rige desde su día: lo ya vendido no cambia.",
+      "En la tablet, la carta abre en «Lo más pedido hoy»: los 8 platos más pedidos del día (temprano, los de la semana), solos.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "entradas",
+    ruta: "/panel/inventario/entradas",
+    titulo: "Entradas de mercancía",
+    roles: DIRECCION,
+    proposito: "Lo que llega, por compra o reposición: bultos de tantas unidades a tanto el bulto. Sube la existencia y da el costo promedio de cada producto.",
+    pasos: [
+      "Una tabla; se puede pegar desde Excel. «Inventario inicial» trae los que faltan por contar (0 si no hay). Cada fila dice la categoría y la presentación del producto, y «Ver o editar su ficha» la abre encima sin perder la lista.",
+      "Una entrada mal cargada (una compra, una reposición o el inventario inicial): «Anular», con el motivo y el PIN de administración. Cada línea sale a su costo de esa entrada y el costo promedio se recalcula; queda tachada, con quién y por qué. «Cargarla de nuevo» abre una entrada con sus líneas para corregirlas.",
+      "La lista abre con las vigentes de este mes. Arriba, «Vigentes», «Anuladas» o «Todas» (con cuántas hay) y el periodo: hoy, esta semana, este mes, el anterior o entre dos fechas; abajo, las páginas. Las anuladas no se borran: se ocultan, y en «Anuladas» se ven con quién y por qué.",
+    ],
+    problemas: [
       {
         sintoma: "«Ya salieron N desde esta entrada» al anularla",
         solucion: "De ese producto ya se vendió o se sacó algo después de la entrada: no se sabe qué parte era suya. Corrige la existencia con un conteo en Salidas y conteo.",
         reconoce: ["desde esta entrada", "no se sabe que parte era suya"],
+      },
+    ],
+  },
+  {
+    id: "salidas",
+    ruta: "/panel/inventario/salidas",
+    titulo: "Salidas y conteo",
+    roles: DIRECCION,
+    proposito: "Lo que sale sin venderse (merma, consumo interno, regalo o devolución al proveedor), con su motivo y su autorización, y el conteo físico.",
+    pasos: [
+      "Una salida lleva su motivo; según lo que sale, la autorización de supervisión o administración.",
+      "El conteo deja la existencia igual a lo contado: la hoja de conteo se imprime para contar a mano, y el informe de diferencias dice lo que no cuadró.",
+    ],
+    problemas: [
+      {
+        sintoma: "Un producto sale «Agotado» en la caja",
+        solucion: "Sin existencia no se vende. Carga su entrada de mercancía.",
+        reconoce: ["agotado", "no queda"],
+      },
+      {
+        sintoma: "Un producto sale «Sin contar» o «Sin inventario inicial»",
+        solucion:
+          "Se dio de alta sin cantidades y todavía no se contó: no se vende hasta entonces. Cuéntalo en Entradas → Inventario inicial (escribe 0 si no hay ninguno) o en un conteo.",
+        reconoce: ["sin inventario inicial", "sin contar", "inventario inicial"],
       },
     ],
   },
@@ -779,14 +890,128 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Cada sección tiene arriba sus cifras, y el alta y la edición se hacen en una hoja lateral.",
       "Las que reúnen varias cosas las ponen en pestañas: Personas y equipos (usuarios, roles y dispositivos), Tasas (y feriados) y Sistema (versión, respaldos y semilla).",
-      "Sistema → Respaldos: si se hizo el de anoche, si la PC del local ya lo bajó y el ensayo de la semana. «Respaldar ahora» (con tu identidad confirmada) pide uno al momento: el servidor lo hace en el minuto siguiente y ahí mismo dice si se hizo o por qué no. Hecho, quita el aviso de «no se hizo el respaldo de anoche».",
       "Lo que cambia precios o personas pide confirmar tu identidad (vale 15 minutos).",
-      "Sucursal → «Al sentar a un cliente en una mesa»: «Más seguro» (de fábrica: nombre y cédula antes del primer pedido) o «Más rápido» (el nombre; la cédula antes del segundo pedido y antes de cobrar; si se van después del primer pedido, la deuda queda con el nombre). El teléfono: «Siempre» o «Solo si queda una deuda» (al sentar es opcional; una venta que queda pendiente lo pide). En los dos, el que ya vino se llena solo. Cambia en todas las tablets al publicar.",
-      "Sucursal → «Hora de cierre del local» (10:00 pm de fábrica): desde ahí y hasta que el día termina, Inicio y la caja avisan si la caja sigue abierta. Si el horario declara el cierre de un día, manda el horario.",
-      "Sucursal → «El día termina» (4:00 am de fábrica, de las 12:00 am a las 10:00 am): lo cobrado antes sigue siendo del día que se trabaja; desde esa hora, la caja que siga abierta pide cerrarse. Como la zona horaria, se cambia sin turnos abiertos.",
+      "Tarifas y plano se editan en borrador: nada cambia hasta «Publicar», y entonces cambia en todas las pantallas a la vez.",
       "Nada se borra: un precio nuevo rige desde su día; lo que ya no se usa se retira.",
     ],
     problemas: GENERALES,
+  },
+  {
+    id: "tarifas",
+    ruta: "/panel/ajustes/tarifas",
+    titulo: "Tarifas y paquetes",
+    roles: ["ADMIN"],
+    proposito: "Los paquetes por tiempo del parque (nombre, duración y precio), los minutos de gracia, el aviso antes de vencer y el aforo.",
+    pasos: [
+      "Cada paquete: su nombre, su tipo de tiempo y su precio en dólares. El pase libre y el tiempo abierto no tienen minutos que sumar.",
+      "El precio que se cobra al salir es la combinación más barata de los paquetes que cubre el tiempo real menos la gracia; el tiempo de más va en bloques del paquete más chico.",
+      "Lo que cambies es un borrador (con «Deshacer» y «Rehacer»): la entrada lo usa cuando publiques. Quien ya está dentro sigue con el paquete con que entró.",
+      "Un paquete que ya no se vende se retira; «Retirados» los muestra. Cada publicación queda como versión.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "cumpleanos",
+    ruta: "/panel/ajustes/cumpleanos",
+    titulo: "Paquetes de cumpleaños",
+    roles: ["ADMIN"],
+    proposito: "Los paquetes de cumpleaños (precio, invitados y lo que incluyen) y el anticipo que se cobra al reservar.",
+    pasos: [
+      "Cada paquete: su nombre, su precio, el mínimo y el máximo de invitados (nunca por encima del aforo) y lo que incluye (productos del catálogo: la torta, las bebidas…).",
+      "«Exclusivo»: el parque es solo para ese cumpleaños en su horario.",
+      "«Anticipo al reservar»: el porcentaje del paquete que se cobra en la caja al reservar (50 % de fábrica); el saldo queda para el día.",
+      "Un paquete que ya no se ofrece se retira; las reservas hechas con él siguen igual.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "plano",
+    ruta: "/panel/ajustes/plano",
+    titulo: "Plano del local",
+    roles: ["ADMIN"],
+    proposito: "Dónde está cada mesa, su número, su zona y sus sillas, y lo que hay en el salón. El mesero lo ve al publicar.",
+    pasos: [
+      "Cada mesa con su número, su zona, sus sillas, su forma y su tamaño y su posición (en centímetros); las medidas del local, y la estructura (paredes, la barra) si ayuda a ubicarse.",
+      "Lo que cambies es un borrador (con «Deshacer» y «Rehacer»): el salón lo ve cuando publiques.",
+      "Una mesa que ya no está se retira; las cuentas de antes la siguen nombrando.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "medios",
+    ruta: "/panel/ajustes/medios",
+    titulo: "Medios de pago",
+    roles: ["ADMIN"],
+    proposito: "Qué se puede cobrar y con qué datos: los medios encendidos, las terminales del punto de venta, y el banco, el teléfono y el correo que la caja le enseña al cliente.",
+    pasos: [
+      "Cada medio se enciende o se apaga; uno no se borra (los cobros ya hechos lo citan).",
+      "Pago Móvil: el banco, el teléfono y la cédula o RIF que la caja le enseña al cliente; Zelle: su titular y su correo; USDT: lo que se anota (el TxID). Sin sus datos, la caja no ofrece ese medio.",
+      "«Añadir terminal»: cada punto de venta, para anotar con qué terminal se cobró y su referencia.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "descuentos",
+    ruta: "/panel/ajustes/descuentos",
+    titulo: "Descuentos",
+    roles: ["ADMIN"],
+    proposito: "Los descuentos que la caja puede aplicar (por medio de pago, VIP y manuales), con su alcance y su vigencia, y el tope de supervisión.",
+    pasos: [
+      "«Nuevo descuento»: su tipo, cuánto (porcentaje o monto), sobre qué (toda la cuenta o unas categorías) y desde y hasta cuándo. Los vigentes, los programados y los vencidos, aparte.",
+      "VIP: el descuento de una familia; se le pone en Clientes, en su ficha. «Familias VIP» dice cuántas lo tienen.",
+      "«Tope de supervisión» (20 % de la cuenta, de fábrica): hasta ahí lo autoriza supervisión; más, administración.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "tasas",
+    ruta: "/panel/ajustes/tasas",
+    titulo: "Tasas de cambio",
+    roles: ["ADMIN"],
+    proposito: "La tasa del BCV se aplica sola: aquí se ve su historial (USD/VES y USDT/VES), se confirma la que quedó retenida y se carga a mano si la fuente falla.",
+    pasos: [
+      "Arriba, la de hoy de cada par y la próxima. «Por confirmar»: la que se capturó pero quedó retenida (un salto fuera de lo normal): se confirma, con quién autoriza.",
+      "Si la fuente falla, se carga a mano, con quién la autoriza. Sin tasa vigente, la caja no cobra en bolívares.",
+      "La pestaña «Feriados bancarios»: los días sin tasa nueva del BCV.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "feriados",
+    ruta: "/panel/ajustes/tasas?pestana=feriados",
+    titulo: "Feriados bancarios",
+    roles: ["ADMIN"],
+    proposito: "Los feriados bancarios de cada año: en esos días rige la tasa del día hábil anterior.",
+    pasos: ["«Registrar un feriado»: su nombre y su fecha. Un feriado que no aplica se retira."],
+    problemas: [],
+  },
+  {
+    id: "impuestos",
+    ruta: "/panel/ajustes/impuestos",
+    titulo: "Impuestos",
+    roles: ["ADMIN"],
+    proposito: "Los tipos de IVA con su vigencia y el porcentaje de IGTF. Se versionan por fecha: un cambio no reescribe el pasado.",
+    pasos: [
+      "«Lo que rige ahora» y el calendario: cada alícuota con desde cuándo.",
+      "«Programar un cambio»: la alícuota nueva y su fecha; rige sola desde ese día. Pide confirmar tu identidad: mueve lo que cobra el negocio.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "sucursal",
+    ruta: "/panel/ajustes/sucursal",
+    titulo: "Sucursal",
+    roles: ["ADMIN"],
+    proposito: "Los datos del local, su horario y cómo opera: el formato de hora, el día de negocio, cómo se sienta a un cliente, los avisos del salón y la caja.",
+    pasos: [
+      "Los datos fiscales, la dirección, el teléfono y el horario de cada día (pueden faltar: no bloquean nada). Al publicar, todas las pantallas cambian a la vez.",
+      "«Al sentar a un cliente en una mesa»: «Más seguro» (de fábrica: nombre y cédula antes del primer pedido) o «Más rápido» (el nombre; la cédula antes del segundo pedido y antes de cobrar; si se van después del primer pedido, la deuda queda con el nombre). El teléfono: «Siempre» o «Solo si queda una deuda» (al sentar es opcional; una venta que queda pendiente lo pide). En los dos, el que ya vino se llena solo.",
+      "«Hora de cierre del local» (10:00 pm de fábrica): desde ahí y hasta que el día termina, Inicio y la caja avisan si la caja sigue abierta. Si el horario declara el cierre de un día, manda el horario.",
+      "«El día termina» (4:00 am de fábrica, de las 12:00 am a las 10:00 am): lo cobrado antes sigue siendo del día que se trabaja; desde esa hora, la caja que siga abierta pide cerrarse. Como la zona horaria, se cambia sin turnos abiertos.",
+      "Los avisos del salón: los minutos sin pedir, esperando el pedido, pidiendo la cuenta, por limpiar y sin pedir la cuenta, y «¿Ya se sirvió todo? (min)»: al pedir la cuenta, pregunta solo por los platos de más de esos minutos.",
+      "La caja: lo que puede quedarse de vuelto, el tope de «Mover efectivo» sin supervisión, si los precios llevan el IVA dentro y con qué arranca «Imprimir recibo». El parque: la serie de las pulseras y el producto de medias.",
+    ],
+    problemas: [],
   },
   {
     id: "impresoras",
@@ -878,17 +1103,28 @@ export const MANUAL: readonly EntradaDelManual[] = [
     titulo: "Reportes",
     roles: DIRECCION,
     proposito:
-      "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas de un día o de un rango, el inventario al momento, los movimientos de inventario (el kárdex), las deudas de clientes, el parque y el consumo del personal, cada uno con su PDF.",
+      "Lo que pasó en un periodo, de solo lectura y sacado de los asientos: las ventas, el inventario al momento, los movimientos (y el kárdex), las deudas de clientes, el parque y el consumo del personal, cada uno con su PDF.",
     pasos: [
-      "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días y, si quieres, una cajera.",
-      "Ventas: arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección. Por turno marca el que se abrió fuera del punto de cobro, con quién lo autorizó.",
-      "Inventario al momento: lo que hay a esta hora y lo que vale al costo; las cifras filtran lo agotado, lo bajo mínimo y lo sin contar.",
-      "Movimientos: todo lo que pasó en el periodo (cobros, devoluciones, anulaciones, turnos; entradas, salidas y recargas del parque; sentar, pedidos y cierres de mesas; inventario y personal), con quién y cuándo, los más nuevos primero. Busca por orden, cliente, cédula, pulsera, persona o monto, o elige una parte del local; toca lo que pasó para ver su detalle (una venta, entera: sus líneas, sus pagos, la tasa y quién cobró). Se ven los 50 más nuevos y «Cargar más» trae los siguientes; en Tarjetas o Compacta, agrupados por día. «Kárdex de inventario»: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con su saldo.",
-      "Deudas: lo que quedó en deuda, lo recuperado y lo perdido; por mesero (quien sentó al cliente) y por quien autorizó. Toca el número de orden para ver su historia, de la mesa al desenlace; el PDF lleva la de todas, con la cédula y el teléfono del cliente.",
-      "Parque abre en «De un vistazo»: arriba los niños, el dinero del parque, el promedio por niño, la estancia y el pico, cada uno con su diferencia contra el periodo anterior (hasta una semana, la semana anterior; un mes, el mes anterior; lo dice el renglón del periodo). Debajo, cuándo viene la gente (por hora, y un mapa de día de la semana por hora: más intenso, más niños), de dónde sale el dinero (en una barra; lo pagado en mesas y lo regalado, aparte), qué se vende (cada paquete con su parte) y cuántas excepciones hay, con «Ver el detalle». El PDF lleva lo mismo.",
-      "En las pestañas de Parque, el detalle: los niños por día y por hora de entrada con el aforo pico; el dinero del tiempo (paquetes, recargas y tiempo de más, y cuánto de eso se pagó en mesas, con lo regalado aparte); las estancias (tiempo promedio sin las pausas por comida, salidas antes de tiempo, cobradas por uso) y las excepciones (sin pulsera, a revisar, recogidos por otra persona, medias).",
-      "Personal: lo que consumió cada persona del equipo en la quincena (esta o la anterior) y cada vale, sin lo anulado ni lo devuelto. Es para descontarlo del sueldo, fuera del sistema.",
+      "Elige el periodo (hoy, ayer, esta semana, este mes o el anterior) o un rango de hasta 93 días.",
       "«PDF» abre la hoja para imprimir: en el diálogo del navegador, elige la impresora o «Guardar como PDF».",
+    ],
+    problemas: [
+      {
+        sintoma: "«Hasta 93 días: parte el periodo»",
+        solucion: "Un informe cabe en un trimestre. Pide el periodo en dos o más partes.",
+        reconoce: ["93 dias", "parte el periodo"],
+      },
+    ],
+  },
+  {
+    id: "reporte-ventas",
+    ruta: "/panel/reportes/ventas",
+    titulo: "Reportes · Ventas",
+    roles: DIRECCION,
+    proposito: "Lo vendido y lo cobrado de un día o de un rango: por medio de pago y moneda, por origen y por cajera y turno, con lo anulado aparte. Cuadra con los cierres Z.",
+    pasos: [
+      "Elige el periodo y, si quieres, una cajera. Arriba, lo vendido, lo cobrado en dólares con la tasa de cada cobro, lo anulado y los cierres Z; debajo, una pestaña por sección.",
+      "Por turno marca el que se abrió fuera del punto de cobro, con quién lo autorizó.",
     ],
     problemas: [
       {
@@ -897,12 +1133,109 @@ export const MANUAL: readonly EntradaDelManual[] = [
           "Lo que hoy dicen los asientos de ese turno no es lo que dejó escrito su cierre Z; debajo dice qué no cuadra. Repórtalo desde la ayuda con el día y el punto.",
         reconoce: ["no cuadra"],
       },
+    ],
+  },
+  {
+    id: "reporte-inventario",
+    ruta: "/panel/reportes/inventario",
+    titulo: "Reportes · Inventario al momento",
+    roles: DIRECCION,
+    proposito: "Lo que hay a esta hora y lo que vale al costo, por categoría y producto.",
+    pasos: ["Las cifras de arriba filtran lo agotado, lo bajo mínimo y lo sin contar."],
+    problemas: [],
+  },
+  {
+    id: "reporte-movimientos",
+    ruta: "/panel/reportes/movimientos",
+    titulo: "Reportes · Movimientos",
+    roles: DIRECCION,
+    proposito: "Todo lo que pasó en el periodo (caja, parque, mesas, inventario y personal), con su búsqueda y el detalle de cada fila; y el kárdex de un producto o una categoría.",
+    pasos: [
+      "Cobros, devoluciones, anulaciones y turnos; entradas, salidas y recargas del parque; sentar, pedidos y cierres de mesas; inventario y personal: con quién y cuándo, los más nuevos primero.",
+      "Busca por orden, cliente, cédula, pulsera, persona o monto, o elige una parte del local; toca lo que pasó para ver su detalle (una venta, entera: sus líneas, sus pagos, la tasa y quién cobró). Se ven los 50 más nuevos y «Cargar más» trae los siguientes; en Tarjetas o Compacta, agrupados por día.",
+      "«Kárdex de inventario»: elige un producto o una categoría; cada entrada, venta, salida y conteo sale con su saldo.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "reporte-deudas",
+    ruta: "/panel/reportes/deudas",
+    titulo: "Reportes · Deudas",
+    roles: DIRECCION,
+    proposito: "Quien se fue sin pagar: lo que quedó en deuda, lo recuperado y lo perdido, por mesero (quien sentó al cliente) y por quien autorizó.",
+    pasos: ["Toca el número de orden para ver su historia, de la mesa al desenlace; el PDF lleva la de todas, con la cédula y el teléfono del cliente."],
+    problemas: [],
+  },
+  {
+    id: "reporte-parque",
+    ruta: "/panel/reportes/parque",
+    titulo: "Reportes · Parque",
+    roles: DIRECCION,
+    proposito: "El parque de un periodo, de un vistazo: cuándo viene la gente, qué se vende, de dónde sale el dinero y qué cambió contra el periodo anterior.",
+    pasos: [
+      "Abre en «De un vistazo»: arriba los niños, el dinero del parque, el promedio por niño, la estancia y el pico, cada uno con su diferencia contra el periodo anterior (hasta una semana, la semana anterior; un mes, el mes anterior; lo dice el renglón del periodo).",
+      "Debajo, cuándo viene la gente (por hora, y un mapa de día de la semana por hora: más intenso, más niños), de dónde sale el dinero (en una barra; lo pagado en mesas y lo regalado, aparte), qué se vende (cada paquete con su parte) y cuántas excepciones hay, con «Ver el detalle».",
+      "En las pestañas, el detalle: los niños por día y por hora de entrada con el aforo pico; el dinero del tiempo (paquetes, recargas y tiempo de más, y cuánto de eso se pagó en mesas, con lo regalado aparte); las estancias (tiempo promedio sin las pausas por comida, salidas antes de tiempo, cobradas por uso) y las excepciones (sin pulsera, a revisar, recogidos por otra persona, medias).",
+      "El PDF lleva lo mismo. El cierre del día de la monitora, sin montos, es otro: Parque → Cierre del parque.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "reporte-personal",
+    ruta: "/panel/reportes/personal",
+    titulo: "Reportes · Personal",
+    roles: DIRECCION,
+    proposito: "Lo que consumió cada persona del equipo en la quincena, vale por vale, y sus adelantos en efectivo.",
+    pasos: [
+      "La quincena: esta o la anterior. Cada persona con lo que consumió y cada vale, sin lo anulado ni lo devuelto, y si ya se marcó «Descontado» (cuándo y quién).",
+      "Es para descontarlo del sueldo, fuera del sistema.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "sistema",
+    ruta: "/panel/ajustes/sistema",
+    titulo: "Versión y actualizaciones",
+    roles: ["ADMIN"],
+    proposito: "La versión en marcha y las nuevas: ponerla ahora o al cierre, con sus novedades.",
+    pasos: [
+      "«En marcha»: la versión de ahora. «Disponible»: la nueva, con sus novedades. Se pide ponerla ahora o al cierre del día; «Actualización pedida» dice la que espera.",
+      "Mientras se actualiza, la app se corta un minuto; lo que se estaba haciendo se vuelve a intentar.",
+    ],
+    problemas: [],
+  },
+  {
+    id: "respaldos",
+    ruta: "/panel/ajustes/sistema?pestana=respaldos",
+    titulo: "Respaldos",
+    roles: ["ADMIN"],
+    proposito: "El respaldo de cada noche, si la PC del local ya lo bajó y el ensayo de restauración de la semana.",
+    pasos: [
+      "«Último respaldo»: si se hizo el de anoche; «Fuera del servidor»: si la PC del local ya lo bajó y su huella cuadró. La PC se prepara (o se cambia, «Cambiar de PC») desde aquí: da una orden para pegar en PowerShell de esa PC y una credencial.",
+      "«Respaldar ahora» (con tu identidad confirmada) pide uno al momento: el servidor lo hace en el minuto siguiente y ahí mismo dice si se hizo o por qué no. Hecho, quita el aviso de «no se hizo el respaldo de anoche».",
+      "«Fijar este respaldo»: con su nombre, nada lo borra (los demás se van retirando solos). «Ensayo de restauración»: cada semana el servidor restaura uno en una base de usar y tirar y dice si salió íntegro.",
+      "Si la PC no baja los respaldos, Inicio y el turno (al abrirlo y al cerrarlo) lo avisan a administración y supervisión, con cómo se arregla.",
+    ],
+    problemas: [
       {
-        sintoma: "«Hasta 93 días: parte el periodo»",
-        solucion: "Un informe cabe en un trimestre. Pide el periodo en dos o más partes.",
-        reconoce: ["93 dias", "parte el periodo"],
+        sintoma: "«La PC … no baja los respaldos desde el …»",
+        solucion:
+          "Enciende esa PC y entra con el usuario de Windows que la preparó; en el menú Inicio, «Programador de tareas», busca «L2 Control - Respaldos», botón derecho y «Ejecutar». Si falla, prepárala otra vez aquí, «Cambiar de PC». El aviso se quita solo cuando baja el de anoche.",
+        reconoce: ["no baja los respaldos", "respaldo sin bajar"],
       },
     ],
+  },
+  {
+    id: "semilla",
+    ruta: "/panel/ajustes/sistema?pestana=semilla",
+    titulo: "Semilla del local",
+    roles: ["ADMIN"],
+    proposito: "Llevar la configuración de un local a otro en un archivo: los ajustes de la sucursal, los impuestos, los medios, las tarifas, las categorías, la carta y los productos, los descuentos, el plano, los cumpleaños y las impresoras. Sin ventas ni clientes.",
+    pasos: [
+      "«Descargar la de este local»: marca lo que lleva y «Descargar lo marcado».",
+      "«Cargar una semilla»: elige el archivo; dice qué trae y qué ya está, y «Cargar lo marcado» suma lo elegido.",
+    ],
+    problemas: [],
   },
   {
     id: "atencion",
@@ -949,12 +1282,19 @@ export const MANUAL: readonly EntradaDelManual[] = [
 
 const sinAcentos = (s: string) => s.normalize("NFD").replace(/\p{Diacritic}/gu, "").toLowerCase();
 
-/** La entrada del manual de una ruta: la de ruta más larga que la contenga. */
+/**
+ * La entrada del manual de una ruta (con su búsqueda, «?pestana=…», si la tiene): la de ruta más larga que la contenga. Una
+ * entrada que pide una pestaña o una vista vale solo con ella (T-26); la de la sección vale para su primera pestaña.
+ */
 export function entradaDe(ruta: string): EntradaDelManual | null {
+  const [camino = "", busqueda = ""] = ruta.split("?");
+  const params = new URLSearchParams(busqueda);
   let mejor: EntradaDelManual | null = null;
   for (const e of MANUAL) {
-    const coincide = ruta === e.ruta || ruta.startsWith(`${e.ruta}/`);
-    if (coincide && (!mejor || e.ruta.length > mejor.ruta.length)) mejor = e;
+    const [suCamino = "", suBusqueda] = e.ruta.split("?");
+    const enCamino = camino === suCamino || camino.startsWith(`${suCamino}/`);
+    const enVista = !suBusqueda || [...new URLSearchParams(suBusqueda)].every(([k, v]) => params.get(k) === v);
+    if (enCamino && enVista && (!mejor || e.ruta.length > mejor.ruta.length)) mejor = e;
   }
   return mejor;
 }

@@ -41,7 +41,10 @@ export function Recorrido({
   abierto,
   onTerminar,
   etiqueta = "Recorrido",
+  antes,
 }: {
+  /** Lo que se dice antes del número del paso («Lo nuevo»): a quien ya vio el recorrido, solo lo que cambió. */
+  antes?: string | undefined;
   pasos: readonly PasoDeRecorrido[];
   abierto: boolean;
   /** Al terminar o al saltarlo: `completo` dice si llegó al último paso. */
@@ -175,7 +178,7 @@ export function Recorrido({
         <div className="flex items-start justify-between gap-3">
           <div className="min-w-0">
             <p className="tnum text-[11px] font-semibold tracking-[0.08em] text-ink-3 uppercase">
-              Paso {i + 1} de {presentes.length}
+              {antes ? `${antes} · ` : ""}Paso {i + 1} de {presentes.length}
             </p>
             <h2 className="font-display mt-1 text-[17px] leading-tight font-bold text-ink">{paso.titulo}</h2>
           </div>
