@@ -2163,7 +2163,8 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   laptop de 1366 px toda acción de la cuenta se lee con su texto y dos medios se cobran en cuatro toques.
   *B3-29: `MenuDeAcciones` en `@l2/ui` (el «Más» con cada acción y su texto; se cierra al elegir, al tocar fuera o con Esc; flechas), que usarán también la tablet (B6-23). `exactoEn` generaliza el monto exacto de «+» y lo usa «El resto en …» (sin efectivo: se cuenta). `pedidos.enviar` deja en la cola la cuenta que se está cobrando (con borrador) y no lo descarta (`sumadoAlCobroEnCurso` en el asiento); sin borrador, B6-18 como antes. La caja marca «Nuevo» lo que llegó con su pedido desde que abrió el cobro. `NumericKeypad` acepta su texto con pista. `cuentas.test-db.ts` (1 nueva; la de B6-18 ya no descarta lo tecleado). Visto en el navegador a 1366 px en los dos temas: «Más», «El resto en …» y el pedido que llega mientras se cobra.*
 
-- [ ] **B3-30 · «Pedir anulación»** (M-40). Antes de la 1.0.0.
+- [~] **B3-30 · «Pedir anulación»** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b3-30`.*
   → Sin administración en el local, la cajera pide la anulación de un cobro con su motivo; la venta queda marcada
   «Anulación pedida» y la caja sigue. Administración la aprueba (con su PIN) o la rechaza desde «Por aprobar», en Inicio
   y en su teléfono, en vivo. La Z no se hace con una pedida sin resolver. `cobro.anular` sigue siendo de
