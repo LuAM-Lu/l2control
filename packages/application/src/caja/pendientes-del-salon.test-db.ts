@@ -92,4 +92,19 @@ describe("lo que el cierre dice de cada cuenta pendiente (v0.143.1)", () => {
     );
     assert.equal(cobro.cuenta.status, "COBRADA");
   });
+
+  test("B3-27: la caja lee la cuenta de pie abierta con quién la abrió; guardarla no lo cambia", async () => {
+    const dePie = await sentarDePrueba(l, mesera, undefined, AHORA + 20 * MIN, { nombre: "Pedro" });
+    const { cuenta } = valor(
+      await l.app.pedidos.enviar(mesera, { pedidoId: randomUUID(), cuentaId: dePie.id, lineas: [{ productId: refresco, cantidad: 1, precioMinor: "150" }], repetir: true }, AHORA + 21 * MIN),
+    );
+    assert.equal(cuenta.abiertaPor, "Emily Prueba", "la devuelve el pedido");
+    const enLaCaja = valor(await l.app.cuentas.leer(cajera, AHORA + 22 * MIN)).cuentas.find((c) => c.id === dePie.id)!;
+    assert.deepEqual([enLaCaja.status, enLaCaja.abiertaPor], ["ABIERTA", "Emily Prueba"]);
+    // Lo que mande una pantalla como «abierta por» no se guarda: lo dice la fila de la cuenta.
+    const enCola = valor(await l.app.cuentas.guardar(cajera, { cuenta: { ...enLaCaja, status: "POR_COBRAR", abiertaPor: "Otra Persona" } }, AHORA + 23 * MIN));
+    assert.equal(enCola.abiertaPor, "Emily Prueba");
+    const version = await l.base.conTenant(l.sistema.tenantId, (tx) => tx.accountVersion.findFirstOrThrow({ where: { accountId: dePie.id }, orderBy: { version: "desc" } }));
+    assert.equal((version.content as { abiertaPor?: string }).abiertaPor, undefined, "no viaja en el contenido");
+  });
 });

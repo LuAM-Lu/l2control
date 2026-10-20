@@ -125,6 +125,8 @@ import {
 } from "./ClienteFacturaDialog.tsx";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
 import { CompletarClienteDialog } from "../clientes/CompletarClienteDialog.tsx";
+import { TraerALaCaja } from "./TraerALaCaja.tsx";
+import { abiertasEnElSalon, type AbiertaEnElSalon } from "../mesas/mesas.ts";
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
@@ -2609,6 +2611,32 @@ export function CajaScreen({
     [porCobrar, busqueda, filtro],
   );
   // B4-19: las familias con niños en la sala (fuera de una mesa), con la búsqueda de la cola: «Pagar ahora».
+  // B3-27: las cuentas del salón que no han pedido la cuenta, a la vista de la caja (con la búsqueda y el filtro de la cola).
+  const { pedidos: losPedidos } = usePedidos();
+  const abiertas = useMemo(() => {
+    const todas = abiertasEnElSalon(cuentas, losPedidos, ahoraDelEquipo, ajustes.atencionSinCuentaMin);
+    const visibles = new Set(filtrarCola(todas.map((a) => a.cuenta), busqueda, filtro).map((c) => c.id));
+    return todas.filter((a) => visibles.has(a.cuenta.id));
+  }, [cuentas, losPedidos, ahoraDelEquipo, ajustes.atencionSinCuentaMin, busqueda, filtro]);
+  const [porTraer, setPorTraer] = useState<AbiertaEnElSalon | null>(null);
+  const [trayendo, setTrayendo] = useState(false);
+  /** «Traer a la caja y cobrar» (B3-27): como «Pide la cuenta» en la tablet; la caja la cobra sin pasar por el mesero. */
+  async function traerALaCaja(a: AbiertaEnElSalon) {
+    const lista = pasarACaja(a.cuenta);
+    if (lista.status !== "POR_COBRAR") {
+      setPorTraer(null);
+      avisar.error(`${nombreDeCuenta(a.cuenta)} no tiene nada que cobrar: se libera desde Mesas.`);
+      return;
+    }
+    setTrayendo(true);
+    const r = await guardarEnProvider(lista).catch(() => null);
+    setTrayendo(false);
+    if (!r) return avisar.error("Sin conexión con el servidor: la cuenta no pasó a la caja.");
+    if (!r.ok) return avisar.error(r.mensaje);
+    setPorTraer(null);
+    avisar.info(`${nombreDeCuenta(a.cuenta)} pasó a la cola de la caja`, { detalle: "Como si hubiera pedido la cuenta. Cóbrala aquí." });
+    elegirOtra(a.cuenta.id);
+  }
   const enElParque = useMemo(() => {
     if (filtro !== "TODAS" && filtro !== "PARQUE") return [];
     const enSala = new Set((sala?.sessions ?? []).map((x) => x.id));
@@ -3077,6 +3105,7 @@ export function CajaScreen({
       <h1 className="sr-only">Caja</h1>
       {/* B6-14: el aviso suave de la cuenta del salón que pidió y sigue sin cobrar. */}
       <AvisosDelSalon para="CAJA" porLimpiar={porLimpiarPorId} />
+      <TraerALaCaja abierta={porTraer} ahora={ahoraDelEquipo} trayendo={trayendo} onTraer={() => porTraer && void traerALaCaja(porTraer)} onCerrar={() => setPorTraer(null)} />
       <Container
         as="main"
         ancho="muro"
@@ -3195,6 +3224,8 @@ export function CajaScreen({
           onCobrarJuntas={() => setConfirmandoJuntas(true)}
           enElParque={enElParque}
           onPagarAhora={setPagandoAntes}
+          abiertas={abiertas}
+          onAbierta={setPorTraer}
           onMesaLimpia={(m) =>
             void marcarLimpia(m.tableId).then((r) => (r.ok ? avisar.ok(`Mesa ${m.label} limpia y libre`) : avisar.error(r.mensaje)))
           }

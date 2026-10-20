@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import type { DiningTableDto, FamilyAccountDto, PedidoDto } from "@l2/contracts";
-import { avisosDelSalon, platosSinServir, textoDePlatos } from "./mesas.ts";
+import { abiertasEnElSalon, avisosDelSalon, platosSinServir, textoDePlatos } from "./mesas.ts";
 import { ninosEnSalaDeLaCuenta } from "../cuentas/cuentas.ts";
 
 /**
@@ -11,7 +11,7 @@ import { ninosEnSalaDeLaCuenta } from "../cuentas/cuentas.ts";
 
 const T0 = Date.parse("2026-10-09T18:00:00.000Z");
 const min = (m: number) => new Date(T0 + m * 60_000).toISOString();
-const UMBRALES = { sinPedirMin: 15, esperaMin: 20, cuentaMin: 10, limpiarMin: 10 };
+const UMBRALES = { sinPedirMin: 15, esperaMin: 20, cuentaMin: 10, limpiarMin: 10, sinCuentaMin: 45 };
 const plano = [{ id: "m3", label: "3" }] as unknown as DiningTableDto[];
 
 function cuenta(c: Partial<FamilyAccountDto> & { id: string }): FamilyAccountDto {
@@ -57,6 +57,27 @@ describe("los avisos del salón (B6-14)", () => {
     // Una cuenta del parque o del mostrador no es del salón: la caja no oye de ella aquí.
     const delParque = cuenta({ id: "c", kind: "FAMILIA", status: "POR_COBRAR", pendingSince: min(0) } as Partial<FamilyAccountDto> & { id: string });
     assert.deepEqual(avisosDelSalon("CAJA", { ...datos, cuentas: [delParque] }, ahora, UMBRALES), []);
+  });
+
+  test("B3-27: la que lleva rato desde su último pedido sin pedir la cuenta avisa al salón y a la caja", () => {
+    const linea: FamilyAccountDto["lines"][number] = { id: "l1", concept: "Jugo natural", kind: "RESTAURANTE", amount: { minor: "250", currency: "USD" }, paid: false, orderId: "p1" };
+    const dePie = cuenta({ id: "d", kind: "MOSTRADOR", dePie: true, tableId: undefined, lines: [linea] } as Partial<FamilyAccountDto> & { id: string });
+    const servido = pedido("p1", "d", min(5), [true]);
+    const datos = { cuentas: [dePie], pedidos: [servido], plano, porLimpiar: new Map<string, string>() };
+    assert.deepEqual(avisosDelSalon("CAJA", datos, T0 + 49 * 60_000, UMBRALES), []);
+    assert.deepEqual(avisosDelSalon("CAJA", datos, T0 + 50 * 60_000, UMBRALES).map((a) => [a.clave, a.texto]), [[`SIN_CUENTA:d:${min(5)}`, "De pie lleva 45 min sin pedir la cuenta"]]);
+    assert.deepEqual(avisosDelSalon("SALON", datos, T0 + 50 * 60_000, UMBRALES).map((a) => a.clave), [`SIN_CUENTA:d:${min(5)}`]);
+    // Al salón, la que espera un plato tiene el aviso de la espera, no este; a la caja, este.
+    const esperando = { ...datos, pedidos: [pedido("p1", "d", min(5), [false])] };
+    assert.deepEqual(avisosDelSalon("SALON", esperando, T0 + 50 * 60_000, UMBRALES).map((a) => a.clave), ["ESPERANDO:p1"]);
+    assert.deepEqual(avisosDelSalon("CAJA", esperando, T0 + 50 * 60_000, UMBRALES).map((a) => a.clave), [`SIN_CUENTA:d:${min(5)}`]);
+    // Ya en la cola, o sin nada que cobrar, no está en «Abiertas en el salón».
+    assert.deepEqual(abiertasEnElSalon([{ ...dePie, status: "POR_COBRAR" }], [servido], T0 + 50 * 60_000, 45), []);
+    assert.deepEqual(abiertasEnElSalon([{ ...dePie, lines: [] }], [], T0 + 50 * 60_000, 45), []);
+    // Las que llevan rato, primero.
+    const reciente = cuenta({ id: "e", openedAt: min(-30), lines: [{ ...linea, id: "l2", orderId: "p2" }] });
+    const orden = abiertasEnElSalon([reciente, dePie], [servido, pedido("p2", "e", min(40), [true])], T0 + 50 * 60_000, 45);
+    assert.deepEqual(orden.map((a) => [a.cuenta.id, a.llevaRato]), [["d", true], ["e", false]]);
   });
 
   test("sin reloj todavía, ningún aviso", () => {

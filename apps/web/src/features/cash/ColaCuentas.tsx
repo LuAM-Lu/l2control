@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Check, Clock, Combine, HandCoins, IdCard, Users, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Check, ChevronDown, ChevronUp, Clock, Combine, HandCoins, IdCard, Users, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { joinProblem, type JoinProblem } from "@l2/domain-cash";
 import { WristbandCodeSchema, type ClienteEncontradoDto, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
@@ -11,6 +11,9 @@ import { PistaTecla } from "./AtajosDialog.tsx";
 import { CumpleanosDeHoy } from "../eventos/CumpleanosDelDia.tsx";
 import { Deuda, cedulaEnmascarada } from "../clientes/CampoDelCliente.tsx";
 import { encontrarClientes } from "../clientes/clientes.acciones";
+import { minutosDesde, type AbiertaEnElSalon } from "../mesas/mesas.ts";
+import { duracion, transcurrido } from "../mesas/tiempo.ts";
+import { useReloj } from "../sucursal/SucursalProvider.tsx";
 
 /**
  * La cola de cuentas por cobrar — DEC-21, UX-MEJORAS §9 (C1, C2, C5).
@@ -153,7 +156,15 @@ export function ColaCuentas({
   onCobrarJuntas,
   enElParque = [],
   onPagarAhora,
+  abiertas = [],
+  onAbierta,
 }: {
+  /**
+   * B3-27: las cuentas del salón que no han pedido la cuenta y tienen algo que cobrar, con quién las abrió y cuánto llevan.
+   * Tocar una la ofrece para traerla a la caja.
+   */
+  abiertas?: readonly AbiertaEnElSalon[];
+  onAbierta?: (a: AbiertaEnElSalon) => void;
   className?: string;
   /** Ya ordenadas y filtradas. */
   cuentas: readonly FamilyAccountDto[];
@@ -230,6 +241,11 @@ export function ColaCuentas({
   // El reloj de la espera. Arranca en 0 para que servidor y navegador pinten
   // lo mismo; la espera aparece tras hidratar y se refresca cada 30 s.
   const [ahora, setAhora] = useState(0);
+  const reloj = useReloj();
+  // B3-27: «Abiertas en el salón» va plegada mientras haya cola (la cola es lo primero); sin cola, abierta.
+  const [verAbiertas, setVerAbiertas] = useState(false);
+  const abiertasALaVista = verAbiertas || total === 0;
+  const llevanRato = abiertas.filter((a) => a.llevaRato).length;
   useEffect(() => {
     setAhora(Date.now());
     const id = window.setInterval(() => setAhora(Date.now()), 30_000);
@@ -639,6 +655,57 @@ export function ColaCuentas({
               <span className="flex shrink-0 items-center gap-1 text-[12px] font-semibold text-brand">
                 <HandCoins size={13} aria-hidden="true" />
                 Pagar ahora
+              </span>
+            </button>
+          ))}
+        </section>
+      )}
+
+      {/* B3-27: las mesas y las cuentas de pie que no han pedido la cuenta. La que lleva rato desde su último pedido, primero. */}
+      {onAbierta && abiertas.length > 0 && !juntando && (
+        <section aria-label="Abiertas en el salón" className={cn("flex shrink-0 flex-col gap-1.5 border-t border-line px-2 py-1.5", abiertasALaVista && "max-h-40 overflow-y-auto")}>
+          <button
+            type="button"
+            aria-expanded={abiertasALaVista}
+            onClick={() => setVerAbiertas(!abiertasALaVista)}
+            title={llevanRato > 0 ? `${llevanRato} ${llevanRato === 1 ? "lleva" : "llevan"} rato sin pedir la cuenta` : "No han pedido la cuenta"}
+            className="flex min-h-9 w-full cursor-pointer items-center gap-1.5 rounded-[var(--radius-control)] px-1 text-left text-detalle font-semibold whitespace-nowrap text-ink-2 hover:text-ink focus-visible:outline-2 focus-visible:outline-brand"
+          >
+            <span className="flex-1">
+              Abiertas en el salón <span className="tnum">{abiertas.length}</span>
+            </span>
+            {llevanRato > 0 && (
+              <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 text-etiqueta text-state-warn">
+                <Clock size={11} aria-hidden="true" />
+                <span className="tnum">{llevanRato}</span>
+                <span className="sr-only">{llevanRato === 1 ? "lleva rato" : "llevan rato"}</span>
+              </span>
+            )}
+            {abiertasALaVista ? <ChevronUp size={14} aria-hidden="true" /> : <ChevronDown size={14} aria-hidden="true" />}
+          </button>
+          {abiertasALaVista && abiertas.map((a) => (
+            <button
+              key={a.cuenta.id}
+              type="button"
+              onClick={() => onAbierta(a)}
+              aria-haspopup="dialog"
+              title={`No ha pedido la cuenta · último pedido hace ${duracion(minutosDesde(a.ultimo, ahora))}`}
+              className="flex min-h-12 w-full cursor-pointer flex-col gap-0.5 rounded-[var(--radius-control)] border border-line bg-surface px-3 py-1.5 text-left hover:border-brand focus-visible:outline-2 focus-visible:outline-brand"
+            >
+              <span className="flex w-full items-center gap-2">
+                <Marquesina className="flex-1 text-[13.5px] font-semibold text-ink">{nombreDeCuenta(a.cuenta)}</Marquesina>
+                <MoneyDisplay value={toMajor(pendiente(a.cuenta))} currency="USD" size="sm" />
+              </span>
+              <span className="flex w-full items-center justify-between gap-2 text-[11.5px] text-ink-3">
+                <span className="tnum truncate">
+                  {a.cuenta.abiertaPor ? `${a.cuenta.abiertaPor} · ` : ""}abierta {transcurrido(a.cuenta.openedAt, ahora, reloj).replace(/^(?!desde )/, "hace ")}
+                </span>
+                {a.llevaRato && (
+                  <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 font-semibold whitespace-nowrap text-state-warn">
+                    <Clock size={11} aria-hidden="true" />
+                    Lleva rato
+                  </span>
+                )}
               </span>
             </button>
           ))}

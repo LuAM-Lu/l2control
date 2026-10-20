@@ -303,6 +303,11 @@ export const FamilyAccountSchema = z
      * propia tabla y lo pone aquí; lo que mande una pantalla al guardar la cuenta se ignora.
      */
     cliente: ClienteDeCuentaSchema.optional(),
+    /**
+     * Quién abrió la cuenta (B3-27, M-40): el mesero que sentó al cliente, la cajera de la venta. La caja lo enseña en
+     * «Abiertas en el salón». Como el cliente, no viaja en el contenido: el servidor lo pone al leerla, desde su fila.
+     */
+    abiertaPor: z.string().trim().min(1).max(120).optional(),
     /** Se juntó en otra para cobrarse con ella (B3-16): lo que debía está en esa cuenta. */
     juntadaEn: z.object({ cuentaId: IdSchema, orderNumber: z.number().int().positive().optional() }).optional(),
     /** La cuenta de una persona al dividir por ítems (B3-20): de qué cuenta salió y qué persona es (de la 2 en adelante). */
