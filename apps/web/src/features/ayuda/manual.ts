@@ -301,6 +301,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["cobrar lo que va es de una mesa", "paga lo que va y sigue en su mesa"],
       },
       {
+        sintoma: "«Este turno tiene una anulación pedida sin resolver»",
+        solucion: "Administración la aprueba o la rechaza en «Por aprobar» (Inicio, también en su teléfono). Aprobada, se hace desde la venta, en Turno, con «Hacer la anulación aprobada». Después, el corte Z.",
+        reconoce: ["anulacion pedida sin resolver", "anulaciones pedidas sin resolver", "todavia no la aprobo"],
+      },
+      {
         sintoma: "«No hay turno abierto» o la caja no cobra",
         solucion: "Abre el turno en Caja → Turno, con el fondo de la gaveta. Todo lo cobrado queda en ese turno.",
         reconoce: ["no hay turno abierto", "la caja no cobra"],
@@ -440,6 +445,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Si un cliente devuelve parte de lo que compró: en Ventas del turno, la venta y «Devolver…» (la de otro día, por su número en «Devolver de otra venta»). Elige cuántas de cada cosa y si vuelven al estante o a merma; el dinero vuelve por su pago, en su moneda (uno electrónico, con la referencia de la devolución), con el descuento y el IVA ya calculados. Lo autoriza administración con su PIN. Sale su comprobante, y el corte lo cuenta.",
       "Un niño que pagó por adelantado y salió antes: en su venta, «Devolver…» y en su paquete «Lo que no usó» (lo pagado menos lo que vale el tiempo que estuvo, calculado solo) o «Entero» si fue un problema del local. La salida del parque ya dice cuánto es. Con el PIN de administración.",
       "«Anular» un cobro (con el PIN de administración y su motivo): «Cobrarla de nuevo» la devuelve a la cola para corregir el medio o el monto; «Anular la venta entera» devuelve el dinero por sus medios, cierra la cuenta con su motivo y lo que tiene inventario vuelve al estante (o a merma, si se elige). Antes del corte Z de su turno.",
+      "Sin administración en el local: «Anular cobro…», el motivo y qué se hace con la cuenta, y «Pedir a administración». La venta queda «Anulación pedida» y la caja sigue. Administración la aprueba (con su PIN) o la rechaza en «Por aprobar», en Inicio, también desde su teléfono. Aprobada, la venta dice «Aprobada: hazla»: «Hacer la anulación aprobada», sin PIN, y devuelve el dinero como diga. Rechazada, dice por qué; se puede pedir otra vez. El corte Z no se hace con una pedida sin resolver.",
     ],
     problemas: [
       {
@@ -630,6 +636,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Las cifras del día y quién está en cada puesto, en vivo.",
       "Los puestos (Caja, Parque y Mesas) se ocupan por uso: quien trabajó en uno hace poco, sea del rol que sea (también supervisión o administración). Si no, «sin actividad desde 2:10 pm», en gris; debajo, a qué hora llegó la primera persona del día. Con la caja abierta, un puesto vigilado que pasa de los minutos sin nadie avisa una vez, y no vuelve a avisar hasta que alguien vuelva. Qué puestos se vigilan y los minutos (15, de fábrica), en Ajustes → Sucursal.",
       "La Puesta a punto dice qué falta configurar; se tacha sola.",
+      "«Por aprobar» (solo administración): lo que la caja pidió anular sin administración en el local, con la venta, quién la cobró, quién la pide, el motivo y qué se hará. «Aprobar» con tu PIN (es la autorización: la caja la hace después, sin PIN) o «Rechazar» con tu motivo. En vivo, también en tu teléfono.",
     ],
     problemas: GENERALES,
   },

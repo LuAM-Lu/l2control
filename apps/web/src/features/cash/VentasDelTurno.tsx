@@ -2,11 +2,11 @@
 
 import { useMemo, useRef, useState } from "react";
 import Link from "next/link";
-import { Ban, FileText, MessageCircle, Printer, ReceiptText, Search, Undo2, X } from "lucide-react";
+import { Ban, FileText, Hourglass, MessageCircle, Printer, ReceiptText, Search, ShieldCheck, Undo2, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import type { Route } from "next";
 import { money, sum, toMajor } from "@l2/domain-money";
-import type { Rechazo, VentaCerradaDto } from "@l2/contracts";
+import type { AnulacionPedidaDto, Rechazo, VentaCerradaDto } from "@l2/contracts";
 import { can } from "@l2/domain-identity";
 import { Button, ChipsDeFiltro, ListaLarga, MoneyDisplay, SelectorDeVista, avisar, cn, formatMoneyVE, useVistaDeLista, type VistaDeLista } from "@l2/ui";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -23,6 +23,25 @@ import { ReciboDialog, ReciboImpreso } from "./ReciboDialog.tsx";
 import { useVentas } from "./VentasProvider.tsx";
 import { EstadoDeImpresion } from "../impresion/ColaProvider.tsx";
 import { nombreDeCuenta } from "../cuentas/cuentas.ts";
+import { usePedidosDeAnulacion } from "../anulaciones/usePedidosDeAnulacion.ts";
+import { pedirAnulacion } from "../anulaciones/anulaciones.acciones";
+
+/** B3-30: lo que se pidió anular y espera, o aprobado y por hacer: con color, icono y texto. */
+function ChipDePedido({ pedido }: { pedido: AnulacionPedidaDto | undefined }) {
+  if (!pedido || (pedido.estado !== "PEDIDA" && pedido.estado !== "APROBADA")) return null;
+  const aprobada = pedido.estado === "APROBADA";
+  return (
+    <span
+      className={cn(
+        "inline-flex shrink-0 items-center gap-1 rounded px-1.5 text-[11px] font-semibold whitespace-nowrap",
+        aprobada ? "bg-state-ok/15 text-state-ok" : "bg-state-warn-bg text-state-warn",
+      )}
+    >
+      {aprobada ? <ShieldCheck size={11} aria-hidden="true" /> : <Hourglass size={11} aria-hidden="true" />}
+      {aprobada ? "Aprobada: hazla" : "Anulación pedida"}
+    </span>
+  );
+}
 
 /** Los medios usados en una venta, sin repetir. */
 const mediosDe = (v: VentaCerradaDto) => [...new Set(v.payments.map((p) => p.label))];
@@ -60,14 +79,30 @@ function filtrar(ventas: readonly VentaCerradaDto[], texto: string, medio: strin
 }
 
 /** Una venta en tarjeta o en un renglón (T-22): su orden, su hora, la cuenta, los medios y el total; anulada, tachada. */
-function VentaEnVista({ v, vista, activa, hora, onElegir }: { v: VentaCerradaDto; vista: VistaDeLista; activa: boolean; hora: (t: number) => string; onElegir: () => void }) {
+function VentaEnVista({
+  v,
+  vista,
+  activa,
+  hora,
+  onElegir,
+  pedido,
+}: {
+  v: VentaCerradaDto;
+  vista: VistaDeLista;
+  activa: boolean;
+  hora: (t: number) => string;
+  onElegir: () => void;
+  pedido?: AnulacionPedidaDto | undefined;
+}) {
   const totalVenta = formatMoneyVE(toMajor(money(BigInt(v.total.minor), "USD")), "USD");
   const estado = v.voided ? (
     <span className="inline-flex shrink-0 items-center gap-1 rounded border border-line-strong px-1.5 text-[11px] font-semibold text-ink-2">
       <Ban size={11} aria-hidden="true" />
       Anulada
     </span>
-  ) : null;
+  ) : (
+    <ChipDePedido pedido={pedido} />
+  );
   if (vista === "COMPACTA") {
     return (
       <button
@@ -114,6 +149,8 @@ export function VentasDelTurno({ className }: { className?: string }) {
   const { ajustes } = useSucursal();
   const { ventas, imprimir: imprimirEnServidor, adoptar } = useVentas();
   const { anular: anularEnServidor } = useCuentas();
+  // B3-30: los pedidos de anulación, en vivo; el de cada venta.
+  const { porVenta, releer: releerPedidos } = usePedidosDeAnulacion();
   /** La clave de la anulación en curso de cada venta: un reintento (un PIN mal tecleado) no anula dos veces. */
   const claves = useRef(new Map<string, string>());
   const router = useRouter();
@@ -145,6 +182,8 @@ export function VentasDelTurno({ className }: { className?: string }) {
   const medios = useMemo(() => [...new Set(ventas.flatMap(mediosDe))], [ventas]);
   const visibles = useMemo(() => filtrar(ventas, texto, medio), [ventas, texto, medio]);
   const actual = visibles.find((v) => v.id === elegida) ?? visibles[0] ?? null;
+  // B3-30: su pedido de anulación, si lo tiene (el aprobado, el que espera o el último rechazado).
+  const pedidoActual = actual && !actual.voided ? porVenta.get(actual.id) : undefined;
   // Lo cobrado no cuenta lo anulado ni lo devuelto (B3-14): ese dinero volvió al cliente.
   const total = useMemo(
     () =>
@@ -159,6 +198,21 @@ export function VentasDelTurno({ className }: { className?: string }) {
   const anuladas = ventas.filter((v) => v.voided).length;
 
   /**
+   * «Pedir a administración» (B3-30): la venta queda «Anulación pedida» y la caja sigue; administración la aprueba desde
+   * Inicio, también en su teléfono.
+   */
+  async function pedirAAdministracion(v: VentaCerradaDto, pedido: Omit<PedidoDeAnulacion, "devoluciones">): Promise<Rechazo | null> {
+    const r = await pedirAnulacion({ idempotencyKey: globalThis.crypto.randomUUID(), accountId: v.accountId, cobroKey: v.cobroKey, ...pedido });
+    if (!r.ok) return r;
+    setAnulando(false);
+    releerPedidos();
+    avisar.ok(`Anulación pedida · orden ${ordenDe(v.orderNumber)}`, {
+      detalle: "Administración la aprueba desde Inicio, también en su teléfono. Aprobada, la haces aquí, sin PIN; mientras tanto, la caja sigue.",
+    });
+    return null;
+  }
+
+  /**
    * Anula el cobro en el servidor (DEC-24, B3-3): él comprueba la autorización, revierte cada
    * asiento del libro y devuelve a la cola lo que pagó. Solo si lo confirma se anota la anulación
    * en la venta, con cómo volvió el dinero de cada pago.
@@ -171,6 +225,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
     claves.current.delete(v.id);
     adoptar(r.valor.venta);
     setAnulando(false);
+    releerPedidos();
     const cuenta = r.valor.cuenta;
     const devoluciones = (r.valor.venta.voided?.refunds ?? [])
       .map((x) => {
@@ -334,7 +389,7 @@ export function VentasDelTurno({ className }: { className?: string }) {
                 // Por la hora en que se cerraron: «De las 9 pm».
                 grupo={(v) => `De las ${hora(Math.floor(Date.parse(v.closedAt) / 3_600_000) * 3_600_000)}`}
                 vacio={null}
-                render={(v, vi) => <VentaEnVista v={v} vista={vi} activa={v.id === actual?.id} hora={hora} onElegir={() => setElegida(v.id)} />}
+                render={(v, vi) => <VentaEnVista v={v} vista={vi} activa={v.id === actual?.id} hora={hora} onElegir={() => setElegida(v.id)} pedido={porVenta.get(v.id)} />}
               />
             </div>
           ) : (
@@ -389,6 +444,8 @@ export function VentasDelTurno({ className }: { className?: string }) {
                               <Ban size={11} aria-hidden="true" />
                               Anulada
                             </span>
+                          ) : porVenta.get(v.id) && ["PEDIDA", "APROBADA"].includes(porVenta.get(v.id)!.estado) ? (
+                            <ChipDePedido pedido={porVenta.get(v.id)} />
                           ) : v.prints.length > 1 && (
                             <span className="tnum ml-2 inline-flex items-center gap-1 text-[11px] whitespace-nowrap text-ink-3" title="Copias impresas">
                               <Printer size={11} aria-hidden="true" />
@@ -525,10 +582,35 @@ export function VentasDelTurno({ className }: { className?: string }) {
                       Devolver…
                     </Button>
                   )}
+                  {/* B3-30: si se pidió anularla, dice cómo va; aprobada, se hace desde aquí sin PIN. */}
+                  {pedidoActual && (
+                    <p
+                      role="status"
+                      className={cn(
+                        "col-span-2 flex items-start gap-1.5 rounded-[var(--radius-control)] px-3 py-2 text-[12.5px]",
+                        pedidoActual.estado === "APROBADA" ? "bg-state-ok/10 text-ink" : pedidoActual.estado === "PEDIDA" ? "bg-state-warn-bg text-ink" : "bg-surface-2 text-ink-2",
+                      )}
+                    >
+                      {pedidoActual.estado === "RECHAZADA" ? <X size={14} className="mt-0.5 shrink-0" aria-hidden="true" /> : pedidoActual.estado === "APROBADA" ? <ShieldCheck size={14} className="mt-0.5 shrink-0 text-state-ok" aria-hidden="true" /> : <Hourglass size={14} className="mt-0.5 shrink-0 text-state-warn" aria-hidden="true" />}
+                      <span>
+                        {pedidoActual.estado === "PEDIDA"
+                          ? `Anulación pedida por ${pedidoActual.pedidaPor} a las ${hora(Date.parse(pedidoActual.pedidaEl))}: espera a administración.`
+                          : pedidoActual.estado === "APROBADA"
+                            ? `Aprobada por ${pedidoActual.respuesta?.por ?? "administración"}: hazla aquí, sin PIN.`
+                            : `Anulación rechazada por ${pedidoActual.respuesta?.por ?? "administración"}${pedidoActual.respuesta?.motivo ? `: «${pedidoActual.respuesta.motivo}»` : "."}`}
+                      </span>
+                    </p>
+                  )}
                   {puedeAnular && actual.devoluciones.length === 0 && (
-                    <Button surface="tablet" variant="ghost" className="col-span-2 text-[13px]" onClick={() => setAnulando(true)}>
+                    <Button
+                      surface="tablet"
+                      variant={pedidoActual?.estado === "APROBADA" ? "danger" : "ghost"}
+                      className="col-span-2 text-[13px]"
+                      disabled={pedidoActual?.estado === "PEDIDA"}
+                      onClick={() => setAnulando(true)}
+                    >
                       <Ban size={15} aria-hidden="true" />
-                      Anular cobro…
+                      {pedidoActual?.estado === "APROBADA" ? "Hacer la anulación aprobada" : pedidoActual?.estado === "PEDIDA" ? "Anulación pedida" : "Anular cobro…"}
                     </Button>
                   )}
                 </div>
@@ -545,6 +627,8 @@ export function VentasDelTurno({ className }: { className?: string }) {
         ventas={ventas}
         onAnular={aplicarAnulacion}
         onCerrar={() => setAnulando(false)}
+        onPedir={pedirAAdministracion}
+        aprobada={pedidoActual?.estado === "APROBADA" ? pedidoActual : null}
       />
 
       <DevolverVentaDialog

@@ -26,6 +26,7 @@ import { ChipEventosDeHoy } from "../eventos/AvisoEventosDeHoy.tsx";
 import type { AvisoDeVersion } from "../sistema/sistema.servidor.ts";
 import type { AvisoDeRespaldos } from "../sistema/respaldos.servidor.ts";
 import { rutaPestana, rutaSeccion } from "./navigation.ts";
+import { PorAprobar } from "../anulaciones/PorAprobar.tsx";
 
 /**
  * Inicio del back-office — F9-00, §9.10.4.
@@ -219,6 +220,9 @@ export function InicioScreen({
 
       {/* T-4: tras la instalación, lo que falta para abrir; se tacha sola y con todo hecho no sale. */}
       {puestaAPunto && <PuestaAPunto puesta={puestaAPunto} />}
+
+      {/* B3-30: lo que la caja pidió anular, para administración, en vivo (también en su teléfono). */}
+      <PorAprobar />
 
       {/* ──────────────────────────── 1 · el local ahora ─────────────────── */}
       <EnVivo puestosIniciales={puestos} />

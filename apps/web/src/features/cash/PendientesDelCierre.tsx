@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import type { Route } from "next";
 import { useRouter } from "next/navigation";
-import { Baby, CalendarX2, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw, TriangleAlert } from "lucide-react";
+import { Ban, Baby, CalendarX2, CircleCheckBig, Clock3, FileText, Monitor, ReceiptText, RefreshCw, TriangleAlert } from "lucide-react";
 import type { PendientesDelCierreDto, Rechazo } from "@l2/contracts";
 import { money, toMajor } from "@l2/domain-money";
 import { can } from "@l2/domain-identity";
@@ -104,7 +104,7 @@ export function PendientesDelCierre({
   // la lista se comprueba otra vez sola.
   useAlCambiar(["cuentas", "sala", "turno", "papel"], () => void leer());
 
-  const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length + p.papel.length : 0;
+  const total = p ? p.cuentas.length + p.ninos.length + p.huerfanas.length + p.turnos.length + p.papel.length + p.anulaciones.length : 0;
   const hora = (iso: string) => formatClock(Date.parse(iso), ajustes.formatoHora, ajustes.zonaHoraria);
 
   /** Abre la cuenta para cobrarla: aquí mismo si la caja lo permite; si no, en la caja. */
@@ -299,6 +299,29 @@ export function PendientesDelCierre({
                       className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink hover:border-line-strong"
                     >
                       {c.estado === "ABIERTA" ? "Terminar la carga" : puedeRevisar ? "Revisarla" : "Ver la carga"}
+                    </Link>
+                  </li>
+                ))}
+              </Grupo>
+            )}
+            {/* B3-30: lo que se pidió anular y no se resolvió. El Z no se hace con ello. */}
+            {p.anulaciones.length > 0 && (
+              <Grupo icono={<Ban size={15} aria-hidden="true" />} titulo="Anulaciones pedidas sin resolver" n={p.anulaciones.length}>
+                {p.anulaciones.map((a) => (
+                  <li key={a.id} className="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
+                    <span className="min-w-0 flex-1 truncate">
+                      <span className="tnum font-semibold text-ink">#{String(a.orden).padStart(4, "0")} · {a.cuenta}</span>
+                      <span className="text-ink-3">
+                        {" "}
+                        · la pidió {a.pedidaPor} a las {hora(a.pedidaEl)}
+                        {a.estado === "APROBADA" ? ` · aprobada por ${a.respuesta?.por ?? "administración"}: hazla desde la venta` : " · espera a administración («Por aprobar», en Inicio)"}
+                      </span>
+                    </span>
+                    <Link
+                      href={"/turno" as Route}
+                      className="inline-flex min-h-12 items-center rounded-[var(--radius-control)] border border-line px-3 text-[13px] font-semibold text-ink hover:border-line-strong"
+                    >
+                      Ver la venta
                     </Link>
                   </li>
                 ))}

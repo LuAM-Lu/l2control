@@ -16,6 +16,21 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.149.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: «Pedir anulación».
+
+### Añadido
+- **«Pedir a administración»** al anular un cobro sin administración en el local: con el motivo y qué se hace con la
+  cuenta, la venta queda «Anulación pedida» y la caja sigue.
+- **«Por aprobar»** en Inicio, para administración, también en su teléfono y en vivo: la venta, quién la cobró y quién
+  la pide. «Aprobar» con su PIN (es la autorización de anular) o «Rechazar» con su motivo.
+- Aprobada, la venta dice «Aprobada: hazla» y la caja la hace sin PIN («Hacer la anulación aprobada»), devolviendo el
+  dinero donde está. Rechazada, dice por qué; se puede pedir otra vez.
+
+### Cambiado
+- El corte Z no se hace con una anulación pedida sin resolver; el cierre la lista.
+
 ## [0.148.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: la caja más clara.

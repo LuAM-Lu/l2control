@@ -69,6 +69,7 @@ import { casosMesas, type CasosMesas } from "./restaurante/mesas.ts";
 import { casosClientes, type CasosClientes } from "./clientes/clientes.ts";
 import { casosEmpresas, type CasosEmpresas } from "./clientes/empresas.ts";
 import { casosDeudas, type CasosDeudas } from "./deudas/deudas.ts";
+import { casosAnulaciones, type CasosAnulaciones } from "./caja/anulaciones.ts";
 import { casosBorrador, type CasosBorrador } from "./caja/borrador.ts";
 import { crearFirmante } from "./tiempo-real/ticket.ts";
 
@@ -211,6 +212,8 @@ export interface Aplicacion {
   readonly empresas: CasosEmpresas;
   /** Las deudas de clientes: quien se va sin pagar, cobrarlas cuando vuelve o darlas por perdidas (B3-11, M-33). */
   readonly deudas: CasosDeudas;
+  /** «Pedir anulación» (B3-30): la caja pide, administración aprueba o rechaza desde Inicio. */
+  readonly anulaciones: CasosAnulaciones;
   /** El cobro en curso de cada cuenta, guardado en el servidor (B3-13, M-34). */
   readonly borradores: CasosBorrador;
   readonly tiempoReal: CasosTiempoReal;
@@ -312,6 +315,7 @@ export async function conectar(urlBase: string | undefined, opciones: OpcionesDe
     clientes: casosClientes(base),
     empresas: casosEmpresas(base),
     deudas: casosDeudas(base),
+    anulaciones: casosAnulaciones(base),
     borradores: casosBorrador(base, cifrador),
     tiempoReal: casosTiempoReal(base, opciones.claveCifrado ? crearFirmante(opciones.claveCifrado) : null),
     salud: casosSalud(base),

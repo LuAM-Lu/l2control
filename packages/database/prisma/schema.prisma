@@ -69,6 +69,7 @@ model Branch {
   customerDebts     CustomerDebt[]
   chargeDrafts      ChargeDraft[]
   sales             Sale[]
+  annulmentRequests AnnulmentRequest[]
   parkSessions      ParkSession[]
   outbox            OutboxEvent[]
   settings          BranchSettingsVersion[]
@@ -1013,6 +1014,7 @@ model Account {
   versions          AccountVersion[]
   payments          Payment[]
   sales             Sale[]
+  annulmentRequests AnnulmentRequest[]
   parkSessions      ParkSession[]
   kitchenOrders     KitchenOrder[]
   chargeDraft       ChargeDraft?
@@ -1084,6 +1086,7 @@ model Sale {
   shift   CashShift   @relation(fields: [tenantId, shiftId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
   prints  SalePrint[]
   voids   SaleVoid[]
+  annulmentRequests AnnulmentRequest[]
   jobs    PrintJob[]
   returns SaleReturn[]
   /// El vale, si se cobró con «Consumo del personal» (B3-17).
@@ -1157,6 +1160,62 @@ model SalePrint {
 
 /// La anulación de una venta (DEC-24): una por venta, con quién la pidió y autorizó, el motivo y
 /// cómo volvió el dinero de cada pago (las referencias de devolución, cifradas).
+/// Una anulación que pide la caja sin administración en el local (B3-30, M-40): la venta, su motivo y qué se hará con la
+/// cuenta. Solo agregar; su respuesta va en `annulment_request_outcome`. Aprobada, la caja la hace sin PIN (queda su
+/// `sale_void`); la Z no se hace con un pedido sin resolver.
+model AnnulmentRequest {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  tenantId        String   @map("tenant_id") @db.Uuid
+  branchId        String   @map("branch_id") @db.Uuid
+  saleId          String   @map("sale_id") @db.Uuid
+  accountId       String   @map("account_id") @db.Uuid
+  /// La clave del cobro que se pide anular.
+  cobroKey        String   @map("cobro_key") @db.Uuid
+  reason          String
+  note            String?
+  /// COBRAR_DE_NUEVO o ANULAR_VENTA (B3-18).
+  path            String
+  /// ESTANTE o MERMA: lo que tiene inventario, si se anula la venta entera.
+  stock           String
+  operationKey    String   @map("operation_key") @db.Uuid
+  requestedAt     DateTime @map("requested_at") @db.Timestamptz(3)
+  requestedBy     String?  @map("requested_by") @db.Uuid
+  requestedByName String   @map("requested_by_name")
+  deviceId        String?  @map("device_id") @db.Uuid
+
+  branch  Branch                   @relation(fields: [tenantId, branchId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  sale    Sale                     @relation(fields: [tenantId, saleId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  account Account                  @relation(fields: [tenantId, accountId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+  outcome AnnulmentRequestOutcome?
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, operationKey])
+  @@index([tenantId, saleId])
+  @@index([tenantId, branchId, requestedAt])
+  @@map("annulment_request")
+}
+
+/// La respuesta de administración a un pedido de anulación (B3-30): APROBADA (con su PIN) o RECHAZADA (con su motivo).
+/// Una por pedido; solo agregar.
+model AnnulmentRequestOutcome {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  tenantId     String   @map("tenant_id") @db.Uuid
+  requestId    String   @map("request_id") @db.Uuid
+  kind         String
+  at           DateTime @db.Timestamptz(3)
+  byUser       String?  @map("by_user") @db.Uuid
+  byName       String   @map("by_name")
+  reason       String?
+  operationKey String   @map("operation_key") @db.Uuid
+
+  request AnnulmentRequest @relation(fields: [tenantId, requestId], references: [tenantId, id], onDelete: Restrict, onUpdate: Restrict)
+
+  @@unique([tenantId, id])
+  @@unique([tenantId, requestId])
+  @@unique([tenantId, operationKey])
+  @@map("annulment_request_outcome")
+}
+
 model SaleVoid {
   id               String   @id @default(uuid(7)) @db.Uuid
   tenantId         String   @map("tenant_id") @db.Uuid
