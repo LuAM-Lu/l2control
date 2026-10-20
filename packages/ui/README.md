@@ -34,6 +34,7 @@ porque esto se usa de pie, con prisa y a veces con guantes.
 | `FiltroSegmentado`, `BarraDeFiltros` | Filtros con su cuenta y «Limpiar filtros» (M-17) |
 | `Paginacion` | Una lista que crece va por páginas (10/20/50), nunca sin fin (M-17) |
 | `Confirmacion` | Diálogo para lo irreversible: dice qué pasa, «Cancelar» y la acción |
+| `MenuDeAcciones` | «Más»: las acciones que no caben con su texto en una fila, cada una con su texto (B3-29) |
 
 **Nivel 3 · funcionalidad** — vive en `apps/web/src/features/<contexto>`, **no aquí**.
 

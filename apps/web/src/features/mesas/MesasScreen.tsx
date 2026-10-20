@@ -455,7 +455,13 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
         : pedido.comandas.map((p) => `${p.area ? `${AREA[p.area].nombre}: ` : ""}sale en «${p.impresora ?? "la impresora de comandas"}»`).join(" · ") + ".";
     avisar.ok(`Comanda ${comanda(pedido.numero)} enviada · ${rotuloDePedido(pedido)}`, {
       // La del cumpleaños (B10-5) se queda en la cola con su saldo: no vuelve a la mesa.
-      detalle: c.status === "POR_COBRAR" && c.kind !== "EVENTO" ? `Volvió de la caja a la mesa: cuando terminen, «Pide la cuenta» otra vez. ${papeles}` : papeles,
+      // B3-29: si la caja la estaba cobrando, se queda en su cola y lo nuevo se suma al cobro.
+      detalle:
+        c.status === "POR_COBRAR" && c.kind !== "EVENTO"
+          ? r.valor.cuenta.status === "POR_COBRAR"
+            ? `La caja la está cobrando: lo nuevo se suma a su cobro. ${papeles}`
+            : `Volvió de la caja a la mesa: cuando terminen, «Pide la cuenta» otra vez. ${papeles}`
+          : papeles,
     });
     setEnvios((e) => {
       const { [c.id]: _, ...resto } = e;

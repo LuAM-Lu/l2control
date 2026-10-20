@@ -242,9 +242,13 @@ export function casosPedidos(base: Base): CasosPedidos {
           // Todo comprobado: se escribe.
           const quien = await nombreDe(tx, ctx);
           // Volver a pedir con la cuenta en la cola de la caja (B6-18, M-39 X-3) la devuelve a la mesa: sale de la cola (sin
-          // su espera ni sus partes sin cobrar), y lo que la caja tecleaba sin cobrar se descarta. Lo cobrado sigue cobrado.
-          // La de un cumpleaños (B10-5) no: espera en la cola desde que empieza, con su saldo, y lo que se pide se le suma.
-          const volvio = actual?.cuenta.status === "POR_COBRAR" && actual.cuenta.kind !== "EVENTO";
+          // su espera ni sus partes sin cobrar). Lo cobrado sigue cobrado. La de un cumpleaños (B10-5) no: espera en la cola
+          // desde que empieza, con su saldo, y lo que se pide se le suma.
+          // B3-29 (M-40): si la caja la está cobrando (tiene lo tecleado en su borrador), tampoco: se queda en la cola con lo
+          // nuevo, que la caja ve marcado, y se cobra sin perder lo tecleado.
+          const enLaCola = actual?.cuenta.status === "POR_COBRAR" && actual.cuenta.kind !== "EVENTO";
+          const cobrandose = enLaCola && (await tx.chargeDraft.count({ where: { accountId: actual!.cuenta.id } })) > 0;
+          const volvio = enLaCola && !cobrandose;
           const deLaMesa = (c: FamilyAccountDto): FamilyAccountDto => {
             if (!volvio) return c;
             // B3-28: si iba a pagar lo que va, ya no: lo nuevo se pide y se cobra después.
@@ -254,7 +258,8 @@ export function casosPedidos(base: Base): CasosPedidos {
           const cuenta: FamilyAccountDto = actual
             ? FamilyAccountSchema.parse({ ...deLaMesa(actual.cuenta), lines: [...actual.cuenta.lines, ...nuevas], version: actual.version + 1 })
             : await crearCuentaDeMesa(tx, ctx, { tableId: tableId!, label: mesa, lines: nuevas, ahora, quien: quien.nombre });
-          const cobroDescartado = volvio && (await tx.chargeDraft.count({ where: { accountId: cuenta.id } })) > 0;
+          // Sin borrador no hay nada tecleado que descartar; se borra igual por si quedara uno de una versión anterior.
+          const cobroDescartado = false;
           if (volvio) await borrarBorradorEn(tx, cuenta.id);
           await guardarVersion(tx, ctx, cuenta, { cause: "PEDIDO", operationKey: cmd.pedidoId, ahora, quien: quien.nombre });
           await asentarExistencias(tx, ctx, existencias, { accountId: cuenta.id, version: cuenta.version!, ahora, quien: quien.nombre });
@@ -295,6 +300,7 @@ export function casosPedidos(base: Base): CasosPedidos {
               lineas: lineas.map((l) => ({ nombre: l.nombre, cantidad: l.cantidad, area: l.area })),
               // Volvió de la cola de la caja (B6-18), y si se descartó un cobro en curso.
               ...(volvio ? { volvioDeLaCaja: true, cobroEnCursoDescartado: cobroDescartado } : {}),
+              ...(cobrandose ? { sumadoAlCobroEnCurso: true } : {}),
             },
           });
           // Un papel por área, en su impresora.
