@@ -453,6 +453,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         reconoce: ["sin revisar"],
       },
       {
+        sintoma: "En el cierre, una cuenta dice «No pidió la cuenta»",
+        solucion:
+          "Es una mesa o una cuenta de pie que nunca pasó a la caja: el mesero no tocó «Pide la cuenta». La fila dice quién la abrió y a qué hora. «Traer a la caja y cobrar» la pasa a la cola y la abre para cobrarla; si se fueron sin pagar, «Se fue sin pagar» la deja como deuda a su nombre. Sin nada que cobrar, se libera en Mesas.",
+        reconoce: ["no pidio la cuenta", "no ha pedido la cuenta"],
+      },
+      {
         sintoma: "«Esta caja es del … : ciérrala antes de cobrar»",
         solucion:
           "La caja quedó abierta de un día que ya terminó. La caja enseña lo pendiente de ese día: cóbralo ahí (o «Se fue sin pagar» o incobrable), registra la salida de sus niños y «Cerrar la caja» lleva al conteo y al corte Z. Lo de hoy se cobra después, en la caja de hoy. Si el equipo de esa caja no está, supervisión la cierra desde Inicio.",
@@ -718,6 +724,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Cola e historial: lo que salió, lo que espera y lo que falló, con «Reintentar» o «Descartar». Se ven los 50 más recientes; «Cargar más · 50 de N» trae los siguientes y dice cuántos faltan. En Tarjetas o Compacta, por día.",
     ],
     problemas: [
+      {
+        sintoma: "El agente de impresión sigue en una versión vieja",
+        solucion:
+          "Revisa la versión cada 30 minutos y se cambia solo con la cola vacía. Si una descarga falló por la red, lo vuelve a intentar en la siguiente revisión. Para no esperar, «Actualizar ahora» en su tarjeta; la laptop tiene que estar encendida y en la red.",
+        reconoce: ["no se pudo descargar"],
+      },
       {
         sintoma: "«La X no arrancó: volvió la anterior»",
         solucion:

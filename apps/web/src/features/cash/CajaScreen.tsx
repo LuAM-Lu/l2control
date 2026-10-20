@@ -168,6 +168,7 @@ import { useAhoraLocal } from "../operacion/OperacionProvider.tsx";
 import {
   esLineaDeMostrador,
   esMesaDelCumpleanos,
+  pasarACaja,
   esVentaDirecta,
   nombreDeCuenta,
   dividirEn,
@@ -762,8 +763,17 @@ function CobroCuenta({
     if (!modoPapel) void leerElBorrador();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [cuenta.id]);
+  /**
+   * v0.143.1: mientras se cobra no se guarda el borrador. Si «Cobrar» llega antes que el guardado (600 ms después del
+   * último toque), el guardado encontraba la cuenta ya cobrada y avisaba «Este cobro cambió en otra caja».
+   */
+  const cobrando = useRef(false);
+  // Otra cuenta, o la misma con una versión nueva (una parte ya cobrada): el borrador vuelve a guardarse.
   useEffect(() => {
-    if (modoPapel || !borrador.listo || borrador.ajeno) return;
+    cobrando.current = false;
+  }, [cuenta.id, cuenta.version]);
+  useEffect(() => {
+    if (modoPapel || !borrador.listo || borrador.ajeno || cobrando.current) return;
     const contenido: BorradorDeCobroDto = {
       pagos: pagos.map((p) => ({ medio: p.medio.code, amount: { minor: String(p.amount.amount), currency: p.amount.currency }, ...(p.datos ? { datos: p.datos } : {}) })),
       tasa: tasaDelCobro ? { id: tasaDelCobro.id, valor: tasaDelCobro.valor } : null,
@@ -775,11 +785,12 @@ function CobroCuenta({
     // Nada nuevo, o nada que guardar todavía.
     if (huella === ultimoGuardado.current || (pagos.length === 0 && borrador.version === null)) return;
     const t = window.setTimeout(() => {
+      if (cobrando.current) return;
       void guardarBorrador({ accountId: cuenta.id, version: borrador.version, borrador: contenido }).then((r) => {
         if (r.ok) {
           ultimoGuardado.current = huella;
           setBorrador((b) => ({ ...b, version: r.valor?.version ?? null }));
-        } else if (r.motivo === "CONFLICTO") {
+        } else if (r.motivo === "CONFLICTO" && !cobrando.current) {
           avisar.info("Este cobro cambió en otra caja", { detalle: r.mensaje });
           void leerElBorrador();
         }
@@ -861,6 +872,7 @@ function CobroCuenta({
     if (intento.current?.huella !== huella) intento.current = { huella, clave: globalThis.crypto.randomUUID() };
     const clave = intento.current.clave;
     setEnviando(true);
+    cobrando.current = true;
     // El recibo va fuera de la huella: cambiar de idea sobre el papel no es otro cobro.
     const r = await cobrarEnServidor(
       { idempotencyKey: clave, ...cuerpo, ...(cliente.kind === "IDENTIFICADO" ? { cliente } : {}), imprimirRecibo },
@@ -868,10 +880,14 @@ function CobroCuenta({
     );
     setEnviando(false);
     if (!r.ok) {
+      cobrando.current = false;
       setError(r.mensaje);
       return;
     }
     intento.current = null;
+    // El servidor ya borró el borrador de este cobro: lo que quede (otra parte) empieza uno nuevo.
+    ultimoGuardado.current = "";
+    setBorrador((b) => ({ ...b, version: null }));
     // El siguiente cobro del papel trae su propia hora: la de este no se arrastra.
     modoPapel?.limpiarHora();
     onCobrado({
@@ -2463,6 +2479,37 @@ export function CajaScreen({
     [cuentas],
   );
   const [elegida, setElegida] = useState<string | null>(cuentaInicial);
+  // v0.143.1: llegar con otra cuenta en la dirección (`?cuenta=`, desde el cierre o un aviso) la elige, también con la caja
+  // ya abierta: antes solo valía al abrir la pantalla y el enlace parecía no hacer nada.
+  const [cuentaDeLaDireccion, setCuentaDeLaDireccion] = useState(cuentaInicial);
+  if (cuentaInicial !== cuentaDeLaDireccion) {
+    setCuentaDeLaDireccion(cuentaInicial);
+    if (cuentaInicial) setElegida(cuentaInicial);
+  }
+  // v0.143.1: una cuenta elegida que no está por cobrar (del salón, sin pedir la cuenta) no queda callada: se dice por qué
+  // y se ofrece traerla a la cola, como «Pide la cuenta».
+  const avisadaSinPedir = useRef<string | null>(null);
+  useEffect(() => {
+    if (!elegida || avisadaSinPedir.current === elegida || porCobrar.some((c) => c.id === elegida)) return;
+    const c = cuentas.find((x) => x.id === elegida);
+    if (!c || c.status !== "ABIERTA") return;
+    avisadaSinPedir.current = elegida;
+    const lista = pasarACaja(c);
+    avisar.info(`${nombreDeCuenta(c)} no ha pedido la cuenta`, {
+      detalle: lista.status === "POR_COBRAR" ? "Sigue abierta: no está en la cola. Tráela para cobrarla aquí." : "Sigue abierta y no tiene nada que cobrar.",
+      ...(lista.status === "POR_COBRAR"
+        ? {
+            accion: {
+              texto: "Traer a la caja",
+              alPulsar: () =>
+                void guardarEnProvider(lista)
+                  .then((r) => (r.ok ? setElegida(c.id) : avisar.error(r.mensaje)))
+                  .catch(() => avisar.error("Sin conexión con el servidor: la cuenta no pasó a la caja.")),
+            },
+          }
+        : {}),
+    });
+  }, [elegida, porCobrar, cuentas, guardarEnProvider]);
   /** Cobrar juntas (B3-16): la cola marcando, lo marcado y si se está confirmando. */
   const [juntando, setJuntando] = useState(false);
   const [marcadas, setMarcadas] = useState<string[]>([]);
@@ -3122,7 +3169,7 @@ export function CajaScreen({
         ) : actual && !turno ? (
           <SinTurno />
         ) : turno && deOtroDia && (!actual || !deSuDia(actual)) ? (
-          <CajaDeOtroDia turno={turno} cuentaDeHoy={actual !== null} />
+          <CajaDeOtroDia turno={turno} cuentaDeHoy={actual !== null} onCobrar={elegirOtra} />
         ) : actual && fiscal.faltan.length > 0 ? (
           <SinImpuestos faltan={fiscal.faltan} />
         ) : actual && mediosDisponibles.length === 0 ? (
@@ -3977,7 +4024,7 @@ function SinTurno() {
  * lo de ese día (el servidor lista solo eso) y se lleva al cierre. Lo de hoy no se cobra aquí: el 9 de octubre una venta
  * del 10 entró en el día 9 porque nadie cerró la caja.
  */
-function CajaDeOtroDia({ turno, cuentaDeHoy }: { turno: TurnoDto; cuentaDeHoy: boolean }) {
+function CajaDeOtroDia({ turno, cuentaDeHoy, onCobrar }: { turno: TurnoDto; cuentaDeHoy: boolean; onCobrar: (cuentaId: string) => void }) {
   const router = useRouter();
   const dia = diaDelTurno(turno.businessDate);
   return (
@@ -3993,6 +4040,7 @@ function CajaDeOtroDia({ turno, cuentaDeHoy }: { turno: TurnoDto; cuentaDeHoy: b
         }
         listo="Cerrar la caja"
         onListo={() => router.push("/turno?cerrar=1" as Route)}
+        onCobrar={onCobrar}
       />
     </section>
   );

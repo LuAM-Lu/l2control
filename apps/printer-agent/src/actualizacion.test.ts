@@ -12,6 +12,7 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import {
   anotarFallida,
+  seAparta,
   anotarResultado,
   archivosEn,
   consultar,
@@ -52,6 +53,12 @@ after(() => {
 });
 
 describe("cuándo se cambia", () => {
+  test("una descarga cortada se reintenta; una huella equivocada o un arranque fallido apartan la versión (v0.143.1)", () => {
+    assert.equal(seAparta("ERROR"), false);
+    assert.equal(seAparta("HUELLA_EQUIVOCADA"), true);
+    assert.equal(seAparta("NO_ARRANCA"), true);
+  });
+
   test("solo a una versión posterior, y nunca en desarrollo", () => {
     assert.equal(esPosterior("0.86.0", "0.85.9"), true);
     assert.equal(esPosterior("0.85.10", "0.85.9"), true);

@@ -96,6 +96,15 @@ export async function consultar(web: string, credencial: string): Promise<Versio
   }
 }
 
+/**
+ * ¿Queda apartada la versión tras fallar? (v0.143.1) Una descarga que se cortó (la red del local) se reintenta en la
+ * próxima revisión; solo una versión que no es la publicada o que no arranca se aparta. El 14 de octubre una descarga
+ * fallida dejó al agente en la 0.131.0 sin volver a intentarlo.
+ */
+export function seAparta(resultado: "HUELLA_EQUIVOCADA" | "NO_ARRANCA" | "ERROR"): boolean {
+  return resultado !== "ERROR";
+}
+
 export type Descarga = Readonly<{ ok: true } | { ok: false; resultado: "HUELLA_EQUIVOCADA" | "NO_ARRANCA" | "ERROR"; detalle: string }>;
 
 /**
@@ -284,7 +293,7 @@ export function programarActualizacion(o: {
       const r = await descargarYComprobar({ web: o.web, credencial: o.credencial, d, a: o.a });
       if (!r.ok) {
         o.registro.error(r.detalle);
-        anotarFallida(o.a, d.version);
+        if (seAparta(r.resultado)) anotarFallida(o.a, d.version);
         const n: NotaDeActualizacionDto = { version: d.version, de: o.version, resultado: r.resultado, detalle: r.detalle };
         if (!(await o.agente.informar(n))) anotarResultado(o.a, n);
         return;

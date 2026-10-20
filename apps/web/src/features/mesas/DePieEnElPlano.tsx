@@ -60,6 +60,20 @@ export function IconoDePieEnElPlano({
 }) {
   const [arrastre, setArrastre] = useState<{ x: number; y: number } | null>(null);
   const inicio = useRef<{ x: number; y: number; dx: number; dy: number } | null>(null);
+  // v0.143.1: con el dedo, el navegador desplazaba la página y cancelaba el arrastre: `touch-action` en un elemento de
+  // dentro del SVG no lo respeta. Mientras el icono se puede mover, tocarlo no desplaza nada; fijo, la página se desplaza.
+  const grupo = useRef<SVGGElement>(null);
+  useEffect(() => {
+    const g = grupo.current;
+    if (!g || icono.fijo) return;
+    const quieto = (e: TouchEvent) => e.preventDefault();
+    g.addEventListener("touchstart", quieto, { passive: false });
+    g.addEventListener("touchmove", quieto, { passive: false });
+    return () => {
+      g.removeEventListener("touchstart", quieto);
+      g.removeEventListener("touchmove", quieto);
+    };
+  }, [icono.fijo]);
   const x = arrastre?.x ?? icono.x;
   const y = arrastre?.y ?? icono.y;
 
@@ -84,6 +98,7 @@ export function IconoDePieEnElPlano({
   return (
     <g>
       <g
+        ref={grupo}
         role="button"
         tabIndex={0}
         aria-pressed={activo}
