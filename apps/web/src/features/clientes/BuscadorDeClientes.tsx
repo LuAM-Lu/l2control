@@ -40,7 +40,7 @@ function coincideLaCuenta(c: FamilyAccountDto, texto: string): boolean {
   if (!c.cliente) return false;
   const q = sinAcentos(texto.trim());
   const cifras = q.replace(/\D/g, "");
-  if (cifras.length >= 5) return [c.cliente.cedula, c.cliente.telefono].some((d) => d.replace(/\D/g, "").includes(cifras));
+  if (cifras.length >= 5) return [c.cliente.cedula, c.cliente.telefono].some((d) => (d ?? "").replace(/\D/g, "").includes(cifras));
   return q.length >= 3 && sinAcentos(c.cliente.nombre).includes(q);
 }
 

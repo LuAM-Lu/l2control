@@ -15,6 +15,7 @@ import { useActorEnSesion } from "../identity/sesion.ts";
 import { can } from "@l2/domain-identity";
 import { cobrarDeuda, devolverDeuda, leerDeudas, perderDeuda } from "./deudas.acciones";
 import { PestanasDeDeudas } from "./PestanasDeDeudas.tsx";
+import { datosDeContacto } from "../clientes/contacto.ts";
 
 /**
  * Caja → Deudas — B3-11 (M-33). Lo que los clientes dejaron sin pagar: las pendientes, con su cliente (nombre, cédula y
@@ -46,7 +47,7 @@ export function DeudasScreen({ datos }: { datos: DeudasDto | null }) {
       (deudas ?? []).filter((d) => {
         if (q === "") return true;
         const n = cifras(q);
-        return sinAcentos(d.cliente.nombre).includes(q) || (n.length >= 4 && [d.cliente.cedula, d.cliente.telefono].some((x) => cifras(x).includes(n))) || String(d.orden) === n;
+        return sinAcentos(d.cliente.nombre).includes(q) || (n.length >= 4 && [d.cliente.cedula, d.cliente.telefono].some((x) => cifras(x ?? "").includes(n))) || String(d.orden) === n;
       }),
     [deudas, q],
   );
@@ -193,7 +194,8 @@ function TarjetaDeDeuda({ deuda: d, onCambio, onPerder }: { deuda: DeudaDto; onC
         <div className="min-w-0">
           <h2 className="text-tarjeta font-bold break-words text-ink">{d.cliente.nombre}</h2>
           <p data-privado="" className="tnum text-detalle text-ink-2">
-            {d.cliente.cedula} · {d.cliente.telefono}
+            {/* B6-22: sentado «Más rápido» y se fue antes de darla: la deuda queda con lo que se dio. */}
+            {datosDeContacto(d.cliente)}
           </p>
         </div>
         <div className="flex shrink-0 flex-col items-end gap-1">

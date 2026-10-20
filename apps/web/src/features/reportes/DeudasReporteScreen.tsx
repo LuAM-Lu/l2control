@@ -169,11 +169,11 @@ function Historia({ deuda }: { deuda: DeudaDelInforme }) {
         <dd className="font-semibold text-ink">{deuda.cliente.nombre}</dd>
         <dt className="text-ink-3">Cédula</dt>
         <dd data-privado className="tnum text-ink">
-          {deuda.cliente.cedula}
+          {deuda.cliente.cedula ?? "Sin cédula"}
         </dd>
         <dt className="text-ink-3">Teléfono</dt>
         <dd data-privado className="tnum text-ink">
-          {deuda.cliente.telefono}
+          {deuda.cliente.telefono ?? "Sin teléfono"}
         </dd>
         <dt className="text-ink-3">Lo sentó</dt>
         <dd className="text-ink">{deuda.sentadoPor}</dd>

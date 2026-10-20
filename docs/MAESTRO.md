@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.144.0 en `main` (publicada, la 0.143.0) · 144 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.145.0 en `main` (publicada, la 0.143.0) · 145 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -3462,14 +3462,15 @@ antes del cobro en servidor (orden de ejecución).
   mueve; asiento `mesa.de_pie`, tema mesas) sin tocar la versión de la cuenta. En la web, `DePieEnElPlano.tsx` (el icono
   arrastrable con su candado, dentro del SVG del plano) y `usePosicionesDePie`. `cuentas.test-db.ts` (1 nueva). Visto en
   el navegador en los dos temas: la tablet arrastra y fija; otro equipo lo ve en el mismo sitio.*
-- [~] **B6-22 · Sentar «Más seguro» o «Más rápido»** (M-40). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b6-22`.*
+- [x] **B6-22 · Sentar «Más seguro» o «Más rápido»** (M-40). Antes de la 1.0.0. *Hecho el 2026-10-20 (v0.145.0).*
   → En Ajustes → Sucursal, administración elige qué pide el mesero al sentar: «Más seguro» (nombre, cédula y teléfono
   antes del primer pedido, como hoy, y con lo que el local arranca) o «Más rápido» (el nombre y cuántos son; la cédula
   antes del segundo pedido y antes de cobrar, con la mesa marcada «Falta la cédula» en la tablet y en la caja). El
   teléfono: «Siempre» o «Solo si queda una deuda». En los dos, el directorio se cruza (T-24). El cambio vale al momento
   para todas las tablets y queda en la auditoría. Ajusta la regla de B6-9 (M-33). Criterio: en «Más rápido» el primer
   pedido sale sin cédula y el segundo no sale hasta que se completa.
+  *B6-22: los ajustes `sentar` (SEGURO, de fábrica) y `telefonoDelCliente` (SIEMPRE, de fábrica) y la regla pura `exigidoAlSentar`, `exigidoAlCompletar` y `pideLaCedula` en `@l2/domain-orders`, que usan la tablet y el servidor. Migración `20261213000000_cliente_sin_cedula` (solo expande: la cédula y el teléfono de `account_customer` y de `customer_debt` admiten NULL, con su llave al lado). `mesas.abrir` pide lo que dice la sucursal (`FALTA_LA_CEDULA`, `FALTA_EL_TELEFONO`); `pedidos.enviar` niega el segundo pedido de una cuenta sin cédula; `cuentas.cobrar` no cobra sin ella; `clientes.asignar` completa sin autorización a la cuenta sin cédula (y el teléfono que faltaba), y la venta que queda pendiente sigue pidiendo el teléfono. Sin teléfono, el cliente nuevo no entra al directorio (lo exige: el parque llama al representante); el que ya está, por su teléfono, trae su cédula. El asiento dice qué falta (`faltan`), sin los datos. En la web, `CompletarClienteDialog` (tablet y caja), `exige` en `DatosDelCliente`, la tarjeta en `EditorSucursal`. `sentar-rapido.test-db.ts` (10 nuevas) y `sentar.test.ts` (3). Visto en el navegador en los dos temas: la tarjeta, sentar con el nombre, el primer pedido, el segundo que pide la cédula, la cola y «Factura a».*
+
 - [ ] **B6-23 · El mesero más ágil** (M-40). Antes de la 1.0.0.
   → «Tomar pedido» grande y debajo una fila: «Pagar lo que va» (B3-28), «Cambiar de mesa» y «Más» (Pide la cuenta para
   irse, Liberar la mesa, Cerrar sin cobrar), a 48 px. Un pedido a una mesa sin cuenta abre «Sentar» desde el aviso y sale

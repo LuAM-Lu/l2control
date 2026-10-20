@@ -2,6 +2,7 @@ import { CircleCheckBig, CircleX, Clock } from "lucide-react";
 import type { InformeDeDeudasDto, PasoDeDeudaDto } from "@l2/contracts";
 import { TAMANO_ICONO, cn } from "@l2/ui";
 import type { Reloj } from "../sucursal/SucursalProvider.tsx";
+import { datosDeContacto } from "../clientes/contacto.ts";
 import { importe, type SeccionDeInforme } from "./informe.tsx";
 
 /**
@@ -73,7 +74,7 @@ export function ClienteDeLaDeuda({ cliente, papel = false }: { cliente: DeudaDel
     <span className="flex flex-col">
       <span className={cn("font-semibold", !papel && "text-ink")}>{cliente.nombre}</span>
       <span data-privado className={cn("tnum whitespace-nowrap", !papel && "text-ink-2")}>
-        {cliente.cedula} · {cliente.telefono}
+        {datosDeContacto(cliente)}
       </span>
     </span>
   );

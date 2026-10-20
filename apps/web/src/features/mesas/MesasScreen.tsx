@@ -12,6 +12,7 @@ import {
   Hourglass,
   DoorOpen,
   HandPlatter,
+  IdCard,
   Link2,
   Unlink,
   NotebookPen,
@@ -45,7 +46,7 @@ import { Badge, Button, Cajon, Confirmacion, Container, Dialog, Marquesina, Mone
 import { chargeableLines } from "@l2/domain-cash";
 import { toMajor } from "@l2/domain-money";
 import { useAhoraLocal, useOperacion } from "../operacion/OperacionProvider.tsx";
-import { DESHACER_SERVIDO_MS, anularSinPin } from "@l2/domain-orders";
+import { DESHACER_SERVIDO_MS, anularSinPin, exigidoAlSentar, pideLaCedula, type Exigido } from "@l2/domain-orders";
 import { useOperador } from "../identity/operador.ts";
 import { useCuentas } from "../cuentas/CuentasProvider.tsx";
 import { nombreDeEstancia } from "../park/view-model.ts";
@@ -82,6 +83,7 @@ import { usePreguntaOtraFamilia, vincularPreguntando } from "./OtraFamilia.tsx";
 import { CambiarDeMesa } from "./CambiarDeMesa.tsx";
 import { useSinGuardar } from "../shell/PuestaAlDia.tsx";
 import { DatosDelCliente, SIN_DATOS, problemasDelCliente } from "../clientes/DatosDelCliente.tsx";
+import { CompletarClienteDialog } from "../clientes/CompletarClienteDialog.tsx";
 import type { ClienteElegido } from "../clientes/CampoDelCliente.tsx";
 import { MarcarDeudaDialog } from "../deudas/MarcarDeudaDialog.tsx";
 import { useActorEnSesion } from "../identity/sesion.ts";
@@ -162,7 +164,9 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   // Los pedidos y su comanda, del servidor (B6-2).
   const { pedidos, enviar: enviarPedido, reimprimir, servir, deshacer } = usePedidos();
   // Los umbrales de la atención en el salón (B6-8).
-  const { atencionSinPedirMin, atencionEsperaMin } = useSucursal().ajustes;
+  const { atencionSinPedirMin, atencionEsperaMin, sentar: comoSeSienta, telefonoDelCliente } = useSucursal().ajustes;
+  /** Qué se pide al sentar (B6-22): lo eligió administración en Ajustes → Sucursal; cambia en vivo. */
+  const exigeAlSentar = exigidoAlSentar(comoSeSienta, telefonoDelCliente);
   const op = useOperacion();
   const ahora = useAhoraLocal();
   const { estado } = op;
@@ -213,6 +217,11 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
   /** B6-13: al pedir la cuenta con platos sin marcar servidos, «¿Ya se sirvió todo?». */
   const [sinServir, setSinServir] = useState<{ cuenta: FamilyAccountDto; platos: { pedido: PedidoDto; lineas: number[] }[] } | null>(null);
   const [sirviendoTodo, setSirviendoTodo] = useState(false);
+  /**
+   * B6-22: la cuenta sentada «Más rápido» a la que se le pide la cédula (antes del segundo pedido, o al tocar «Falta la
+   * cédula»); `luego`, si al anotarla se sigue al pedido.
+   */
+  const [completando, setCompletando] = useState<{ cuenta: FamilyAccountDto; luego: "PEDIDO" | null } | null>(null);
   /** El formulario de sentar: el cliente, con nombre, cédula y teléfono (B6-9, M-33), y cuántas personas. */
   const [cliente, setCliente] = useState<DatosDelClienteDto>(SIN_DATOS);
   /** Lo que falta o no vale, después de intentar sentar. */
@@ -315,11 +324,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
    * servidor comprueba que la mesa tenga las cuentas que se ven aquí: si otro equipo abrió una, choca.
    */
   async function sentar(l: Lugar) {
-    // Quien consume primero y paga al final deja sus datos (B6-9, M-33): sin ellos no se abre la cuenta.
-    const problemas = problemasDelCliente(cliente);
+    // Quien consume primero y paga al final deja sus datos (B6-9, M-33): sin ellos no se abre la cuenta. Cuáles, lo dice
+    // la sucursal (B6-22).
+    const problemas = problemasDelCliente(cliente, exigeAlSentar);
     setErroresCliente(problemas);
     if (problemas) {
-      avisar.error("Faltan los datos del cliente", { detalle: "Nombre, cédula y teléfono: sin ellos no se abre la cuenta." });
+      avisar.error("Faltan los datos del cliente", { detalle: `${queSePide(exigeAlSentar)}: sin ellos no se abre la cuenta.` });
       return;
     }
     altaId.current ??= globalThis.crypto.randomUUID();
@@ -415,6 +425,11 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       // El mismo pedido de hace un momento (B3-25): se pregunta, con quién y desde dónde se pidió.
       if (r.motivo === "CONFLICTO" && r.problemas?.some((p) => p.message === "PEDIDO_REPETIDO")) {
         setRepetido({ cuenta: c, mensaje: r.mensaje });
+        return;
+      }
+      // B6-22: el segundo pedido de una cuenta sin cédula. Se pide aquí; el pedido sigue en el borrador.
+      if (r.problemas?.some((p) => p.message === "FALTA_LA_CEDULA")) {
+        setCompletando({ cuenta: c, luego: null });
         return;
       }
       avisar.error(r.mensaje);
@@ -643,7 +658,12 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
       ) : (
         cuenta && (
           <>
-            <Button variant="primary" onClick={() => setVista("pedido")} className="w-full">
+            <Button
+              variant="primary"
+              // B6-22: sentada «Más rápido», el segundo pedido espera a la cédula: se pide antes, en el mismo campo.
+              onClick={() => (pideLaCedula({ sinCedula: cuenta.cliente?.cedula === null, pedidos: pedidos.filter((p) => p.cuentaId === cuenta.id).length }) ? setCompletando({ cuenta, luego: "PEDIDO" }) : setVista("pedido"))}
+              className="w-full"
+            >
               <NotebookPen size={17} aria-hidden="true" />
               {enEspera ? "Seguir con el pedido" : "Tomar pedido"}
             </Button>
@@ -721,9 +741,10 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
               // Después del primer intento, lo que falta se recalcula al escribir: un error corregido se va solo.
               onCliente={(c) => {
                 setCliente(c);
-                if (erroresCliente) setErroresCliente(problemasDelCliente(c));
+                if (erroresCliente) setErroresCliente(problemasDelCliente(c, exigeAlSentar));
               }}
               errores={erroresCliente}
+              exige={exigeAlSentar}
               comensales={comensales}
               onComensales={setComensales}
               onEnviar={() => void sentar(lugar)}
@@ -735,7 +756,7 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
           ) : (
             cuenta && (
               <div className="flex flex-1 flex-col gap-4 px-4 py-3 apaisado:min-h-0 apaisado:overflow-y-auto">
-                <ResumenDeCuenta cuenta={cuenta} ahora={ahora} />
+                <ResumenDeCuenta cuenta={cuenta} ahora={ahora} onCompletar={() => setCompletando({ cuenta, luego: null })} />
                 {lugar.tipo === "MESA" && <NinosDeLaCuenta cuenta={cuenta} onVincular={() => setVinculando(true)} />}
                 <PedidosDeLaCuenta
                   pedidos={pedidos.filter((p) => p.cuentaId === cuenta.id)}
@@ -783,6 +804,20 @@ export function MesasScreen({ catalogo }: { catalogo: CatalogoDto }) {
           )}
           {otraFamilia.dialogo}
           <CambiarDeMesa cuenta={cambiandoMesa} onCerrar={() => setCambiandoMesa(null)} onHecho={(r) => elegir(r.cuenta.tableId!, r.cuenta.id)} />
+          {/* B6-22: la cédula de quien se sentó «Más rápido», antes del segundo pedido. */}
+          <CompletarClienteDialog
+            cuenta={completando?.cuenta ?? null}
+            motivo={completando?.luego === "PEDIDO" ? "Antes del segundo pedido" : "Se pide antes del segundo pedido y antes de cobrar"}
+            accion={completando?.luego === "PEDIDO" ? "Anotar y tomar el pedido" : "Anotar la cédula"}
+            onCerrar={() => setCompletando(null)}
+            onHecho={(c) => {
+              adoptar(c);
+              const seguir = completando?.luego === "PEDIDO";
+              setCompletando(null);
+              avisar.ok(`Cédula anotada · ${nombreDeCuenta(c)}`, { detalle: seguir ? "Ya se le puede tomar el pedido." : "Ya puede pedir otra vez." });
+              if (seguir) setVista("pedido");
+            }}
+          />
           <Confirmacion
             abierto={liberando !== null}
             onCerrar={() => setLiberando(null)}
@@ -1310,6 +1345,7 @@ function CuentasDelLugar({
                 {numeroDeOrden(c)}
                 {c.comensales ? ` · ${c.comensales} ${c.comensales === 1 ? "persona" : "personas"}` : ""}
                 {pide ? " · pide la cuenta" : ""}
+                {c.cliente?.cedula === null ? " · falta la cédula" : ""}
               </span>
             </span>
           </button>
@@ -1342,6 +1378,7 @@ function FormularioSentar({
   cliente,
   onCliente,
   errores,
+  exige,
   comensales,
   onComensales,
   onEnviar,
@@ -1354,6 +1391,8 @@ function FormularioSentar({
   cliente: DatosDelClienteDto;
   onCliente: (c: DatosDelClienteDto) => void;
   errores: ReturnType<typeof problemasDelCliente>;
+  /** Qué se pide además del nombre (B6-22). */
+  exige: Exigido;
   comensales: number;
   onComensales: (n: number) => void;
   onEnviar: () => void;
@@ -1386,6 +1425,7 @@ function FormularioSentar({
         valor={cliente}
         onCambio={onCliente}
         errores={errores}
+        exige={exige}
         surface="tablet"
         onElegido={onElegido}
         trasElElegido={
@@ -1424,7 +1464,13 @@ function FormularioSentar({
 }
 
 /** El número de orden de la cuenta, desde cuándo y lo que debe: lo que el mesero dice si le preguntan. */
-function ResumenDeCuenta({ cuenta, ahora }: { cuenta: FamilyAccountDto; ahora: number }) {
+/** «Nombre, cédula y teléfono», o lo que pida la sucursal (B6-22). */
+function queSePide(exige: Exigido): string {
+  const datos = ["Nombre", ...(exige.cedula ? ["cédula"] : []), ...(exige.telefono ? ["teléfono"] : [])];
+  return datos.length === 1 ? "El nombre" : `${datos.slice(0, -1).join(", ")} y ${datos.at(-1)}`;
+}
+
+function ResumenDeCuenta({ cuenta, ahora, onCompletar }: { cuenta: FamilyAccountDto; ahora: number; onCompletar: () => void }) {
   const reloj = useReloj();
   return (
     <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1">
@@ -1432,6 +1478,18 @@ function ResumenDeCuenta({ cuenta, ahora }: { cuenta: FamilyAccountDto; ahora: n
         {nombreDeCuenta(cuenta)} · {numeroDeOrden(cuenta)}
         {ahora > 0 ? ` · ${conSuHora(cuenta.openedAt, ahora, reloj)}` : ""}
       </p>
+      {/* B6-22: sentada «Más rápido»: la cédula se pide antes del segundo pedido y antes de cobrar. Un toque la pide ya. */}
+      {cuenta.cliente?.cedula === null && (
+        <button
+          type="button"
+          onClick={onCompletar}
+          aria-haspopup="dialog"
+          className="flex min-h-12 items-center gap-1.5 rounded-[var(--radius-control)] border border-state-warn/50 bg-state-warn-bg px-3 text-detalle font-semibold text-state-warn focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand"
+        >
+          <IdCard className="size-(--icono-texto) shrink-0" aria-hidden="true" />
+          Falta la cédula
+        </button>
+      )}
       <span className="flex items-center gap-1.5 text-[12.5px] text-ink-3">
         Debe
         <MoneyDisplay value={toMajor(pendiente(cuenta))} currency="USD" size="sm" />

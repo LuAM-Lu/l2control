@@ -151,7 +151,7 @@ describe("se fue sin pagar (B3-11)", () => {
     assert.equal(a.authorizedBy, supervisor);
     assert.equal(a.reason, "SE_FUE_SIN_PAGAR");
     const texto = JSON.stringify(a);
-    assert.ok(!texto.includes(primera.cliente.cedula.replace(/\D/g, "")) && !texto.includes(primera.cliente.telefono.replace(/\D/g, "").slice(-7)), texto);
+    assert.ok(!texto.includes(primera.cliente.cedula!.replace(/\D/g, "")) && !texto.includes(primera.cliente.telefono!.replace(/\D/g, "").slice(-7)), texto);
   });
 
   test("una venta sin cliente queda en deuda si se le ponen los datos; sin ellos, no", async () => {

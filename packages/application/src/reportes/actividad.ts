@@ -253,7 +253,7 @@ export function casosActividad(base: Base, cifrador: Cifrador | null): CasosActi
         const cuentas = [...new Set(asientos.map(cuentaDe).filter((x): x is string => x !== null))];
         const clientes = new Map<string, { nombre: string; cedula: string }>();
         for (const c of await tx.accountCustomer.findMany({ where: { accountId: { in: cuentas } }, orderBy: { setAt: "asc" }, select: { accountId: true, fullName: true, document: true } })) {
-          clientes.set(c.accountId, { nombre: c.fullName, cedula: c.document });
+          clientes.set(c.accountId, { nombre: c.fullName, cedula: c.document ?? "" });
         }
         // La cuenta de una familia es de su representante: el de sus estancias en el parque.
         const sinCliente = cuentas.filter((c) => !clientes.has(c));

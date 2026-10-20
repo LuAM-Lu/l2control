@@ -236,6 +236,18 @@ export const AjustesSucursalSchema = z
      */
     puestosVigilados: z.array(z.enum(["CAJA", "PARQUE", "MESAS"])).max(3).default(["CAJA", "PARQUE", "MESAS"]),
     puestoSinNadieMin: z.number().int("Minutos enteros").min(5, "Al menos 5 minutos").max(120, "Hasta dos horas").default(15),
+    /**
+     * Qué pide el mesero al sentar a un cliente (B6-22, M-40): «Más seguro» (SEGURO), nombre y cédula antes del primer
+     * pedido, o «Más rápido» (RAPIDO), el nombre al sentar y la cédula antes del segundo pedido y antes de cobrar. En los
+     * dos, el directorio se cruza. Los ajustes publicados antes no lo traen: «Más seguro», como hasta B6-22.
+     */
+    sentar: z.enum(["SEGURO", "RAPIDO"]).default("SEGURO"),
+    /**
+     * El teléfono del cliente de una cuenta del salón (B6-22): SIEMPRE se pide, o DEUDA, solo cuando queda una deuda (una
+     * venta que se deja pendiente lo pide; al sentar y al completar la cédula, si lo da). Los ajustes publicados antes no
+     * lo traen: siempre.
+     */
+    telefonoDelCliente: z.enum(["SIEMPRE", "DEUDA"]).default("SIEMPRE"),
   })
   .refine((a) => a.horario === null || new Set(a.horario.map((h) => h.dia)).size === 7, {
     message: "Cada día de la semana aparece una sola vez en el horario",

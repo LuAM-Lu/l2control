@@ -130,7 +130,7 @@ export const LISTA_ATAJOS: readonly { teclas: string; que: string }[] = [
   { teclas: "/", que: "Buscar: en la carta si está abierta (Intro añade el primero; Esc borra), si no en la cola" },
   { teclas: "N", que: "Nueva venta directa" },
   { teclas: "A", que: "Entrada al parque: registrar y cobrar niños sin salir de la caja" },
-  { teclas: "I", que: "Identificar al cliente de la factura" },
+  { teclas: "I", que: "Identificar al cliente de la factura (o escribir la cédula que falta)" },
   { teclas: "C", que: "Buscar: el mismo campo de la cola, por nombre, cédula, teléfono o #orden; debajo, el directorio" },
   { teclas: "R", que: "Ver el recibo del último cobro" },
   { teclas: "M", que: "Mover efectivo: sencillo, compras, proveedor, adelanto o retiro a resguardo" },

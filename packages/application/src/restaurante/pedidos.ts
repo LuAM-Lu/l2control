@@ -48,6 +48,7 @@ import {
   notasSugeridas,
   partesDelPedido,
   pedidoRepetido,
+  pideLaCedula,
   problemaParaDeshacer,
   servidoDelPedido,
   servidoPorPlato,
@@ -167,6 +168,18 @@ export function casosPedidos(base: Base): CasosPedidos {
               motivo: "CONFLICTO",
               mensaje: `La caja está cobrando esta cuenta en partes (${enPartes.paid} de ${enPartes.parts} cobradas): pide lo nuevo en otra cuenta de la mesa, o cuando termine el cobro.`,
               problemas: [{ path: ["cuentaId"], message: "COBRO_EN_PARTES" }],
+            };
+          }
+
+          // Sentada «Más rápido» (B6-22), la cuenta recibe su primer pedido sin la cédula; el segundo espera a que se
+          // complete. Vale aunque la sucursal haya vuelto a «Más seguro»: la regla es de la cuenta.
+          const sinCedula = actual?.cuenta.cliente !== undefined && actual.cuenta.cliente.cedula === null;
+          if (actual && sinCedula && pideLaCedula({ sinCedula, pedidos: await tx.kitchenOrder.count({ where: { accountId: actual.cuenta.id } }) })) {
+            return {
+              ok: false,
+              motivo: "INVALIDO",
+              mensaje: `Antes del segundo pedido, la cédula de ${actual.cuenta.cliente!.nombre}: escríbela y vuelve a enviarlo.`,
+              problemas: [{ path: ["cuentaId"], message: "FALTA_LA_CEDULA" }],
             };
           }
 

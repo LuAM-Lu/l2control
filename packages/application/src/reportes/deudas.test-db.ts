@@ -149,7 +149,7 @@ describe("el informe de deudas (B11-4)", () => {
     const maria = informe.deudas.find((d) => d.cliente.nombre === "Prueba Informe María")!;
     assert.equal(maria.estado, "COBRADA");
     assert.equal(maria.lugar, "Mesa 1");
-    assert.ok(maria.cliente.cedula.startsWith("V-"), "con su cédula completa");
+    assert.ok(maria.cliente.cedula!.startsWith("V-"), "con su cédula completa");
     assert.deepEqual(
       maria.historia.map((p) => [p.que, p.quien]),
       [

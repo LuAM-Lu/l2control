@@ -13,7 +13,7 @@ import { z } from "zod";
 import { IdSchema, TimestampSchema } from "./primitives.ts";
 import { AreaDeComandaSchema, AreaDeProductoSchema, PrecioMinorSchema } from "./productos.ts";
 import { FamilyAccountSchema } from "./account.ts";
-import { DatosDelClienteSchema } from "./clientes.ts";
+import { DatosParcialesDelClienteSchema } from "./clientes.ts";
 
 /**
  * Dónde está una mesa **en el local**, no en la pantalla — V3, D11.
@@ -335,7 +335,8 @@ export type PedidoEnviadoDto = z.infer<typeof PedidoEnviadoSchema>;
 /**
  * Sentar a una familia: abre su cuenta en una mesa, o una cuenta de pie si no hay mesa. Una mesa admite
  * varias (mesas compartidas, P-3). Desde B6-9 (M-33) cada una es de un cliente con nombre, cédula y teléfono: quien
- * consume primero y paga al final tiene que poder cobrarse si se va. La cuenta se llama como él.
+ * consume primero y paga al final tiene que poder cobrarse si se va. La cuenta se llama como él. Desde B6-22 (M-40), qué
+ * datos hacen falta lo deciden los ajustes de la sucursal: el nombre siempre.
  *
  * `cuentaId` lo genera la tablet: reenviar la misma (se cortó la red) no abre dos. `vistas` son las
  * cuentas abiertas que la tablet veía en esa mesa: si otro equipo abrió una mientras tanto, choca en vez
@@ -345,7 +346,7 @@ export const AbrirCuentaDelSalonCommandSchema = z
   .strictObject({
     cuentaId: z.uuid("Cuenta desconocida"),
     tableId: IdSchema.optional(),
-    cliente: DatosDelClienteSchema,
+    cliente: DatosParcialesDelClienteSchema,
     comensales: z.number().int().min(1, "Al menos una persona").max(30, "Hasta 30 personas"),
     vistas: z.number().int().min(0).max(20),
   });

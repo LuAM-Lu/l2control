@@ -16,6 +16,23 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.145.0] — 2026-10-20 · Hacia la puesta en marcha
+
+M-40: sentar «Más seguro» o «Más rápido».
+
+### Añadido
+- **Ajustes → Sucursal, «Al sentar a un cliente en una mesa»:** administración elige «Más seguro» (de fábrica, como
+  hasta ahora: nombre y cédula antes del primer pedido) o «Más rápido» (el nombre al sentar; la cédula antes del segundo
+  pedido y antes de cobrar). El teléfono, «Siempre» o «Solo si queda una deuda». Cambia para todas las tablets al
+  publicar y queda en la auditoría.
+- **«Falta la cédula»** en la cuenta de la tablet, en la cola de la caja y en «Factura a» (tecla I): un toque la pide en
+  el mismo campo «Cédula o RIF», sin PIN. Con «Más rápido», el primer pedido sale sin ella; el segundo, al tocar «Tomar
+  pedido», la pide antes («Anotar y tomar el pedido»), y la caja no cobra sin ella.
+
+### Cambiado
+- Quien se sentó «Más rápido» y se va antes de dar la cédula deja la deuda con su nombre (y su teléfono, si lo dio). El
+  que ya está en el directorio trae su cédula por su teléfono: no le falta.
+
 ## [0.144.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: un solo campo del cliente, cruzado en todo el local.
