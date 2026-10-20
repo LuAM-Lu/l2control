@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, type RefObject } from "react";
-import { Baby, Cake, Check, Clock, Combine, HandCoins, Users, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
+import { Baby, Cake, Check, Clock, Combine, HandCoins, IdCard, Users, Keyboard, Plus, Receipt, Search, ShoppingBag, Sparkles, Ticket, UserSearch, UserX, UtensilsCrossed, X } from "lucide-react";
 import { money, sum, toMajor } from "@l2/domain-money";
 import { joinProblem, type JoinProblem } from "@l2/domain-cash";
 import { WristbandCodeSchema, type ClienteEncontradoDto, type DeudaDto, type FamilyAccountDto } from "@l2/contracts";
@@ -100,7 +100,7 @@ export function filtrarCola(cuentas: readonly FamilyAccountDto[], texto: string,
     const nombre = sinAcentos(nombreDeCuenta(c));
     // La cédula o el teléfono del cliente de la cuenta (B6-9): desde cinco cifras, en cualquier parte.
     const cifras = q.replace(/\D/g, "");
-    const delCliente = c.cliente !== undefined && cifras.length >= 5 && [c.cliente.cedula, c.cliente.telefono].some((d) => d.replace(/\D/g, "").includes(cifras));
+    const delCliente = c.cliente !== undefined && cifras.length >= 5 && [c.cliente.cedula, c.cliente.telefono].some((d) => (d ?? "").replace(/\D/g, "").includes(cifras));
     return nombre.includes(q) || delCliente || (/^\d+$/.test(q) && (numero === q.replace(/^0+/, "") || numero.startsWith(q)));
   });
 }
@@ -114,7 +114,7 @@ export function deudasQueCoinciden(deudas: readonly DeudaDto[], texto: string): 
   if (q === "") return [];
   const cifras = q.replace(/\D/g, "");
   return deudas.filter(
-    (d) => sinAcentos(d.cliente.nombre).includes(q) || (cifras.length >= 5 && [d.cliente.cedula, d.cliente.telefono].some((x) => x.replace(/\D/g, "").includes(cifras))),
+    (d) => sinAcentos(d.cliente.nombre).includes(q) || (cifras.length >= 5 && [d.cliente.cedula, d.cliente.telefono].some((x) => (x ?? "").replace(/\D/g, "").includes(cifras))),
   );
 }
 
@@ -485,6 +485,8 @@ export function ColaCuentas({
             const larga = minutos !== null && minutos >= ESPERA_LARGA_MIN;
             // Una venta del mostrador que se dejó sin cobrar y sin datos (B6-9): no hay a quién cobrarle si se va.
             const sinDatos = esDirecta && !c.cliente && !activa;
+            // Sentada «Más rápido» (B6-22): se cobra con la cédula de su cliente; la caja la pide al cobrar.
+            const sinCedula = c.cliente?.cedula === null;
             return (
               <li key={c.id}>
                 <button
@@ -562,6 +564,12 @@ export function ColaCuentas({
                         <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 font-semibold whitespace-nowrap text-state-warn">
                           <UserX size={11} aria-hidden="true" />
                           Sin datos
+                        </span>
+                      )}
+                      {sinCedula && (
+                        <span className="flex shrink-0 items-center gap-0.5 rounded bg-state-warn-bg px-1 font-semibold whitespace-nowrap text-state-warn">
+                          <IdCard size={11} aria-hidden="true" />
+                          Falta la cédula
                         </span>
                       )}
                     </span>

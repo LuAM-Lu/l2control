@@ -643,12 +643,14 @@ export {
   type ClienteDeAquiDto,
   type ClientesDeAquiDto,
   DatosDelClienteSchema,
+  DatosParcialesDelClienteSchema,
   type AsignarClienteCommand,
   type BuscarClienteQuery,
   type EncontrarClienteQuery,
   type ClienteDeCuentaDto,
   type ClienteEncontradoDto,
   type DatosDelClienteDto,
+  type DatosParcialesDelClienteDto,
 } from "./clientes.ts";
 
 export {

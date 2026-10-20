@@ -70,7 +70,7 @@ export const RECORRIDOS: readonly RecorridoDePantalla[] = [
       {
         objetivo: en("mesas-plano"),
         titulo: "El salón",
-        texto: "Toca una mesa libre para sentar a un cliente: «Cédula, teléfono o nombre» propone a quien está aquí (las familias de la sala, las cuentas abiertas) y un toque rellena sus datos y lleva el tiempo de sus niños a la mesa. Una ocupada se toca para atenderla (en la tablet en vertical, sube en un cajón); el número en un círculo dice cuántas cuentas tiene.",
+        texto: "Toca una mesa libre para sentar a un cliente: «Cédula o RIF» propone a quien está aquí (las familias de la sala, las cuentas abiertas) y un toque rellena sus datos y lleva el tiempo de sus niños a la mesa. Con «Más rápido» basta su nombre: la cédula se pide antes del segundo pedido. Una ocupada se toca para atenderla (en la tablet en vertical, sube en un cajón); el número en un círculo dice cuántas cuentas tiene.",
       },
       { objetivo: en("mesas-de-pie"), titulo: "Quien pide de pie", texto: "Para quien pide sin mesa: ábrele una cuenta con sus mismos datos." },
       { objetivo: en("mesas-detalle"), titulo: "La mesa elegida", texto: "Sus cuentas (una por familia si es compartida), sus pedidos y si la comanda salió. Desde aquí se toma el pedido y se pide la cuenta." },

@@ -13,6 +13,11 @@
  *    se dieron, sin enlazar a nadie: no se pisa a un cliente con los datos de otro;
  *  · si no está, se da de alta.
  * El nombre del directorio no se cambia desde aquí: corregirlo es del directorio, con su auditoría.
+ *
+ * B6-22 (M-40): con «Más rápido» se sienta con el nombre, y con «Solo si queda una deuda» sin teléfono. Lo que no se dio
+ * queda vacío en la cuenta. El directorio necesita el teléfono (el parque llama al representante): sin él, el cliente
+ * nuevo queda en su cuenta y el directorio lo aprende cuando lo dé. El que ya está se reconoce igual por su cédula, y por
+ * su teléfono trae la cédula que el directorio ya tiene.
  */
 import {
   AsignarClienteCommandSchema,
@@ -26,7 +31,7 @@ import {
   type ClienteDeAquiDto,
   type ClienteEncontradoDto,
   type ClientesDeAquiDto,
-  type DatosDelClienteDto,
+  type DatosParcialesDelClienteDto,
   type FamilyAccountDto,
   type Rechazo,
   type Resultado,
@@ -45,18 +50,24 @@ import { enLaSalaDeHoy } from "../park/parque.ts";
 import { sessionsVinculadas } from "../restaurante/plano.ts";
 import { diaDeNegocioDe, zonaDe } from "../sucursal/ajustes.ts";
 import { businessDayAt, businessDayEnd } from "@l2/domain-cash";
+import { exigidoAlCompletar, type Exigido } from "@l2/domain-orders";
+import { ajustesDe } from "../sucursal/ajustes.ts";
 import { addDays, calendarDay } from "@l2/domain-rates";
 export { clientesDeCuentas } from "./de-cuentas.ts";
 
 /** El cliente que se le pone a una cuenta, ya reconocido (o dado de alta) en el directorio. */
 export type ClienteResuelto = Readonly<{
-  /** El cliente del directorio, o `null` si su teléfono es de otro cliente con otra cédula. */
+  /**
+   * El cliente del directorio, o `null` si su teléfono es de otro cliente con otra cédula, o si es nuevo y no dio
+   * teléfono (B6-22).
+   */
   guardianId: string | null;
   nombre: string;
-  cedula: string;
-  cedulaKey: string;
-  telefono: string;
-  telefonoKey: string;
+  /** Sin cédula (sentado «Más rápido», B6-22) o sin teléfono («Solo si queda una deuda»): `null`. */
+  cedula: string | null;
+  cedulaKey: string | null;
+  telefono: string | null;
+  telefonoKey: string | null;
   /** Si se dio de alta en el directorio ahora. */
   nuevo: boolean;
   /** Si un representante del parque recibió ahora su cédula. */
@@ -71,29 +82,66 @@ const datosInvalidos = (path: string): Rechazo => ({
 });
 
 /**
- * Reconoce al cliente en el directorio, o lo da de alta (ver arriba). Lo llama quien abre o asigna, dentro de su
- * transacción y después de comprobar el permiso.
+ * Lo que falta del cliente (B6-22): la cédula o el teléfono que los ajustes de la sucursal piden, con el mensaje que ve
+ * quien atiende. `para`: lo que no se hace sin ellos («no se abre la cuenta»).
  */
-export async function resolverCliente(tx: Transaccion, ctx: Contexto, datos: DatosDelClienteDto, ahora: number): Promise<ClienteResuelto | Rechazo> {
-  const cedula = documentoLegible(datos.cedula);
-  const cedulaKey = documentKey(datos.cedula);
-  if (!cedula || !cedulaKey) return datosInvalidos("cedula");
-  const telefono = telefonoLegible(datos.telefono);
-  const telefonoKey = contactKey(datos.telefono);
-  if (!telefono || !telefonoKey) return datosInvalidos("telefono");
+export function faltaDelCliente(datos: DatosParcialesDelClienteDto, exige: Exigido, para: string): Rechazo | null {
+  const falta = exige.cedula && !datos.cedula ? "cedula" : exige.telefono && !datos.telefono ? "telefono" : null;
+  if (!falta) return null;
+  return {
+    ok: false,
+    motivo: "INVALIDO",
+    mensaje: falta === "cedula" ? `Falta la cédula de ${datos.nombre}: sin ella ${para}.` : `Falta el teléfono de ${datos.nombre}: sin él ${para}.`,
+    problemas: [{ path: ["cliente", falta], message: falta === "cedula" ? "FALTA_LA_CEDULA" : "FALTA_EL_TELEFONO" }],
+  };
+}
+
+/**
+ * Para el asiento (B6-22): qué le falta al cliente, sin sus datos (PLAN §7.6). La clave no lleva «cédula» ni
+ * «teléfono»: el registro las tapa.
+ */
+export function faltanDe(c: Readonly<{ cedula: string | null; telefono: string | null }>): { faltan?: ("CEDULA" | "TELEFONO")[] } {
+  const faltan = [...(c.cedula === null ? (["CEDULA"] as const) : []), ...(c.telefono === null ? (["TELEFONO"] as const) : [])];
+  return faltan.length > 0 ? { faltan } : {};
+}
+
+/**
+ * Reconoce al cliente en el directorio, o lo da de alta (ver arriba). Lo llama quien abre o asigna, dentro de su
+ * transacción y después de comprobar el permiso y lo que falta (`faltaDelCliente`).
+ */
+export async function resolverCliente(tx: Transaccion, ctx: Contexto, datos: DatosParcialesDelClienteDto, ahora: number): Promise<ClienteResuelto | Rechazo> {
+  const conCedula = (datos.cedula ?? "").trim() !== "";
+  const cedula = conCedula ? documentoLegible(datos.cedula!) : null;
+  const cedulaKey = conCedula ? documentKey(datos.cedula!) : null;
+  if (conCedula && (!cedula || !cedulaKey)) return datosInvalidos("cedula");
+  const conTelefono = (datos.telefono ?? "").trim() !== "";
+  const telefono = conTelefono ? telefonoLegible(datos.telefono!) : null;
+  const telefonoKey = conTelefono ? contactKey(datos.telefono!) : null;
+  if (conTelefono && (!telefono || !telefonoKey)) return datosInvalidos("telefono");
   const base = { nombre: datos.nombre, cedula, cedulaKey, telefono, telefonoKey } as const;
 
-  const porCedula = await tx.guardian.findFirst({ where: { documentKey: cedulaKey }, select: { id: true } });
-  if (porCedula) return { ...base, guardianId: porCedula.id, nuevo: false, completado: false };
+  if (cedulaKey) {
+    const porCedula = await tx.guardian.findFirst({ where: { documentKey: cedulaKey }, select: { id: true } });
+    if (porCedula) return { ...base, guardianId: porCedula.id, nuevo: false, completado: false };
+  }
 
-  const porTelefono = await tx.guardian.findFirst({ where: { contactKey: telefonoKey }, select: { id: true, documentKey: true } });
+  const porTelefono = telefonoKey ? await tx.guardian.findFirst({ where: { contactKey: telefonoKey }, select: { id: true, document: true, documentKey: true } }) : null;
   if (porTelefono) {
-    if (porTelefono.documentKey !== null) return { ...base, guardianId: null, nuevo: false, completado: false };
+    // Ese teléfono ya tiene su cédula: con otra, es otra persona (comparten número) y no se enlaza; sin ninguna (B6-22),
+    // es él, y su cédula viene del directorio.
+    if (porTelefono.documentKey !== null) {
+      return cedulaKey
+        ? { ...base, guardianId: null, nuevo: false, completado: false }
+        : { ...base, cedula: porTelefono.document, cedulaKey: porTelefono.documentKey, guardianId: porTelefono.id, nuevo: false, completado: false };
+    }
+    if (!cedula || !cedulaKey) return { ...base, guardianId: porTelefono.id, nuevo: false, completado: false };
     await tx.guardian.update({ where: { id: porTelefono.id }, data: { document: cedula, documentKey: cedulaKey } });
     await auditar(tx, ctx, { action: "cliente.completar", entityType: "guardian", entityId: porTelefono.id, after: { cedula: "anotada" } });
     return { ...base, guardianId: porTelefono.id, nuevo: false, completado: true };
   }
 
+  // Nuevo. Sin teléfono no entra al directorio (lo exige: el parque llama al representante): queda en su cuenta.
+  if (!telefono || !telefonoKey) return { ...base, guardianId: null, nuevo: false, completado: false };
   const nuevo = await tx.guardian.create({
     data: {
       tenantId: ctx.tenantId,
@@ -138,9 +186,22 @@ export async function anotarCliente(
   return { nombre: c.nombre, cedula: c.cedula, telefono: c.telefono, ...(c.guardianId ? { clienteId: c.guardianId } : {}) };
 }
 
+const llaveDeCedula = (v: string | null | undefined) => (v ? documentKey(v) : null);
+const llaveDeTelefono = (v: string | null | undefined) => (v ? contactKey(v) : null);
+
 /** ¿Es el mismo cliente? La misma cédula, el mismo teléfono y el mismo nombre: reenviarlo no añade otra fila. */
-function mismo(a: ClienteDeCuentaDto, b: DatosDelClienteDto): boolean {
-  return documentKey(a.cedula) === documentKey(b.cedula) && contactKey(a.telefono) === contactKey(b.telefono) && a.nombre.trim() === b.nombre.trim();
+function mismo(a: ClienteDeCuentaDto, b: DatosParcialesDelClienteDto): boolean {
+  return llaveDeCedula(a.cedula) === llaveDeCedula(b.cedula) && llaveDeTelefono(a.telefono) === llaveDeTelefono(b.telefono) && a.nombre.trim() === b.nombre.trim();
+}
+
+/**
+ * ¿Completa al cliente que tiene la cuenta, en vez de cambiarlo (B6-22)? A una cuenta sin cédula (sentada «Más rápido»)
+ * se le pone, con el nombre que sea: hasta ahora no tenía a quién cobrarle. Y a la que tiene su cédula se le añade el
+ * teléfono que faltaba, si el nombre y la cédula siguen. Completar es de quien atiende; cambiar, con autorización.
+ */
+function completa(a: ClienteDeCuentaDto, b: DatosParcialesDelClienteDto): boolean {
+  if (a.cedula === null) return true;
+  return a.telefono === null && llaveDeCedula(a.cedula) === llaveDeCedula(b.cedula) && a.nombre.trim() === b.nombre.trim();
 }
 
 type Ficha = Readonly<{ id: string; fullName: string; document: string | null; documentKey: string | null; contactReference: string; contactKey: string }>;
@@ -338,12 +399,16 @@ export function casosClientes(base: Base): CasosClientes {
           }
           if (cuenta.status !== "ABIERTA" && cuenta.status !== "POR_COBRAR") return { ok: false, motivo: "CONFLICTO", mensaje: "Esa cuenta ya está cerrada." };
 
+          // Completar (B6-22): el teléfono que ya tenía la cuenta se queda si no se volvió a dar.
+          const datos = !cmd.cliente.telefono && cuenta.cliente?.telefono && completa(cuenta.cliente, cmd.cliente) ? { ...cmd.cliente, telefono: cuenta.cliente.telefono } : cmd.cliente;
           // Reenviar el mismo cliente (se cortó la red) no cambia nada ni pide autorización.
-          if (cuenta.cliente && mismo(cuenta.cliente, cmd.cliente)) return (await exigirPermiso(tx, ctx, "cuenta.cliente")) ?? cuenta;
-          // Poner el primero es de quien atiende; cambiarlo, con la autorización de supervisión (es a quien se cobra).
-          accion = cuenta.cliente ? "cuenta.cambiar_cliente" : "cuenta.cliente";
+          if (cuenta.cliente && mismo(cuenta.cliente, datos)) return (await exigirPermiso(tx, ctx, "cuenta.cliente")) ?? cuenta;
+          // Poner el primero o completarlo es de quien atiende; cambiarlo, con la autorización de supervisión (es a quien se
+          // cobra).
+          const cambia = cuenta.cliente !== undefined && !completa(cuenta.cliente, datos);
+          accion = cambia ? "cuenta.cambiar_cliente" : "cuenta.cliente";
           let autorizadoPor: string | null = null;
-          if (cuenta.cliente) {
+          if (cambia) {
             const p = await exigirPermisoOAutorizacion(tx, ctx, "cuenta.cambiarCliente", autorizacion, ahora);
             if (!p.ok) return p;
             autorizadoPor = p.autorizadoPor;
@@ -355,10 +420,13 @@ export function casosClientes(base: Base): CasosClientes {
           // Una venta directa que queda pendiente (B6-16): lo que se prepara sale ya en su comanda, no al cobrarla. Se
           // comprueba antes de escribir nada (su impresora).
           const ventaDirecta = cuenta.kind === "MOSTRADOR" && !cuenta.dePie && !cuenta.divididaDe && cuenta.status === "POR_COBRAR";
+          // La cédula, siempre; el teléfono, según la sucursal, y siempre en la venta que queda pendiente (B6-22).
+          const falta = faltaDelCliente(datos, exigidoAlCompletar((await ajustesDe(tx, ctx.branchId)).telefonoDelCliente, ventaDirecta), "no se anota");
+          if (falta) return falta;
           const porSalir = ventaDirecta ? await prepararComandaDeCaja(tx, ctx, cuenta, "la venta no quedó pendiente") : null;
           if (porSalir && "ok" in porSalir) return porSalir;
 
-          const c = await resolverCliente(tx, ctx, cmd.cliente, ahora);
+          const c = await resolverCliente(tx, ctx, datos, ahora);
           if ("ok" in c) return c;
           const quien = await nombreDe(tx, ctx);
           const cliente = await anotarCliente(tx, ctx, cuenta.id, c, ahora, quien.nombre);
@@ -374,7 +442,15 @@ export function casosClientes(base: Base): CasosClientes {
             ...(autorizacion && typeof autorizacion === "object" && "motivo" in autorizacion && typeof autorizacion.motivo === "string"
               ? { reason: autorizacion.motivo }
               : {}),
-            after: { nombre: c.nombre, clienteId: c.guardianId, nuevo: c.nuevo, orden: cuenta.orderNumber ?? null },
+            after: {
+              nombre: c.nombre,
+              clienteId: c.guardianId,
+              nuevo: c.nuevo,
+              orden: cuenta.orderNumber ?? null,
+              // B6-22: completó la cédula (o el teléfono) de quien se sentó sin ella. Qué datos, no cuáles (PLAN §7.6).
+              ...(cuenta.cliente && !cambia ? { completado: true } : {}),
+              ...faltanDe(c),
+            },
           });
           return nueva;
         });

@@ -484,6 +484,11 @@ export function casosCuentas(base: Base, cifrador: Cifrador | null, soporteOpera
               return invalido("Una venta del mostrador se cobra con la cédula y el nombre del cliente: escríbelos en «Factura a».", ["cliente"], "FALTA_EL_CLIENTE");
             }
           }
+          // B6-22: la cuenta sentada «Más rápido» se cobra con la cédula de su cliente; la caja la completa antes. Lo cargado
+          // desde papel ya pasó, y el consumo del personal es de quien firmó.
+          if (cuenta.cliente && cuenta.cliente.cedula === null && !carga && !consumo) {
+            return invalido(`Antes de cobrar, la cédula de ${cuenta.cliente.nombre}: escríbela con «Falta la cédula».`, ["cliente"], "FALTA_LA_CEDULA");
+          }
 
           // Sin turno abierto en el equipo no se cobra (F4-01); en una caja de un día anterior, solo lo de su día (B3-24).
           const uso = { kind: "COBRO", abiertaEn: await desdeCuandoEs(tx, cmd.accountId, cuenta), desdePapel: carga !== null } as const;

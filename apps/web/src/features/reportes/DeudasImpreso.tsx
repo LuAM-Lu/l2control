@@ -56,7 +56,7 @@ export function DeudasImpreso({ pedido, informe }: DeudasPedidas) {
             {ordenDeDeuda(d.orden)} · {d.lugar} · {importe(d.monto)} · <EstadoDeDeuda estado={d.estado} dias={d.diasPendiente} papel />
           </h3>
           <p className="mb-0.5 text-[9pt]">
-            Cliente: <span className="font-semibold">{d.cliente.nombre}</span> · <span className="tnum">{d.cliente.cedula}</span> · <span className="tnum">{d.cliente.telefono}</span>. Lo
+            Cliente: <span className="font-semibold">{d.cliente.nombre}</span> · <span className="tnum">{d.cliente.cedula ?? "sin cédula"}</span> · <span className="tnum">{d.cliente.telefono ?? "sin teléfono"}</span>. Lo
             sentó {d.sentadoPor}.
           </p>
           <TablaDeInforme seccion={seccionDeHistoria(d, reloj, preciosConIva, true)} papel />

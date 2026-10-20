@@ -2,9 +2,10 @@
  * El cliente de una cuenta — B6-9, M-33.
  *
  * Quien abre una cuenta en el salón (una mesa o de pie) consume primero y paga al final: si se va sin pagar, hay que
- * saber a quién cobrarle. Por eso sentar a alguien pide **nombre, cédula y teléfono**, los tres, y el servidor no abre
- * la cuenta sin ellos. En el mostrador se cobra al momento («Consumidor final», DEC-23): solo una venta que se deja
- * pendiente pide los mismos datos.
+ * saber a quién cobrarle. Por eso sentar a alguien pide **nombre, cédula y teléfono**, y el servidor no abre la cuenta
+ * sin ellos. Desde B6-22 (M-40) administración lo elige en Ajustes → Sucursal: con «Más rápido» basta el nombre (la
+ * cédula, antes del segundo pedido y antes de cobrar) y el teléfono puede pedirse solo cuando queda una deuda. En el
+ * mostrador se cobra al momento («Consumidor final», DEC-23): solo una venta que se deja pendiente pide los tres datos.
  *
  * El directorio de representantes (B4-1) es también el de los clientes: el que vuelve se reconoce por su cédula o su
  * teléfono y no se teclea dos veces. Todo el que atiende ve los datos completos (M-33); nunca salen en los registros,
@@ -26,14 +27,29 @@ export const DatosDelClienteSchema = z.strictObject({
 });
 export type DatosDelClienteDto = z.infer<typeof DatosDelClienteSchema>;
 
+/** Un dato que no se dio: el campo vacío es lo mismo que no mandarlo. */
+const opcional = (v: unknown) => (typeof v === "string" && v.trim() === "" ? undefined : sinSeparadores(v));
+
+/**
+ * El cliente al sentarlo o al completarlo (B6-22): el nombre siempre; la cédula y el teléfono, si se dieron. Qué hace
+ * falta lo dice el servidor con los ajustes de la sucursal (`sentar`, `telefonoDelCliente`), no la tablet.
+ */
+export const DatosParcialesDelClienteSchema = z.strictObject({
+  nombre: DatosDelClienteSchema.shape.nombre,
+  cedula: z.preprocess(opcional, DocumentoVeSchema.optional()),
+  telefono: z.preprocess(opcional, TelefonoVeSchema.optional()),
+});
+export type DatosParcialesDelClienteDto = z.infer<typeof DatosParcialesDelClienteSchema>;
+
 /**
  * El cliente de una cuenta como lo lee la pantalla: lo que se dio, ya escrito como se escribe («V-12345678»,
- * «0414-1234567»), y el cliente del directorio si se reconoció.
+ * «0414-1234567»), y el cliente del directorio si se reconoció. Sin cédula (sentado «Más rápido», B6-22) o sin teléfono
+ * («Solo si queda una deuda»), `null`.
  */
 export const ClienteDeCuentaSchema = z.object({
   nombre: z.string().trim().min(2).max(80),
-  cedula: z.string().trim().min(6).max(20),
-  telefono: z.string().trim().min(11).max(20),
+  cedula: z.string().trim().min(6).max(20).nullable(),
+  telefono: z.string().trim().min(11).max(20).nullable(),
   clienteId: IdSchema.optional(),
 });
 export type ClienteDeCuentaDto = z.infer<typeof ClienteDeCuentaSchema>;
@@ -102,12 +118,14 @@ export const ClientesDeAquiSchema = z.object({ clientes: z.array(ClienteDeAquiSc
 export type ClientesDeAquiDto = z.infer<typeof ClientesDeAquiSchema>;
 
 /**
- * Poner el cliente de una cuenta abierta (una venta del mostrador que se deja pendiente) o cambiarlo (un dato mal
- * escrito). Ponerlo lo hace quien atiende; cambiarlo, con la autorización de supervisión.
+ * Poner el cliente de una cuenta abierta (una venta del mostrador que se deja pendiente), completarlo (la cédula de
+ * quien se sentó «Más rápido», B6-22) o cambiarlo (un dato mal escrito). Ponerlo y completarlo lo hace quien atiende;
+ * cambiarlo, con la autorización de supervisión. La cédula se exige siempre; el teléfono, según la sucursal (y siempre
+ * en una venta que queda pendiente).
  */
 export const AsignarClienteCommandSchema = z.strictObject({
   idempotencyKey: IdempotencyKeySchema,
   accountId: z.uuid("Cuenta desconocida"),
-  cliente: DatosDelClienteSchema,
+  cliente: DatosParcialesDelClienteSchema,
 });
 export type AsignarClienteCommand = z.infer<typeof AsignarClienteCommandSchema>;

@@ -95,6 +95,8 @@ export function CampoDelCliente({
     onCambio: (v: string) => void;
     required?: boolean;
     error?: string | undefined;
+    /** B6-22: la pista bajo el campo (con «Más rápido», cuándo se pide). */
+    hint?: string | undefined;
     inputRef?: React.Ref<HTMLInputElement> | undefined;
   }>;
   /** Dónde se usa: ordena «Aquí ahora» (T-24). */
@@ -327,6 +329,7 @@ export function CampoDelCliente({
           onCambio={cedula.onCambio}
           {...(cedula.required ? { required: true } : {})}
           {...(cedula.error ? { error: cedula.error } : {})}
+          {...(cedula.hint ? { hint: cedula.hint } : {})}
           autoFocus={autoFocus}
           {...(cedula.inputRef ? { inputRef: cedula.inputRef } : {})}
         />

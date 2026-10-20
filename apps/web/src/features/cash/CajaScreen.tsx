@@ -124,6 +124,7 @@ import {
   documentoEnmascarado,
 } from "./ClienteFacturaDialog.tsx";
 import { BuscadorDeClientes } from "../clientes/BuscadorDeClientes.tsx";
+import { CompletarClienteDialog } from "../clientes/CompletarClienteDialog.tsx";
 import { TECLA_MEDIO, useAtajos } from "./atajos.ts";
 import { cambiarVistaDePrecios } from "./precios.acciones";
 import { AtajosDialog, PistaTecla } from "./AtajosDialog.tsx";
@@ -370,8 +371,20 @@ function CobroCuenta({
    * nació con su cliente (B6-9) ya viene a su nombre. La venta del mostrador sin cliente lo pide: se cobra a alguien.
    */
   const [cliente, setCliente] = useState<ClienteFacturaDto>(() =>
-    cuenta.cliente ? { kind: "IDENTIFICADO", name: cuenta.cliente.nombre, document: cuenta.cliente.cedula } : CONSUMIDOR_FINAL,
+    cuenta.cliente?.cedula ? { kind: "IDENTIFICADO", name: cuenta.cliente.nombre, document: cuenta.cliente.cedula } : CONSUMIDOR_FINAL,
   );
+  /**
+   * B6-22: la cuenta sentada «Más rápido» que llega sin la cédula de su cliente no se cobra (el servidor tampoco la deja,
+   * FALTA_LA_CEDULA): «Factura a» la pide, en el mismo campo «Cédula o RIF». Anotada, la factura sale a su nombre.
+   */
+  const faltaCedula = cuenta.cliente?.cedula === null;
+  const [completando, setCompletando] = useState(false);
+  const cedulaDeLaCuenta = cuenta.cliente?.cedula ?? null;
+  const [cedulaVista, setCedulaVista] = useState(cedulaDeLaCuenta);
+  if (cedulaVista !== cedulaDeLaCuenta) {
+    setCedulaVista(cedulaDeLaCuenta);
+    if (cedulaVista === null && cedulaDeLaCuenta && cliente.kind !== "IDENTIFICADO") setCliente({ kind: "IDENTIFICADO", name: cuenta.cliente!.nombre, document: cedulaDeLaCuenta });
+  }
   /** Una venta del mostrador sin su cliente no se cobra: el servidor tampoco la deja (FALTA_EL_CLIENTE). */
   // La cuenta de una persona al dividir por ítems (B3-20) no: es parte de una cuenta que ya era de alguien.
   const faltaCliente = cuenta.kind === "MOSTRADOR" && !cuenta.divididaDe && !cuenta.cliente && cliente.kind !== "IDENTIFICADO";
@@ -942,7 +955,7 @@ function CobroCuenta({
             : null;
 
   const puedeCobrar =
-    balance !== null && falta.amount === 0n && pagos.length > 0 && !faltaCliente;
+    balance !== null && falta.amount === 0n && pagos.length > 0 && !faltaCliente && !faltaCedula;
 
   /* --------------------------------------------------------- conversiones y atajos */
 
@@ -1077,7 +1090,9 @@ function CobroCuenta({
     }
     const letra = t.key.toUpperCase();
     if (letra === "I") {
-      setIdentificando(true);
+      // B6-22: a la cuenta sin cédula, la tecla la pide.
+      if (faltaCedula) setCompletando(true);
+      else setIdentificando(true);
       return true;
     }
     const medio = mediosDisponibles.find((m) => TECLA_MEDIO[m.code] === letra);
@@ -1570,11 +1585,17 @@ function CobroCuenta({
               tecla="I"
               activo={cliente.kind === "IDENTIFICADO"}
               aria-haspopup="dialog"
-              title={cliente.kind === "IDENTIFICADO" ? `${cliente.name} · ${documentoEnmascarado(cliente.document)}` : "Identificar al cliente de la factura (tecla I)"}
-              onClick={() => setIdentificando(true)}
-              className={faltaCliente ? "border-state-warn/70 bg-state-warn-bg/25" : undefined}
+              title={
+                faltaCedula
+                  ? `Falta la cédula de ${cuenta.cliente!.nombre} (tecla I)`
+                  : cliente.kind === "IDENTIFICADO"
+                    ? `${cliente.name} · ${documentoEnmascarado(cliente.document)}`
+                    : "Identificar al cliente de la factura (tecla I)"
+              }
+              onClick={() => (faltaCedula ? setCompletando(true) : setIdentificando(true))}
+              className={faltaCliente || faltaCedula ? "border-state-warn/70 bg-state-warn-bg/25" : undefined}
             >
-              {cliente.kind === "IDENTIFICADO" ? cliente.name : faltaCliente ? "Falta el cliente" : "Consumidor final"}
+              {faltaCedula ? "Falta la cédula" : cliente.kind === "IDENTIFICADO" ? cliente.name : faltaCliente ? "Falta el cliente" : "Consumidor final"}
             </BotonDelPie>
             {(descuento || ofreceDescuentos) && (
               <BotonDelPie
@@ -2136,6 +2157,8 @@ function CobroCuenta({
                 <PistaTecla tecla="Ctrl ⏎" />
               ) : faltaCliente && cubierto ? (
                 "Falta el cliente: Factura a (I)"
+              ) : faltaCedula && cubierto ? (
+                "Falta la cédula: Factura a (I)"
               ) : (
                 `Falta ${formatMoneyVE(toMajor(falta), "USD")}`
               )}
@@ -2180,6 +2203,18 @@ function CobroCuenta({
           setSeFue(false);
           // Incobrable: sale de la cola; la caja pasa a la siguiente.
           adoptarCuenta(r.cuenta);
+        }}
+      />
+      {/* B6-22: la cédula de quien se sentó «Más rápido», antes de cobrar. */}
+      <CompletarClienteDialog
+        cuenta={completando ? cuenta : null}
+        motivo="Antes de cobrar"
+        surface="pos"
+        para="CAJA"
+        onCerrar={() => setCompletando(false)}
+        onHecho={(c) => {
+          setCompletando(false);
+          adoptarCuenta(c);
         }}
       />
       <ClienteFacturaDialog
@@ -2247,7 +2282,7 @@ function CobroCuenta({
         onConfirmar={confirmarDatos}
         onCancelar={() => setPendienteDeDatos(null)}
         // T-23: quien paga suele ser el cliente de la cuenta: sus datos se proponen.
-        delCliente={cuenta.cliente ?? null}
+        delCliente={cuenta.cliente?.cedula && cuenta.cliente.telefono ? { nombre: cuenta.cliente.nombre, cedula: cuenta.cliente.cedula, telefono: cuenta.cliente.telefono } : null}
       />
 
       {/* Corregir un pago: el mismo formulario, prellenado, con su monto. Una

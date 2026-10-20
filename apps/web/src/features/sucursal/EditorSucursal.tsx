@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
-import { CalendarClock, Info, RotateCcw, Save, TriangleAlert } from "lucide-react";
+import { CalendarClock, Check, Info, RotateCcw, Save, ShieldCheck, TriangleAlert, Zap } from "lucide-react";
 import { AjustesSucursalSchema, HorarioDelDiaSchema, type AjustesSucursalDto, type CatalogoDto, type DiaSemana, type HorarioDelDiaDto } from "@l2/contracts";
 import { fromMajor, money, toMajor } from "@l2/domain-money";
 import { Button, Container, Input, PageHeader, avisar, cn } from "@l2/ui";
@@ -289,6 +289,7 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
           </section>
         </div>
 
+        <div className="flex min-w-0 flex-col gap-4">
         {/* === Horario === */}
         <section aria-labelledby="suc-horario" className={TARJETA}>
           <div className="flex items-center justify-between gap-2">
@@ -366,6 +367,85 @@ export function EditorSucursal({ catalogo }: { catalogo?: CatalogoDto } = {}) {
           )}
           {errores.horario && <p className="text-[12px] font-medium text-state-crit">{errores.horario}</p>}
         </section>
+
+        {/* === Al sentar a un cliente (B6-22, M-40) === */}
+        <section aria-labelledby="suc-sentar" className={TARJETA}>
+          <div className="flex flex-col gap-1">
+            <h2 id="suc-sentar" className="font-display text-[14px] font-bold text-ink">
+              Al sentar a un cliente en una mesa
+            </h2>
+            <p className="text-detalle text-ink-3">Qué pide el mesero antes de tomar el pedido. El que ya vino o tiene niños en el parque se llena solo en los dos casos.</p>
+          </div>
+          <div role="radiogroup" aria-label="Qué pide el mesero al sentar" className="grid gap-2 sm:grid-cols-2">
+            {(
+              [
+                {
+                  valor: "SEGURO",
+                  titulo: "Más seguro",
+                  icono: ShieldCheck,
+                  que: "Nombre y cédula antes del primer pedido.",
+                  bien: "Si se van sin pagar, la deuda tiene a quién cobrarle desde el primer pedido.",
+                  costo: "El primer pedido espera a que se escriban los datos.",
+                },
+                {
+                  valor: "RAPIDO",
+                  titulo: "Más rápido",
+                  icono: Zap,
+                  que: "El nombre al sentar; la cédula antes del segundo pedido y antes de cobrar.",
+                  bien: "El primer pedido sale en segundos.",
+                  costo: "Si se van después del primer pedido, la deuda queda solo con el nombre.",
+                },
+              ] as const
+            ).map((o) => {
+              const elegida = borrador.sentar === o.valor;
+              const Icono = o.icono;
+              return (
+                <button
+                  key={o.valor}
+                  type="button"
+                  role="radio"
+                  aria-checked={elegida}
+                  onClick={() => cambiar({ sentar: o.valor })}
+                  className={cn(
+                    "flex cursor-pointer flex-col gap-1.5 rounded-[var(--radius-control)] border p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                    elegida ? "border-brand bg-brand/10" : "border-line bg-surface hover:border-line-strong",
+                  )}
+                >
+                  <span className="flex items-center gap-1.5">
+                    <Icono className={cn("size-(--icono-texto) shrink-0", elegida ? "text-brand" : "text-ink-3")} aria-hidden="true" />
+                    <span className="flex-1 text-cuerpo font-semibold text-ink">{o.titulo}</span>
+                    {elegida && <Check className="size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />}
+                  </span>
+                  {o.valor === "SEGURO" && <span className="self-start rounded bg-surface-2 px-1.5 text-etiqueta font-semibold text-ink-2">De fábrica</span>}
+                  <span className="text-detalle text-ink-2">{o.que}</span>
+                  <span className="text-detalle text-ink-3">{o.bien}</span>
+                  <span className="text-detalle text-ink-3">{o.costo}</span>
+                </button>
+              );
+            })}
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <span className={ETIQUETA}>El teléfono</span>
+            <div className="flex items-center gap-1" role="group" aria-label="El teléfono del cliente">
+              <button type="button" aria-pressed={borrador.telefonoDelCliente === "SIEMPRE"} className={segmento(borrador.telefonoDelCliente === "SIEMPRE")} onClick={() => cambiar({ telefonoDelCliente: "SIEMPRE" })}>
+                Siempre
+              </button>
+              <button type="button" aria-pressed={borrador.telefonoDelCliente === "DEUDA"} className={segmento(borrador.telefonoDelCliente === "DEUDA")} onClick={() => cambiar({ telefonoDelCliente: "DEUDA" })}>
+                Solo si queda una deuda
+              </button>
+            </div>
+            <p className="text-[12px] text-ink-3">
+              {borrador.telefonoDelCliente === "SIEMPRE"
+                ? "Para llamar si queda una deuda. Se pide al sentar, como la cédula."
+                : "Al sentar es opcional; una venta que queda pendiente lo pide. Sin teléfono, un cliente nuevo no entra al directorio hasta que lo dé."}
+            </p>
+          </div>
+          <p className="flex items-center gap-1.5 text-[12px] text-ink-3">
+            <Info size={13} aria-hidden="true" />
+            Cambia para todas las tablets al publicar, y queda en la auditoría.
+          </p>
+        </section>
+        </div>
 
         {/* === Cómo opera === */}
         <section aria-labelledby="suc-opera" className={TARJETA}>

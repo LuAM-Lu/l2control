@@ -5,6 +5,7 @@ import { TriangleAlert, UserCheck } from "lucide-react";
 import { DatosDelClienteSchema, type ClienteEncontradoDto, type DatosDelClienteDto } from "@l2/contracts";
 import { contactKey, documentKey, telefonoLegible } from "@l2/domain-park";
 import { money, sum, toMajor } from "@l2/domain-money";
+import type { Exigido } from "@l2/domain-orders";
 import { Input, formatMoneyVE, type Surface } from "@l2/ui";
 import { CampoCedula, CampoTelefono } from "./CamposDelCliente.tsx";
 import { CampoDelCliente, type ClienteElegido, type ParaQue } from "./CampoDelCliente.tsx";
@@ -20,20 +21,27 @@ import { buscarCliente } from "./clientes.acciones";
  *
  * T-23 (M-38): arriba, el campo del cliente («Cédula, teléfono o nombre»), que propone a quien está aquí y busca por
  * nombre; al elegir, rellena lo que esté vacío y «No es esta persona» lo deja como estaba.
+ *
+ * B6-22 (M-40): `exige` dice qué hace falta además del nombre (al sentar, lo deciden los ajustes de la sucursal). Lo que
+ * no se exige puede quedar vacío; si se escribe, tiene que valer.
  */
 
 export const SIN_DATOS: DatosDelClienteDto = { nombre: "", cedula: "", telefono: "" };
 
-/** Los problemas de cada campo según el contrato, o `null` si los tres valen. */
-export function problemasDelCliente(d: DatosDelClienteDto): Partial<Record<keyof DatosDelClienteDto, string>> | null {
+/** Los tres datos: lo de siempre fuera de sentar (dejar pendiente una venta, una deuda sin cliente). */
+export const TODO_EL_CLIENTE: Exigido = { cedula: true, telefono: true };
+
+/** Los problemas de cada campo según el contrato, o `null` si valen. Lo no exigido puede ir vacío (B6-22). */
+export function problemasDelCliente(d: DatosDelClienteDto, exige: Exigido = TODO_EL_CLIENTE): Partial<Record<keyof DatosDelClienteDto, string>> | null {
   const r = DatosDelClienteSchema.safeParse(d);
   if (r.success) return null;
   const p: Partial<Record<keyof DatosDelClienteDto, string>> = {};
   for (const i of r.error.issues) {
     const campo = i.path[0] as keyof DatosDelClienteDto;
+    if (campo !== "nombre" && !exige[campo] && d[campo].trim() === "") continue;
     p[campo] ??= i.message;
   }
-  return p;
+  return Object.keys(p).length > 0 ? p : null;
 }
 
 export function DatosDelCliente({
@@ -45,9 +53,12 @@ export function DatosDelCliente({
   onElegido,
   trasElElegido,
   para = "MESA",
+  exige = TODO_EL_CLIENTE,
 }: {
   /** Dónde se usa: ordena «Aquí ahora» (T-24). */
   para?: ParaQue;
+  /** Lo que hace falta además del nombre (B6-22): lo demás se puede dejar vacío. */
+  exige?: Exigido;
   /** Lo que va justo debajo del campo del cliente (sentar: «Llevar el tiempo de sus niños»), a la vista al elegir. */
   trasElElegido?: ReactNode;
   valor: DatosDelClienteDto;
@@ -135,14 +146,29 @@ export function DatosDelCliente({
         surface={surface}
         autoFocus={autoFocus}
         para={para}
-        cedula={{ valor: valor.cedula, onCambio: (cedula) => onCambio({ ...valor, cedula }), required: true, error: errores?.cedula }}
+        cedula={{
+          valor: valor.cedula,
+          onCambio: (cedula) => onCambio({ ...valor, cedula }),
+          required: exige.cedula,
+          error: errores?.cedula,
+          // B6-22: con «Más rápido» se puede dejar para después; se pide antes del segundo pedido.
+          hint: exige.cedula ? undefined : "Si la da ahora; si no, antes del segundo pedido",
+        }}
       />
       {trasElElegido}
       {/* El elegido sin cédula (de antes de T-19): se escribe aquí. */}
       {elegido && !elegido.cliente.cedula && (
-        <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} required error={errores?.cedula} />
+        <CampoCedula label="Cédula o RIF" surface={surface} valor={valor.cedula} onCambio={(cedula) => onCambio({ ...valor, cedula })} required={exige.cedula} error={errores?.cedula} />
       )}
-      <CampoTelefono surface={surface} valor={valor.telefono} onCambio={(telefono) => onCambio({ ...valor, telefono })} required error={errores?.telefono} />
+      <CampoTelefono
+        surface={surface}
+        valor={valor.telefono}
+        onCambio={(telefono) => onCambio({ ...valor, telefono })}
+        required={exige.telefono}
+        error={errores?.telefono}
+        // B6-22: «Solo si queda una deuda»: si lo da, queda en el directorio.
+        hint={exige.telefono ? undefined : "Si lo da: así queda en el directorio"}
+      />
       <Input
         label="Nombre y apellido"
         surface={surface}

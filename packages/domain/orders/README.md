@@ -17,6 +17,10 @@ salón.
   si pasa su umbral (esperar lo pedido pesa más que no haber pedido; lo anulado no espera); `resumenDeEspera`, la
   espera media y máxima de lo servido y cuántos siguen sin marcar.
 
+- **Qué se pide al sentar** (`sentar.ts`, B6-22): `exigidoAlSentar` (la cédula con «Más seguro», el teléfono con
+  «Siempre»), `exigidoAlCompletar` (la cédula siempre; el teléfono también en una venta que queda pendiente) y
+  `pideLaCedula` (la cuenta sin cédula recibe su primer pedido; el segundo espera). Los usan la tablet y el servidor.
+
 ## Qué NO le corresponde
 
 - **«En fuego» y «listo».** Se retiraron con B6-2: la cocina trabaja con la comanda impresa y el sistema no lo

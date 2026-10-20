@@ -267,7 +267,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "«En el parque» (al pie de la cola): las familias con niños en la sala que pueden pagar ya. «Pagar ahora» (o pasar la pulsera de uno de sus niños): el de tiempo abierto elige su paquete y la cuenta se abre para cobrarla con lo demás. Al salir dentro de su tiempo se van sin pasar por la caja; si se pasan, el tiempo de más llega a la cola.",
       "Si una mesa vuelve a pedir mientras la cobras, sale de la cola y la caja lo dice («Mesa 4 volvió a pedir: salió de la cola»): lo tecleado sin cobrar se descarta, y vuelve cuando pida la cuenta otra vez.",
       "Si sobra, «Vuelto» (o «Propina», o «A caja» si es poco). El vuelto va en efectivo $; para darlo de otra forma, toca «Vuelto» otra vez: efectivo Bs, Pago Móvil (con el banco del cliente y la referencia del envío) o «Repartido», que propone los dólares enteros en billetes y los centavos en bolívares, a la tasa del cobro. Avisa si en la gaveta no alcanza esa moneda. Cada parte sale de su moneda y el recibo dice cómo se dio.",
-      "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I), «Descuento» y «Dividir» en partes iguales, de 2 a 6. La cuenta que nació con su cliente (una mesa, de pie) ya viene a su nombre. Una venta del mostrador se cobra a alguien: si no tiene cliente, «Factura a» dice «Falta el cliente» y pide su cédula (o el RIF de su empresa) y su nombre.",
+      "Debajo de la cuenta, tres botones que dicen cómo está: «Factura a» (tecla I), «Descuento» y «Dividir» en partes iguales, de 2 a 6. La cuenta que nació con su cliente (una mesa, de pie) ya viene a su nombre. Una venta del mostrador se cobra a alguien: si no tiene cliente, «Factura a» dice «Falta el cliente» y pide su cédula (o el RIF de su empresa) y su nombre. Una cuenta sentada «Más rápido» que llega sin la cédula dice «Falta la cédula» (también en la cola): tócalo (tecla I), escríbela en el mismo campo «Cédula o RIF» y la factura sale a su nombre. Sin ella no se cobra.",
       "Lo que consume alguien del equipo: «Personal» (debajo de la cuenta, junto a «Dividir»). Elige quién consumió y que esa persona escriba su PIN: se cobra a precio normal, en dólares, sale del inventario y no entra dinero (no cuenta en la gaveta). Sale su vale para que lo firme, y el vale se queda en la caja. Es el único pago de esa cuenta: sin otros pagos, sin descuento y sin dividir.",
       "«Dividir» → «Por ítems», cuando cada uno paga lo suyo: elige «Persona 1, 2, +» y toca los ítems de esa persona (lo que no toques es de la persona 1). «Partir» reparte un ítem compartido en partes iguales entre las personas que marques, cada parte con su IVA. «Separar y cobrar» deja lo de cada persona en su cuenta (en la cola, «De #0041») y abre la elegida: se cobra con el cobro de siempre, sin pedir sus datos. «Dividir» → «Por ítems» en la cuenta original dice sus personas y «Unir de nuevo» devuelve lo que no se cobró.",
       "Un solo campo para buscar, arriba de la cola (tecla / o C): por nombre, cédula, teléfono o #orden. Arriba quedan las cuentas de la cola que coinciden; debajo, «En el directorio», las personas que coinciden: tocar una abre su ficha con lo que tiene abierto (y lo abre para cobrar), sus niños en la sala y lo que debe. El lector de pulseras sigue sin tocar el campo.",
@@ -285,6 +285,11 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "El cumpleaños de hoy va arriba de la cola: su hora, sus invitados y su mesa. Tócalo para ver los de hoy y los de la semana (con el anticipo cobrado o por cobrar) y «Empezar en una mesa». La cuenta del cumpleaños espera en la cola desde que empieza y se cobra de una vez: el saldo, lo que pidió su mesa y lo incluido, a $ 0.",
     ],
     problemas: [
+      {
+        sintoma: "«Cobrar» dice «Falta la cédula: Factura a (I)» o «Antes de cobrar, la cédula de …»",
+        solucion: "La cuenta se sentó «Más rápido», solo con el nombre. Toca «Factura a» (tecla I): pide su cédula en el mismo campo, sin PIN. Anotada, se cobra a su nombre.",
+        reconoce: ["falta la cedula", "antes de cobrar, la cedula"],
+      },
       {
         sintoma: "«No hay turno abierto» o la caja no cobra",
         solucion: "Abre el turno en Caja → Turno, con el fondo de la gaveta. Todo lo cobrado queda en ese turno.",
@@ -514,7 +519,8 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Si arriba dice «Las comandas no están saliendo» (en rojo, con sonido), la impresora está sin papel o no responde: avisa a la caja. Lo que no salió queda en «N sin imprimir» y sale con «Reintentar» cuando vuelva.",
       "La píldora roja «N no salieron» (junto a las cifras de arriba) abre la lista de las comandas que no salieron en papel, cada una con «Reimprimir»: la cocina no sabe de ellas hasta que salgan.",
       "En la tablet en vertical, la mesa que tocas sube en un cajón, con sus botones abajo; tocar fuera lo baja y deja el plano a la vista. Los tiempos se leen: «42 min», «1 h 15 min» y, lo que viene de otro día, «desde ayer 7:29 pm».",
-      "Toca una mesa libre y «Sentar»: pide la cédula, el teléfono y el nombre del cliente (los tres, obligatorios) y cuántas personas son. Quien consume primero y paga al final deja sus datos: si se va sin pagar, hay a quién cobrarle. Si ya vino antes, al escribir su cédula o su teléfono lo demás se rellena solo. La letra de la cédula se elige al lado y los puntos los pone el campo.",
+      "Toca una mesa libre y «Sentar»: pide los datos del cliente y cuántas personas son. Qué datos lo elige administración en Ajustes → Sucursal: con «Más seguro» (de fábrica), la cédula y el nombre antes del primer pedido; con «Más rápido», el nombre (la cédula, si la da). El teléfono, siempre o solo si queda una deuda. Quien consume primero y paga al final deja sus datos: si se va sin pagar, hay a quién cobrarle. Si ya vino antes, al escribir su cédula o su teléfono lo demás se rellena solo. La letra de la cédula se elige al lado y los puntos los pone el campo.",
+      "Con «Más rápido», la cuenta sentada sin cédula dice «Falta la cédula»: el primer pedido sale igual, y al tocar «Tomar pedido» otra vez la tablet la pide en el mismo campo «Cédula o RIF» («Anotar y tomar el pedido»). Sin ella, el segundo pedido no sale. Tocar «Falta la cédula» la pide cuando quieras; se anota sin PIN.",
       "En «Sentar», un solo campo: «Cédula o RIF». Al tocarlo propone «Aquí ahora»: primero las familias con niños en el parque y el cumpleaños de hoy, después las cuentas abiertas y quien vino hoy; un toque rellena sus datos. Quien no recuerda su cédula: «Buscar por nombre o teléfono». Si tiene niños en el parque, «Llevar el tiempo de sus N niños a esta mesa» viene marcado: su cuenta nace con ellos vinculados. Desmárcalo si van aparte.",
       "«Buscar cliente»: por su nombre, su cédula o su teléfono, dice dónde está sentado (toca su cuenta para abrir su mesa), sus niños en la sala y si debe algo de antes.",
       "Si otra familia comparte la mesa, «Otra familia»: cada una tiene su cuenta, sus datos, su pedido y su cobro.",
@@ -575,8 +581,13 @@ export const MANUAL: readonly EntradaDelManual[] = [
       },
       {
         sintoma: "«Faltan los datos del cliente» o «Documento no válido»",
-        solucion: "La cédula va con su letra (V-12345678; un RIF, J-40123456-7) y el teléfono con su código (0414-1234567). Sin los tres datos la cuenta no se abre.",
-        reconoce: ["faltan los datos del cliente", "documento no valido", "telefono no valido"],
+        solucion: "La cédula va con su letra (V-12345678; un RIF, J-40123456-7) y el teléfono con su código (0414-1234567). Sin los datos que pide la sucursal (Ajustes → Sucursal, «Al sentar a un cliente») la cuenta no se abre.",
+        reconoce: ["faltan los datos del cliente", "documento no valido", "telefono no valido", "falta la cedula de", "falta el telefono de"],
+      },
+      {
+        sintoma: "«Antes del segundo pedido, la cédula de …»",
+        solucion: "La cuenta se sentó «Más rápido», con el nombre: el primer pedido salió y el segundo espera a la cédula. Escríbela en «Falta la cédula» (o al tocar «Tomar pedido») y vuelve a enviar: el pedido sigue en el borrador.",
+        reconoce: ["antes del segundo pedido"],
       },
       {
         sintoma: "«Cobrar» dice «Falta el cliente: Factura a (I)»",
@@ -702,6 +713,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
       "Las que reúnen varias cosas las ponen en pestañas: Personas y equipos (usuarios, roles y dispositivos), Tasas (y feriados) y Sistema (versión, respaldos y semilla).",
       "Sistema → Respaldos: si se hizo el de anoche, si la PC del local ya lo bajó y el ensayo de la semana. «Respaldar ahora» (con tu identidad confirmada) pide uno al momento: el servidor lo hace en el minuto siguiente y ahí mismo dice si se hizo o por qué no. Hecho, quita el aviso de «no se hizo el respaldo de anoche».",
       "Lo que cambia precios o personas pide confirmar tu identidad (vale 15 minutos).",
+      "Sucursal → «Al sentar a un cliente en una mesa»: «Más seguro» (de fábrica: nombre y cédula antes del primer pedido) o «Más rápido» (el nombre; la cédula antes del segundo pedido y antes de cobrar; si se van después del primer pedido, la deuda queda con el nombre). El teléfono: «Siempre» o «Solo si queda una deuda» (al sentar es opcional; una venta que queda pendiente lo pide). En los dos, el que ya vino se llena solo. Cambia en todas las tablets al publicar.",
       "Sucursal → «El día termina» (4:00 am de fábrica, de las 12:00 am a las 10:00 am): lo cobrado antes sigue siendo del día que se trabaja; desde esa hora, la caja que siga abierta pide cerrarse. Como la zona horaria, se cambia sin turnos abiertos.",
       "Nada se borra: un precio nuevo rige desde su día; lo que ya no se usa se retira.",
     ],

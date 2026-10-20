@@ -176,9 +176,10 @@ export function casosDeudas(base: Base): CasosDeudas {
                 guardianId: cliente.clienteId ?? null,
                 fullName: cliente.nombre,
                 document: cliente.cedula,
-                documentKey: documentKey(cliente.cedula)!,
+                // B6-22: sentado «Más rápido» y se fue antes de dar la cédula, la deuda queda con lo que se dio.
+                documentKey: cliente.cedula ? documentKey(cliente.cedula) : null,
                 phone: cliente.telefono,
-                phoneKey: contactKey(cliente.telefono)!,
+                phoneKey: cliente.telefono ? contactKey(cliente.telefono) : null,
                 amountMinor: debe.amount,
                 currency: debe.currency,
                 seatedBy: fila.openedBy,

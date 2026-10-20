@@ -1,7 +1,7 @@
 import { describe, test } from "node:test";
 import assert from "node:assert/strict";
 import { AbrirCuentaDelSalonCommandSchema } from "./restaurante.ts";
-import { AsignarClienteCommandSchema, BuscarClienteSchema, DatosDelClienteSchema } from "./clientes.ts";
+import { AsignarClienteCommandSchema, BuscarClienteSchema, DatosDelClienteSchema, DatosParcialesDelClienteSchema } from "./clientes.ts";
 
 const UUID = "0192a3b4-c5d6-7e8f-9a0b-1c2d3e4f5a6b";
 const cliente = { nombre: "Prueba Cliente", cedula: "V-12345678", telefono: "0414-1234567" };
@@ -30,11 +30,21 @@ describe("el cliente de la cuenta (B6-9, M-33)", () => {
     assert.equal(AbrirCuentaDelSalonCommandSchema.safeParse({ ...dePie, cliente }).success, true);
   });
 
-  test("se busca por la cédula o el teléfono, y se asigna con los tres", () => {
+  test("se busca por la cédula o el teléfono, y se asigna con lo que haya: qué falta lo dice el servidor (B6-22)", () => {
     assert.equal(BuscarClienteSchema.safeParse({}).success, false);
     assert.equal(BuscarClienteSchema.safeParse({ cedula: "V-12345678" }).success, true);
     assert.equal(BuscarClienteSchema.safeParse({ telefono: "0414-1234567" }).success, true);
     assert.equal(AsignarClienteCommandSchema.safeParse({ idempotencyKey: UUID, accountId: UUID, cliente }).success, true);
-    assert.equal(AsignarClienteCommandSchema.safeParse({ idempotencyKey: UUID, accountId: UUID, cliente: { nombre: "Prueba" } }).success, false);
+    assert.equal(AsignarClienteCommandSchema.safeParse({ idempotencyKey: UUID, accountId: UUID, cliente: { nombre: "Prueba María" } }).success, true);
+    assert.equal(AsignarClienteCommandSchema.safeParse({ idempotencyKey: UUID, accountId: UUID, cliente: { nombre: "P" } }).success, false);
+    assert.equal(AsignarClienteCommandSchema.safeParse({ idempotencyKey: UUID, accountId: UUID, cliente: { ...cliente, cedula: "12345678" } }).success, false);
+  });
+
+  test("B6-22: al sentar, el campo vacío es no darlo; lo que se escribe tiene que valer", () => {
+    const r = DatosParcialesDelClienteSchema.safeParse({ nombre: "Prueba María", cedula: "", telefono: " " });
+    assert.ok(r.success);
+    assert.deepEqual([r.data.cedula, r.data.telefono], [undefined, undefined]);
+    assert.equal(DatosParcialesDelClienteSchema.safeParse({ nombre: "Prueba María", telefono: "1234567" }).success, false);
+    assert.equal(DatosParcialesDelClienteSchema.safeParse({ nombre: "Prueba María", cedula: "v 12.345.678" }).data?.cedula !== undefined, true);
   });
 });

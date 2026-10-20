@@ -49,9 +49,10 @@ import { calendarDay, startOfDay } from "@l2/domain-rates";
 import type { Contexto } from "../contexto.ts";
 import { auditar, auditarRechazo } from "../auditoria/auditar.ts";
 import { exigirPermiso, nombreDe, permisoEn, rechazoDePermiso } from "../identidad/actor.ts";
-import { zonaDe } from "../sucursal/ajustes.ts";
+import { ajustesDe, zonaDe } from "../sucursal/ajustes.ts";
+import { exigidoAlSentar } from "@l2/domain-orders";
 import { claveSecundaria, crearCuentaDeMesa, crearCuentaDePie, guardarVersion, vigenteDe } from "../caja/cuentas.ts";
-import { anotarCliente, resolverCliente } from "../clientes/clientes.ts";
+import { anotarCliente, faltaDelCliente, faltanDe, resolverCliente } from "../clientes/clientes.ts";
 import { candadoDeMesas, cuentaDeMesaPara, cuentasDeLasMesas, cuentasDePieEn, mesaParaCuentaNueva, mesaSinCuenta, sessionsVinculadas } from "./plano.ts";
 import { conflictoDeClave } from "../dinero/pagos.ts";
 import { cambiarDeMesa } from "./cambiar-mesa.ts";
@@ -183,6 +184,10 @@ export function casosMesas(base: Base): CasosMesas {
           const quien = await nombreDe(tx, ctx);
           // La cuenta se llama como su cliente (B6-9): nombre, cédula y teléfono, reconocido en el directorio o dado de alta.
           const nombre = cmd.cliente.nombre;
+          // Qué hace falta lo dice la sucursal (B6-22): con «Más seguro», la cédula; con «Siempre», el teléfono.
+          const ajustes = await ajustesDe(tx, ctx.branchId);
+          const falta = faltaDelCliente(cmd.cliente, exigidoAlSentar(ajustes.sentar, ajustes.telefonoDelCliente), "no se abre la cuenta");
+          if (falta) return falta;
           // Primero lo que puede negarse (la mesa, el nombre de pie); después, lo que escribe. Un rechazo no deshace la
           // transacción: nada se escribe antes de saber que se puede.
           let mesa: Readonly<{ tableId: string; label: string }> | null = null;
@@ -216,6 +221,8 @@ export function casosMesas(base: Base): CasosMesas {
               orden: cuenta.orderNumber ?? null,
               clienteId: c.guardianId,
               clienteNuevo: c.nuevo,
+              // B6-22: sentado sin cédula («Más rápido») o sin teléfono. Qué falta, no los datos (PLAN §7.6).
+              ...faltanDe(c),
             },
           });
           return { ...cuenta, cliente };

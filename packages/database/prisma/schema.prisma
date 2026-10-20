@@ -1305,10 +1305,11 @@ model AccountCustomer {
   accountId   String   @map("account_id") @db.Uuid
   guardianId  String?  @map("guardian_id") @db.Uuid
   fullName    String   @map("full_name")
-  document    String
-  documentKey String   @map("document_key")
-  phone       String
-  phoneKey    String   @map("phone_key")
+  /// Sin cédula o sin teléfono (B6-22): sentado «Más rápido», o «Solo si queda una deuda».
+  document    String?
+  documentKey String?  @map("document_key")
+  phone       String?
+  phoneKey    String?  @map("phone_key")
   setAt       DateTime @map("set_at") @db.Timestamptz(3)
   setBy       String?  @map("set_by") @db.Uuid
   setByName   String   @map("set_by_name")
@@ -1334,10 +1335,11 @@ model CustomerDebt {
   accountId        String   @map("account_id") @db.Uuid
   guardianId       String?  @map("guardian_id") @db.Uuid
   fullName         String   @map("full_name")
-  document         String
-  documentKey      String   @map("document_key")
-  phone            String
-  phoneKey         String   @map("phone_key")
+  /// Sin cédula o sin teléfono (B6-22): la deuda queda con lo que se dio.
+  document         String?
+  documentKey      String?  @map("document_key")
+  phone            String?
+  phoneKey         String?  @map("phone_key")
   amountMinor      BigInt   @map("amount_minor")
   currency         String
   seatedBy         String?  @map("seated_by") @db.Uuid

@@ -107,7 +107,8 @@ el servidor. El corte Z decide solo: con otra caja abierta es RELEVO y cierra so
 con cuentas pendientes ni niños en la sala. Cerrar la caja de otro equipo es de supervisión y administración.
 
 **El cliente de la cuenta (B6-9, M-33).** Toda cuenta del salón nace al sentar a su cliente (nombre, cédula y teléfono,
-`mesas.abrir`): un pedido, una pulsera, una salida del parque o un «guardar» no abren una mesa (`MESA_SIN_CUENTA`). El
+`mesas.abrir`; desde B6-22, lo que pidan los ajustes `sentar` y `telefonoDelCliente`: con «Más rápido» basta el nombre,
+y `pideLaCedula` niega el segundo pedido y el cobro sin la cédula; `clientes.asignar` la completa sin PIN): un pedido, una pulsera, una salida del parque o un «guardar» no abren una mesa (`MESA_SIN_CUENTA`). El
 cliente vive en `account_customer` (solo agregar), no en el contenido de la versión: `vigenteDe` y `cuentas.leer` lo
 ponen y `guardarVersion` lo quita. El directorio es el de representantes, con la cédula. Las pruebas sientan con
 `sentarDePrueba`. La caja pregunta antes de dejar una venta del mostrador sin cobrar ni cliente (`VentaSinCobrar`).
