@@ -44,3 +44,13 @@ auditConfig:
     # fallo es agotar la pila al fusionar objetos recursivos, y lo único que fusiona es nuestro prisma.config.ts:
     # no hay entrada de nadie más. La 8 cambia de versión mayor y Prisma no la acepta. Revisar al subir Prisma.
     - GHSA-ggr8-5vv4-36mx
+    # Next 16.3.8, hasta el 2026-10-28 (decisión del usuario el 2026-10-23): el arreglo es Next 16.4.1, del 14-10-2026, y
+    # las dependencias entran con dos semanas publicadas. Ese día se sube Next y se quitan estas tres.
+    #  · GHSA-2464-fhr4-w9xw (ejecución remota en las imágenes): la causa es sharp < 0.35.5, y sharp ya va en 0.35.5 por
+    #    el override de arriba (B7-5).
+    #  · GHSA-673q-mjm6-r5xr (ejecución remota en `use cache` con arreglos tipados): L2 no usa `use cache`.
+    #  · GHSA-p3m5-59mp-jv5r (la web se cae con acciones de servidor): sí aplica; tumba la web, no toca datos ni dinero.
+    #    Aceptado hasta el 28.
+    - GHSA-2464-fhr4-w9xw
+    - GHSA-673q-mjm6-r5xr
+    - GHSA-p3m5-59mp-jv5r

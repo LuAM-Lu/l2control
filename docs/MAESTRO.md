@@ -4061,6 +4061,7 @@ app en el teléfono, la tablet y la laptop (B7-3, necesita HTTPS); y probar el p
 | Qué | Se salda en |
 |---|---|
 | `text-base` pinta también `--color-base` (Tailwind 4): para 16 px se usa `text-[16px]` | Al pasar por cada pantalla |
+| Next 16.3.8 tiene tres avisos (2026-10-23), anotados en `auditConfig` de `pnpm-workspace.yaml` con su porqué: los dos de ejecución remota no aplican aquí (sharp ya en 0.35.5; L2 no usa `use cache`) y el de la caída de la web con acciones de servidor sí, sin tocar datos. El arreglo, Next 16.4.1, cumple sus dos semanas el 28 | **2026-10-28:** Next 16.4.1 en su corrección (la web entera en el navegador) y fuera los tres avisos de `auditConfig` |
 | ~~Un código TOTP se puede reutilizar dentro de su ventana de 30 s (elevar y aprobar equipos)~~ | Saldada con T-4: no hay TOTP; el desafío de una llave y cada código de recuperación son de un solo uso |
 | ~~El primer administrador y sus credenciales solo se crean por consola (`pnpm credenciales`): una base vacía no arranca sin ella~~ | Saldada con T-4: instalación inicial y enlace de alta desde el panel |
 | La columna `totp_secret_enc` de `staff_user` quedó sin uso (T-4 solo expande) | Una migración de contracción, en una versión posterior a la que entre en producción (ADR-028) |
