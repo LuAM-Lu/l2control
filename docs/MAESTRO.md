@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.155.0 en `main` y publicada (2026-10-20, 9:02 am) · 155 de 160 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.155.0 en `main` y publicada (2026-10-20, 9:02 am) · 155 de 161 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -48,7 +48,8 @@ visita de Abby y el reporte n.º 2): la corrección v0.131.1 y doce pasos, v0.13
 v0.143.0. M-40 entregado entero (2026-10-20, el ticket n.º 3 y la auditoría de Mesero y Caja): la corrección v0.143.1 y doce
 pasos, v0.144.0 a v0.155.0, publicados juntos con la etiqueta v0.155.0 (el VPS la puso en 45 s, con respaldo antes y sus tres
 migraciones de expandir). B8-4 preparado: la 1.0.0 va un lunes con el local cerrado, después de probar el bloque un fin de
-semana (el primero posible, el lunes 26); el lunes 19 no se cortó.** M-28 y M-29
+semana (el primero posible, el lunes 26); el lunes 19 no se cortó. M-41 decidido (2026-10-23): B4-22, el tiempo de más por
+bloques y sin tope, antes de la 1.0.0.** M-28 y M-29
 (decididos el 2026-10-08; once pasos, v0.74.0 a v0.84.0, en el orden de §3, punto 8): el catálogo sin existencias y su conteo inicial
 (B9-7), la semilla con casillas para la corrida limpia (B7-7), los respaldos con carpeta, fijados e integridad (B7-6),
 la sección Reportes con las ventas, el inventario al momento y los movimientos, cada uno con su PDF (B11-1 a B11-3,
@@ -186,6 +187,7 @@ La historia de esta sección (qué decía al entregar cada paso y lo que se prob
 | **M-38** | **Papel, tablet y caja** (2026-10-10, el usuario tras quedarse sin papel con la impresora por USB y no cerrar el día 9; definido con una propuesta dibujada y tres rondas de preguntas) | W-1 a W-11, abajo en «M-38 en detalle». Primero la corrección **v0.122.1** (los avisos legibles en el tema claro y la tarjeta de los puestos). Después, nueve pasos en este orden (ocho y T-23), en tanda y publicados una vez al final (con la 0.122.1): B3-24 (un día que no se cerró) → B5-6 (la impresora por red y por USB) → T-23 (el campo del cliente, añadido en la cuarta ronda) → B4-18 (la Entrada en tablet) → B6-17 (el mesero en tablet) → T-21 (la barra de las estaciones, por pantalla) → T-22 (las listas largas) → B3-21 (mover efectivo) → B3-22 (el fondo fijo, opcional). **Cambian:** cada impresora es principal o respaldo, y lo elige administración (red o USB, en cualquier orden); la caja de un día anterior deja de cobrar; los nueve formularios con cliente usan una sola pieza que busca también por nombre. La ruta pasa a **136** | B3-21 a B3-24, B4-18, B5-6, B6-17, T-21 a T-23 |
 | **M-39** | **La visita de Abby** (2026-10-13, la lista de la visita, el reporte n.º 2 de Dietina y tres rondas de preguntas) | X-1 a X-16, abajo en «M-39 en detalle». Primero la corrección **v0.131.1** (hecha el 2026-10-13; se publica con la tanda, decisión del usuario): la caja quita lo que añadió a una mesa y no salió a cocina (el reporte n.º 2), y lo que se vio al vincular el 13 (las medias van con su niño, el «Más tiempo» de un niño vinculado va a su mesa y anular su entrada anula lo de su mesa). Después, doce pasos en tanda y publicados una vez al final: B3-25 (anular por estado) → B6-18 (volver a pedir) → B6-20 (vincular la familia entera) → B6-21 (cambiar de mesa) → B4-19 (pagar el parque antes de salir) → B3-26 (deudas y personal en una pestaña) → B1-7 (una persona, un equipo) → B9-14 (el producto listo para vender) → B6-19 (de pie en el plano) → B10-3 (el calendario y cambiar de fecha) → B10-4 (el aforo del cumpleaños y el exclusivo) → B10-5 (el cumpleaños en la caja, el parque y el salón). **Cambian:** el personal sigue pagando fuera del sistema (en su quincena) y administración lo marca descontado; supervisión da de alta productos y carga existencia; una persona trabaja en un solo equipo a la vez. La ruta pasa a **148** | B1-7, B3-25, B3-26, B4-19, B6-18 a B6-21, B9-14, B10-3 a B10-5 |
 | **M-40** | **La app explica por qué no se puede, y el salón más ágil** (2026-10-19, el ticket n.º 3 de soporte, la revisión de la salud del VPS y la auditoría de Mesero y Caja; decisiones del usuario con preguntas y maquetas) | El ticket: al cerrar la caja del 17, «Cobrar» no hacía nada con dos cuentas de pie que nunca pidieron la cuenta; se dieron por incobrables. La auditoría (16 flujos del mesero, 27 de la caja, 22 hallazgos) y las maquetas (nueve secciones) dejan **un solo bloque antes de la 1.0.0**, sin fusionar el plan hasta el «listo» del usuario: la corrección **v0.143.1** y los pasos **T-24** (un solo campo del cliente, cruzado en parque, mesa y caja), **B6-22** (sentar «Más seguro» o «Más rápido»), **B3-27** (las cuentas del salón a la vista de la caja), **B3-28** («Cobrar lo que va»), **B3-29** (la caja más clara), **B3-30** («Pedir anulación»), **B6-23** (el mesero más ágil), **B5-7** (avisos a tiempo), **T-25** (Clientes, en lugar de Representantes y niños), **B4-21** (el cierre del parque), **B11-8** (Reportes → Parque) y **T-26** (la ayuda al día). Se publica una sola vez al final; después, la puesta en marcha (B8-4). La ruta pasa a **160** | T-24 a T-26, B3-27 a B3-30, B5-7, B6-22, B6-23, B4-21, B11-8 |
+| **M-41** | **El tiempo de más, por bloques y sin tope** (2026-10-23, decisión del usuario en dos rondas de preguntas) | Una pulsera que se pasaba de su tiempo pagaba el mínimo: el tiempo de más iba en bloques de 30 min, pero con tope en la combinación más barata de paquetes que cubre lo que estuvo (B4-17), así que 30 min ($ 3) que se pasaba 30 min pagaba $ 5 y no $ 6. **Ahora:** pasada la gracia, cada bloque iniciado del paquete más chico (30 min) a su precio ($ 3), **sin tope** (tampoco el del pase libre); la gracia, como hoy (5 min al vencer y en cada bloque: se pasa 33 min, un bloque); el tiempo abierto y salir antes en cuenta abierta, como hoy (la combinación más barata). **El tope sano es «Más tiempo»:** subir de paquete pagando la diferencia, **hasta que termine la gracia** (después ya es tiempo de más), y el aviso de por vencer lo ofrece con lo que cuesta. La regla es una condición de cada estancia (B4-2): entra sola para quien entra desde la publicación, quien ya está en la sala sigue con la suya, y Ajustes → Tarifas puede volver al tope sin programar. **Cambia** B4-17. La ruta pasa a **161** | B4-22 |
 
 La Ruta A (PLAN §11.3) sigue siendo el alcance, **más el inventario mínimo** (M-9) y, desde la visita técnica
 (M-15), **el restaurante sin pantalla de cocina, los descuentos y los eventos**: parque y caja primero. Las
@@ -480,6 +482,9 @@ Los paquetes nuevos siguen el mapa de PLAN §9.2 (`database`, `application`, `au
    cuenta de una familia que puede estar en una mesa. B3-26 junta dos pestañas de la caja (Alt+5 queda libre). B1-7 y B9-14 no dependen de nada.
    B6-19 va antes de B10-5 porque los dos ponen cosas en el plano del mesero; B10-3 y B10-4 van antes de B10-5, que enseña
    el cumpleaños con su aforo en la caja y en el parque.
+
+18. **M-41** (2026-10-23, el tiempo de más): B4-22, antes de la 1.0.0 (B8-4). Se publica con el visto bueno del usuario; un
+   niño que esté en la sala al publicar sigue con la regla con que entró.
 
 Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de cocina), después del piloto (M-15, V-7).
 
@@ -2600,6 +2605,26 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   Lo privado, con `data-privado`. Criterio: al cerrar el día, la monitora tiene en una hoja cada familia que pasó por el
   parque y cuadra sus pulseras y sus medias.
   *B4-21: `reportes.cierreDelParque` (`reportes/cierre-del-parque.ts`, con `parque.checkIn`: la monitora, la caja, supervisión y administración) lee las estancias del día de negocio de hoy: las cifras (sin las anuladas; el pico con `picoDeAforo`; el promedio sin las pausas por comida), cada familia en el orden en que llegó (`telefonoAMedias`), la mesa de cada niño (las cuentas de mesa de hoy, en cualquier estado), lo que pide atención (las de otro día sin salida, en un renglón con cuántas), los cumpleaños de hoy (`reservasDe`, sin los cancelados), las pulseras (la de una anulada también se gastó) y las medias (las líneas `med-` y lo que queda del producto de medias, si se cuenta). Contrato `CierreDelParqueSchema`, sin dinero. En la web, `/monitor/cierre` (`CierreDelParqueScreen`, en vivo con la sala) y `/informes/cierre-del-parque` (`CierreDelParqueImpreso`, con las piezas de los informes; con niños en la sala lo dice y no hay hoja), el botón en la sala, la sección del menú Parque y su entrada en la ayuda. `cierre-del-parque.test-db.ts` (3, con el criterio). Visto en el navegador en un teléfono de 390 px y a 1280 y 1366 px, en los dos temas: con niños en la sala (el PDF apagado y por qué) y con la sala en cero (el PDF, un renglón por niño).*
+
+- [~] **B4-22 · El tiempo de más, por bloques y sin tope** (M-41). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
+  `feat/b4-22`.*
+  → **La regla:** pasada la gracia, cada bloque iniciado del paquete más chico de la tarifa con que entró, a su precio y sin
+  tope. Con 30 min $ 3, 1 h $ 5, 2 h $ 9 y 5 min de gracia: 30 min que sale a 1:00 paga $ 6 (hoy, $ 5); 1 h que sale a
+  1:40, $ 11 (hoy, $ 9); 2 h que sale a 3:30, $ 18 (hoy, $ 12). La gracia cuenta al vencer y en cada bloque, como hoy (se
+  pasa 33 min: un bloque). El tiempo abierto y salir antes en cuenta abierta no cambian (la combinación más barata).
+  → **Es una condición de la estancia (B4-2):** el tarifario guarda la regla del tiempo de más (por bloques, de fábrica, o
+  con tope) y la entrada la copia en sus condiciones. Una estancia que entró antes, sin la regla, se cobra con tope, como
+  entró. Ajustes → Tarifas la enseña y la cambia al publicar, con su ejemplo (30 min que se pasa 30 min) y su línea en la
+  historia del tarifario.
+  → **«Más tiempo», hasta el fin de la gracia:** por vencer o en gracia, sube pagando la diferencia; pasada la gracia, el
+  servidor lo niega y la ficha dice por qué (lo de más va por bloques y se cobra al salir).
+  → **El aviso de por vencer lo ofrece:** el aviso y la ficha del niño dicen lo que cuesta quedarse («Si se queda: a 1 hora,
+  $ 2 más. Si se pasa sin subir: $ 3 cada 30 min») y llevan a «Más tiempo».
+  → La sala, la salida (su vista previa y el servidor), lo que llega a la caja de quien pagó antes, la ayuda (sala, salida y
+  Tarifas) y CLAUDE.md, con la misma regla.
+  → Criterio: con la tarifa del local, 30 min que se pasa 30 min paga $ 6 en la sala, en la salida y en su cuenta; un niño
+  que estaba en la sala al publicar paga como entró; «Más tiempo» se niega pasada la gracia y lo dice; el aviso de por
+  vencer dice cuánto cuesta quedarse.
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 
