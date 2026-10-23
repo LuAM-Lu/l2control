@@ -34,6 +34,8 @@ export {
   SessionModeSchema,
   PricePackageSchema,
   ParkPolicySchema,
+  ReglaDelTiempoDeMasSchema,
+  type ReglaDelTiempoDeMas,
   TarifarioSchema,
   SessionStatusSchema,
   ParkSessionSchema,

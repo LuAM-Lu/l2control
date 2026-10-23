@@ -146,7 +146,7 @@ export function CheckoutScreen({
     () =>
       sala
         ? { ...sala, serverNow: new Date(Math.max(ahora, Date.parse(sala.serverNow))).toISOString() }
-        : { serverNow: new Date(0).toISOString(), policy: { graceMinutes: 0, penaltyBlockMinutes: 1, penaltyPricePerBlock: { minor: "0", currency: "USD" }, warnBeforeMinutes: 0, capacityLimit: 1 }, rate: null, shiftLabel: "", sessions: [], huerfanas: [], cumpleanos: [] },
+        : { serverNow: new Date(0).toISOString(), policy: { graceMinutes: 0, penaltyBlockMinutes: 1, penaltyPricePerBlock: { minor: "0", currency: "USD" }, warnBeforeMinutes: 0, capacityLimit: 1, tiempoDeMas: "POR_BLOQUES" }, rate: null, shiftLabel: "", sessions: [], huerfanas: [], cumpleanos: [] },
     [sala, ahora],
   );
   const snap = snapshot;

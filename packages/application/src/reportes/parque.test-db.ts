@@ -67,7 +67,8 @@ before(async () => {
   const a = await entrar([{ nombre: "Pedro" }, { nombre: "Matías", sinPulsera: true }], AHORA);
   const b = await entrar([{ nombre: "Sofía" }], AHORA + 30 * MIN);
   valor(await local.app.parque.recargar(monitora, { idempotencyKey: randomUUID(), sessionId: b.sessions[0]!.id, packageId: "pkg-120" }, AHORA + 40 * MIN));
-  // Pedro sale a las 3:30 pm: 90 min de 60, con 5 de gracia → 2 bloques de tiempo de más ($ 3,00). Lo recoge su tía.
+  // Pedro sale a las 3:30 pm: 90 min de 60, con 5 de gracia → un bloque del paquete más chico a la venta (la hora, $ 5,00),
+  // sin tope (B4-22). Lo recoge su tía.
   valor(await salir([a.sessions[0]!.id], AHORA + 90 * MIN, { recogida: { kind: "OTRA_PERSONA", nombre: "Rosa Díaz (tía)" } }));
   // Matías sale a los 20 min: antes de tiempo.
   valor(await salir([a.sessions[1]!.id], AHORA + 20 * MIN));
@@ -101,8 +102,8 @@ describe("el informe del parque (B11-6)", () => {
     assert.equal(i.dinero.recargas.cantidad, 1);
     assert.equal(i.dinero.recargas.minutos, 60);
     assert.deepEqual(i.dinero.recargas.monto, usd("300"));
-    assert.deepEqual(i.dinero.tiempoDeMas, { cantidad: 1, monto: usd("300") });
-    assert.equal(i.resumen.dinero.minor, String(1500 + Number(i.dinero.recargas.monto.minor) + 300));
+    assert.deepEqual(i.dinero.tiempoDeMas, { cantidad: 1, monto: usd("500") });
+    assert.equal(i.resumen.dinero.minor, String(1500 + Number(i.dinero.recargas.monto.minor) + 500));
     assert.deepEqual(i.dinero.porPaquete.map((p) => [p.paquete, p.ninos]), [["1 hora", 3]]);
     // B11-8: lo del tiempo por niño, y cuándo vinieron: un viernes a las 2 pm.
     assert.equal(i.resumen.porNino.minor, String(Math.floor(Number(i.resumen.dinero.minor) / 3)));

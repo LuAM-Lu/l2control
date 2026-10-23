@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Redo2, Undo2, Save, TriangleAlert, Edit2, ArchiveRestore, ArchiveX, Ticket, Archive, Timer, CalendarClock, History } from "lucide-react";
+import { Plus, Redo2, Undo2, Save, TriangleAlert, Edit2, ArchiveRestore, ArchiveX, Ticket, Archive, Timer, CalendarClock, History, Layers, Gauge, Check } from "lucide-react";
 import {
   POR_PAGINA,
   TarifarioSchema,
@@ -9,10 +9,11 @@ import {
   type ParkPolicyDto,
   type PorPagina,
   type PricePackageDto,
+  type ReglaDelTiempoDeMas,
   type Resultado,
   type TarifarioDto,
 } from "@l2/contracts";
-import { fromMajor, toMajor } from "@l2/domain-money";
+import { add, fromMajor, toMajor } from "@l2/domain-money";
 import { computeSessionView, epochMs, fixed, openEnded, tiempoDeMas, type PaqueteDeUso, type ParkSession } from "@l2/domain-park";
 import { Button, Cifra, Confirmacion, Container, EmptyState, Input, MoneyDisplay, PageHeader, Paginacion, Resumen, Sheet, Tabs, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { usePaginas } from "../shell/usePaginas.ts";
@@ -292,7 +293,7 @@ export function EditorTarifario({ versiones: inicialVersiones }: { versiones: Re
           etiqueta="Reglas"
           icono={<Timer aria-hidden="true" />}
           valor={`${borrador.policy.graceMinutes} min de gracia`}
-          pie={`${reglaDelTiempoDeMas(borrador.packages, true)} · aforo ${borrador.policy.capacityLimit}`}
+          pie={`${reglaDelTiempoDeMas(borrador.packages, true)}${borrador.policy.tiempoDeMas === "CON_TOPE" ? " con tope" : ""} · aforo ${borrador.policy.capacityLimit}`}
           activo={vista === "reglas"}
           onClick={() => setVista("reglas")}
         />
@@ -362,7 +363,8 @@ export function EditorTarifario({ versiones: inicialVersiones }: { versiones: Re
 }
 
 // «bloque» y «precio» ya no se editan (B4-17): pasan tal cual, porque la política los guarda y son el respaldo de una
-// estancia vieja sin tarifa; el tiempo de más va en bloques del paquete más chico.
+// estancia vieja sin tarifa; el tiempo de más va en bloques del paquete más chico, con la regla de B4-22 (no es un texto:
+// se elige en sus tarjetas).
 type CampoRegla = "gracia" | "bloque" | "precio" | "aviso" | "aforo";
 type TextosReglas = Record<CampoRegla, string>;
 
@@ -399,8 +401,9 @@ function erroresDe(t: TextosReglas): Partial<Record<CampoRegla, string>> {
 }
 
 /** Solo se llama con textos sin errores. */
-function politicaDe(t: TextosReglas): ParkPolicyDto {
+function politicaDe(t: TextosReglas, tiempoDeMas: ReglaDelTiempoDeMas): ParkPolicyDto {
   return {
+    tiempoDeMas,
     graceMinutes: Number(t.gracia),
     penaltyBlockMinutes: Number(t.bloque),
     penaltyPricePerBlock: { minor: String(precioDe(t.precio)!.amount), currency: "USD" },
@@ -409,10 +412,6 @@ function politicaDe(t: TextosReglas): ParkPolicyDto {
   };
 }
 
-/**
- * El excedente de ejemplo lo calcula el dominio, no la pantalla (§9.7): una
- * estancia de 60 minutos que se pasa `minutosDeMas`.
- */
 /** La tarifa del borrador como la usa la regla de precio (B4-17): los paquetes a la venta. */
 function tarifaDe(paquetes: readonly PricePackageDto[]): PaqueteDeUso[] {
   return paquetes
@@ -436,26 +435,30 @@ function reglaDelTiempoDeMas(paquetes: readonly PricePackageDto[], corta = false
 }
 
 /**
- * El ejemplo de las reglas (B4-17): un niño con el paquete de la hora (o el primero de tiempo fijo) que se pasa
- * `minutosDeMas`, cobrado como lo cobra la salida: bloques del paquete más chico, con tope en la combinación.
+ * El ejemplo de las reglas (B4-22): un niño con el paquete más chico que se pasa otro tanto (30 minutos que se queda una
+ * hora), con lo que paga en total con cada regla, como lo cobra la salida. Lo calcula el dominio, no la pantalla (§9.7).
  */
-function ejemploExcedente(p: ParkPolicyDto, paquetes: readonly PricePackageDto[], minutosDeMas: number) {
-  const fijos = paquetes.filter((x) => x.active && x.duration.kind === "fixed");
-  const base = fijos.find((x) => x.duration.kind === "fixed" && x.duration.minutes === 60) ?? fijos[0];
+function ejemploExcedente(p: ParkPolicyDto, paquetes: readonly PricePackageDto[]) {
+  const base = paqueteMasChico(paquetes);
   if (!base || base.duration.kind !== "fixed") return null;
-  const politica = toParkPolicy(p);
-  const estancia: ParkSession = {
-    id: "ejemplo",
-    childName: "Ejemplo",
-    wristbandCode: "EJEMPLO",
-    mode: "PREPAGO",
-    duration: fixed(base.duration.minutes),
-    startedAt: epochMs(0),
+  const minutos = base.duration.minutes;
+  const estancia: ParkSession = { id: "ejemplo", childName: "Ejemplo", wristbandCode: "EJEMPLO", mode: "PREPAGO", duration: fixed(minutos), startedAt: epochMs(0) };
+  const total = (regla: ReglaDelTiempoDeMas) => {
+    const politica = toParkPolicy({ ...p, tiempoDeMas: regla });
+    const vista = computeSessionView(estancia, politica, epochMs(minutos * 2 * 60_000));
+    const de = tiempoDeMas(vista, toMoney(base.price), tarifaDe(paquetes), politica);
+    return de ? add(toMoney(base.price), de.charge) : null;
   };
-  const vista = computeSessionView(estancia, politica, epochMs((base.duration.minutes + minutosDeMas) * 60_000));
-  const de = tiempoDeMas(vista, toMoney(base.price), tarifaDe(paquetes), politica.graceMinutes);
-  return de ? { paquete: base.name, ...de } : null;
+  const porBloques = total("POR_BLOQUES");
+  const conTope = total("CON_TOPE");
+  return porBloques && conTope ? { paquete: base.name, minutos, POR_BLOQUES: porBloques, CON_TOPE: conTope } : null;
 }
+
+/** Las dos reglas del tiempo de más (B4-22, M-41), como las elige administración. */
+const REGLAS_DEL_TIEMPO_DE_MAS = [
+  { valor: "POR_BLOQUES", titulo: "Por bloques", icono: Layers, que: "Cada bloque iniciado, a su precio y sin tope." },
+  { valor: "CON_TOPE", titulo: "Con tope", icono: Gauge, que: "Nunca más que los paquetes que cubren lo que estuvo." },
+] as const;
 
 /**
  * Las reglas del parque, en el borrador.
@@ -485,12 +488,11 @@ function EditorReglas({
 
   function confirmar() {
     if (!valida) return;
-    const nueva = politicaDe(textos);
+    const nueva = politicaDe(textos, policy.tiempoDeMas);
     if (JSON.stringify(nueva) !== JSON.stringify(policy)) onChange(nueva);
   }
 
-  const minutosEjemplo = 20;
-  const ejemplo = ejemploExcedente(policy, paquetes, minutosEjemplo);
+  const ejemplo = ejemploExcedente(policy, paquetes);
 
   return (
     <div className="flex flex-col gap-6">
@@ -526,22 +528,55 @@ function EditorReglas({
         />
       </div>
 
-      {/* B4-17 (M-37): el tiempo de más ya no tiene bloque ni precio propios: va en bloques del paquete más chico, y
-          nunca cuesta más que la combinación de paquetes que cubre el tiempo real. */}
-      <p className="rounded-[var(--radius-control)] border border-line bg-surface-2 px-4 py-3 text-[14px] text-ink-2">
-        <strong className="text-ink">El tiempo de más</strong> se cobra en {reglaDelTiempoDeMas(paquetes)} (el paquete más chico), y nunca
-        más que la combinación de paquetes que cubre lo que estuvo. El tiempo abierto y «Más tiempo» usan la misma tarifa.
-        {ejemplo && (
-          <>
-            {" "}
-            <strong className="text-ink">Ejemplo:</strong> con «{ejemplo.paquete}», quien se pasa {minutosEjemplo} minutos paga{" "}
-            <span className="tnum">
-              {ejemplo.blocks} {ejemplo.blocks === 1 ? "bloque" : "bloques"}
-            </span>
-            : <strong className="tnum text-ink">{formatMoneyVE(toMajor(ejemplo.charge), "USD")}</strong>.
-          </>
-        )}
-      </p>
+      {/* B4-22 (M-41): la regla del tiempo de más es una condición de cada estancia: la copia la entrada, así que quien ya
+          está en la sala paga con la suya. El ejemplo, con el paquete más chico que se pasa otro tanto. */}
+      <section aria-labelledby="reglas-tiempo-de-mas" className="flex flex-col gap-2">
+        <div className="flex flex-col gap-1">
+          <h3 id="reglas-tiempo-de-mas" className="text-cuerpo font-semibold text-ink">
+            El tiempo de más
+          </h3>
+          <p className="text-detalle text-ink-3">
+            Pasada la gracia, en {reglaDelTiempoDeMas(paquetes)} (el paquete más chico); la gracia vuelve a contar en cada bloque. Quien ya está en
+            la sala paga con la regla con que entró.
+          </p>
+        </div>
+        <div role="radiogroup" aria-label="Cómo se cobra el tiempo de más" className="grid gap-2 sm:grid-cols-2">
+          {REGLAS_DEL_TIEMPO_DE_MAS.map((o) => {
+            const elegida = policy.tiempoDeMas === o.valor;
+            const Icono = o.icono;
+            return (
+              <button
+                key={o.valor}
+                type="button"
+                role="radio"
+                aria-checked={elegida}
+                onClick={() => {
+                  if (!elegida) onChange({ ...policy, tiempoDeMas: o.valor });
+                }}
+                className={cn(
+                  "flex cursor-pointer flex-col gap-1.5 rounded-[var(--radius-control)] border p-3 text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand",
+                  elegida ? "border-brand bg-brand/10" : "border-line bg-surface hover:border-line-strong",
+                )}
+              >
+                <span className="flex items-center gap-1.5">
+                  <Icono className={cn("size-(--icono-texto) shrink-0", elegida ? "text-brand" : "text-ink-3")} aria-hidden="true" />
+                  <span className="flex-1 text-cuerpo font-semibold text-ink">{o.titulo}</span>
+                  {elegida && <Check className="size-(--icono-texto) shrink-0 text-brand" aria-hidden="true" />}
+                </span>
+                {o.valor === "POR_BLOQUES" && <span className="self-start rounded bg-surface-2 px-1.5 text-etiqueta font-semibold text-ink-2">De fábrica</span>}
+                <span className="text-detalle text-ink-2">{o.que}</span>
+                {ejemplo && (
+                  <span className="text-detalle text-ink-3">
+                    «{ejemplo.paquete}» que se pasa {ejemplo.minutos} min paga{" "}
+                    <strong className="tnum text-ink">{formatMoneyVE(toMajor(ejemplo[o.valor]), "USD")}</strong> en total.
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+        <p className="text-detalle text-ink-3">El tiempo abierto y «Más tiempo» usan la misma tarifa; «Más tiempo» se da hasta que termina la gracia.</p>
+      </section>
     </div>
   );
 }

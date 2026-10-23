@@ -41,6 +41,7 @@ const BORRADOR_DE_PARTIDA: TarifarioDto = {
     penaltyPricePerBlock: { minor: "0", currency: "USD" },
     warnBeforeMinutes: 5,
     capacityLimit: 30,
+    tiempoDeMas: "POR_BLOQUES",
   },
 };
 

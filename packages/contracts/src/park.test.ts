@@ -20,6 +20,7 @@ import {
   KidSchema,
   MoneySchema,
   ParkPolicySchema,
+  ParkTermsSchema,
   TarifarioSchema,
   TarifarioPublicadoSchema,
   WristbandCodeSchema,
@@ -98,6 +99,18 @@ describe("política del parque", () => {
       capacityLimit: 30,
     });
     assert.equal(r.success, false);
+  });
+
+  test("la regla del tiempo de más (B4-22): el tarifario sin ella cobra por bloques; una estancia de antes, con tope", () => {
+    const sin = { graceMinutes: 5, penaltyBlockMinutes: 15, penaltyPricePerBlock: { minor: "150", currency: "USD" }, warnBeforeMinutes: 10 };
+    const politica = ParkPolicySchema.parse({ ...sin, capacityLimit: 30 });
+    assert.equal(politica.tiempoDeMas, "POR_BLOQUES");
+    // La entrada copia la política: quien entra desde B4-22 lleva la regla escrita.
+    assert.equal(ParkTermsSchema.parse(politica).tiempoDeMas, "POR_BLOQUES");
+    // Las condiciones de quien entró antes no la traen: se cobra como entró.
+    assert.equal(ParkTermsSchema.parse(sin).tiempoDeMas, "CON_TOPE");
+    assert.equal(ParkPolicySchema.parse({ ...sin, capacityLimit: 30, tiempoDeMas: "CON_TOPE" }).tiempoDeMas, "CON_TOPE");
+    assert.equal(ParkPolicySchema.safeParse({ ...sin, capacityLimit: 30, tiempoDeMas: "MINIMO" }).success, false);
   });
 });
 

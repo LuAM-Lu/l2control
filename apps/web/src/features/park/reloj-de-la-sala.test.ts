@@ -18,6 +18,7 @@ const terminos = {
   penaltyBlockMinutes: 15,
   penaltyPricePerBlock: { minor: "200", currency: "USD" as const },
   warnBeforeMinutes: 5,
+  tiempoDeMas: "POR_BLOQUES" as const,
 };
 const estancia: EstanciaDto = {
   id: "estancia-1",

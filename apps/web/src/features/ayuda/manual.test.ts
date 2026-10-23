@@ -61,6 +61,14 @@ describe("la ayuda al día (T-26)", () => {
     }
   });
 
+  test("la regla del tiempo de más (B4-22) se encuentra en la sala, la salida y Tarifas", () => {
+    const en = (texto: string) => buscar(texto).map((r) => r.entrada.id);
+    assert.ok(en("pasó su tiempo y su gracia").includes("sala"));
+    assert.ok(en("lo que cuesta quedarse").includes("sala"));
+    assert.ok(en("Por bloques").includes("tarifas"));
+    assert.ok(en("Con tope").includes("tarifas"));
+  });
+
   test("el manual no repite pantallas", () => {
     const rutas = MANUAL.map((e) => e.ruta);
     assert.equal(new Set(rutas).size, rutas.length, "dos entradas con la misma ruta");

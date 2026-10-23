@@ -184,12 +184,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Un solo lector: pasa cualquier pulsera. Una nueva abre la entrada con ella; la de un niño en la sala abre su ficha. Si el lector no responde, la cámara o «Escribir».",
       "Cada tarjeta dice el tiempo: verde en tiempo, un tinte amarillo por vencer, amarillo sólido en gracia (con lo que le queda de gracia: todavía no se cobra de más) y rojo con el tiempo cumplido (con lo que va de más).",
-      "Avisos: cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en Android vibra) un aviso arriba, aquí y en la caja; tócalo y abre su ficha. La campana tachada lo calla 15 minutos en este equipo; el altavoz de la barra quita o pone el sonido del equipo.",
+      "Avisos: cuando un niño entra en «por vencer» y cuando se cumple su tiempo, suena (y en Android vibra) un aviso arriba, aquí y en la caja; tócalo y abre su ficha. Dice lo que cuesta quedarse («Si se queda: a 1 hora, $ 2 más. Si se pasa sin subir: $ 3 cada 30 min») para ofrecérselo a la familia, y «Más tiempo» abre su ficha en ese paso. La campana tachada lo calla 15 minutos en este equipo; el altavoz de la barra quita o pone el sonido del equipo.",
       "Con el equipo bloqueado, la pantalla del PIN sigue avisando, solo con la pulsera y los minutos (sin nombres): tócalo, pon tu PIN y abre la ficha de ese niño.",
       "Los avisos funcionan con la aplicación abierta: no son notificaciones del teléfono. Si el equipo se apaga o se cierra el navegador, no avisa.",
       "«Pagar ahora» en la ficha: si la familia pide pagar en la puerta, elige el paquete de cada niño de tiempo abierto (se sugiere el que cubre lo que lleva) y «Mandar a la caja»: la cuenta aparece en la cola. Al salir dentro de su tiempo se van sin pasar por la caja («Todo pagado»); si se pasan, el tiempo de más va a la caja; si salen antes, no se devuelve.",
-      "En la ficha: «Más tiempo» (sube a un paquete mayor y paga solo la diferencia: de 30 minutos a 1 hora, lo que falta), pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa. Si ya está en una, «Desvincular de la mesa»: vuelve a su familia o pasa a otra mesa, con lo que se debe de él.",
-      "El tiempo de más, pasada la gracia, va en bloques del paquete más chico (30 minutos al precio de 30 minutos), y nunca cuesta más que la combinación de paquetes que cubre lo que estuvo.",
+      "En la ficha: «Más tiempo» (sube a un paquete mayor y paga solo la diferencia: de 30 minutos a 1 hora, lo que falta; se da hasta que termina su gracia, y por vencer o en gracia la ficha dice lo que cuesta quedarse), pausa por comida (una por visita, hasta 10 minutos), poner su nombre o vincularlo a una mesa. Si ya está en una, «Desvincular de la mesa»: vuelve a su familia o pasa a otra mesa, con lo que se debe de él.",
+      "El tiempo de más, pasada la gracia, va en bloques del paquete más chico, cada uno a su precio y sin tope: 30 minutos que se queda una hora paga $ 3 más ($ 6 en total), y así cada media hora. La gracia vuelve a contar en cada bloque. Quien entró antes con la regla con tope paga como entró.",
       "«Dar salida» abre su salida aquí mismo; «Toda la familia» trae a todos los niños de su cuenta, marcados: quita de la lista a quien se queda.",
       "«Sin pulsera» abre la entrada de un niño que no la tolera. «Buscar»: por el nombre, la cédula o el teléfono del representante, dice qué niños suyos están en la sala, con su pulsera.",
       "Junto a las cifras, el cumpleaños de hoy: su hora, cuántos de sus invitados entraron y su mesa (en verde si ya empezó, en amarillo si empieza pronto o le falta el anticipo). 30 minutos antes avisa una vez: desde ahí la entrada guarda el lugar de sus invitados. Tócalo para ver los de hoy y los de la semana, con «Empezar en una mesa».",
@@ -204,6 +204,12 @@ export const MANUAL: readonly EntradaDelManual[] = [
         sintoma: "«Esa estancia está a revisar»",
         solucion: "Lleva demasiadas horas o es de un día anterior: casi seguro el niño ya no está. La cierra supervisión desde Inicio, sin cobrar tiempo de más.",
         reconoce: ["esta a revisar"],
+      },
+      {
+        sintoma: "«Ya pasó su tiempo y su gracia» al dar «Más tiempo»",
+        solucion:
+          "Desde que termina la gracia ya es tiempo de más: se cobra por bloques al salir, y «Más tiempo» ya no se da (subir pagando la diferencia sería cobrar menos). Ofrécelo cuando avisa «por vencer» o mientras está en gracia.",
+        reconoce: ["paso su tiempo y su gracia"],
       },
       {
         sintoma: "«El tiempo abierto no se recarga»",
@@ -249,7 +255,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     proposito: "Cerrar la visita de los niños: lo que usaron, el tiempo de más y dónde se paga.",
     pasos: [
       "En «Parque», pasa la pulsera de quien se va y, en su ficha, «Dar salida»; si se va la familia entera, «Toda la familia» (quita a quien se queda). Dentro de la salida, cada pulsera que pases se suma; un niño que entró sin pulsera se elige en «Sin pulsera».",
-      "Revisa el desglose: en cuenta abierta, si salió antes, se cobra la combinación más barata de paquetes que cubre lo que estuvo; el tiempo abierto, lo que vale su tiempo; y el tiempo de más, en bloques del paquete más chico, con tope.",
+      "Revisa el desglose: en cuenta abierta, si salió antes, se cobra la combinación más barata de paquetes que cubre lo que estuvo; el tiempo abierto, lo que vale su tiempo; y el tiempo de más, en bloques del paquete más chico con la regla con que entró (por bloques, sin tope; o con tope, si entró antes).",
       "«Lo recoge» viene marcado «su representante»; si es otra persona, tócala y escribe su nombre.",
       "Elige dónde se paga: en caja o cargado a una mesa (la cuenta de su familia en esa mesa), y registra. Una pulsera vinculada a una mesa sale a su mesa sin elegir: lo que debe y su tiempo de más van a esa cuenta.",
     ],
@@ -905,6 +911,7 @@ export const MANUAL: readonly EntradaDelManual[] = [
     pasos: [
       "Cada paquete: su nombre, su tipo de tiempo y su precio en dólares. El pase libre y el tiempo abierto no tienen minutos que sumar.",
       "El precio que se cobra al salir es la combinación más barata de los paquetes que cubre el tiempo real menos la gracia; el tiempo de más va en bloques del paquete más chico.",
+      "«El tiempo de más» (en Reglas): «Por bloques», de fábrica, cobra cada bloque iniciado a su precio y sin tope; «Con tope», nunca más que los paquetes que cubren lo que estuvo. Cada tarjeta trae su ejemplo. Quien ya está en la sala sigue con la regla con que entró.",
       "Lo que cambies es un borrador (con «Deshacer» y «Rehacer»): la entrada lo usa cuando publiques. Quien ya está dentro sigue con el paquete con que entró.",
       "Un paquete que ya no se vende se retira; «Retirados» los muestra. Cada publicación queda como versión.",
     ],

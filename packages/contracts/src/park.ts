@@ -102,6 +102,13 @@ export const PricePackageSchema = z.object({
 });
 export type PricePackageDto = z.infer<typeof PricePackageSchema>;
 
+/**
+ * La regla del tiempo de más (B4-22, M-41): `POR_BLOQUES`, cada bloque iniciado del paquete más chico a su precio y sin
+ * tope; `CON_TOPE`, la de B4-17 (nunca más que la combinación de paquetes que cubre lo que estuvo).
+ */
+export const ReglaDelTiempoDeMasSchema = z.enum(["POR_BLOQUES", "CON_TOPE"]);
+export type ReglaDelTiempoDeMas = z.infer<typeof ReglaDelTiempoDeMasSchema>;
+
 /** Política del parque. Todo configurable por el administrador. */
 export const ParkPolicySchema = z.object({
   /** 0 significa «sin gracia», explícitamente. Nunca «gracia infinita». */
@@ -112,6 +119,11 @@ export const ParkPolicySchema = z.object({
   warnBeforeMinutes: z.number().int().min(0),
   /** Aforo (DEC-7: 30 en el piloto). Dato, no constante del código. */
   capacityLimit: z.number().int().positive(),
+  /**
+   * Cómo se cobra el tiempo de más (B4-22). Un tarifario publicado antes no lo trae: desde B4-22 se cobra por bloques, y
+   * la entrada lo copia así en las condiciones de cada estancia.
+   */
+  tiempoDeMas: ReglaDelTiempoDeMasSchema.default("POR_BLOQUES"),
 });
 export type ParkPolicyDto = z.infer<typeof ParkPolicySchema>;
 
@@ -271,8 +283,13 @@ export type ParkSessionDto = z.infer<typeof ParkSessionSchema>;
 /**
  * Las condiciones de una estancia: gracia, bloque y precio del excedente y aviso, **como regían al
  * entrar** (B4-2). Publicar otro tarifario no cambia lo que se cobra a quien ya está dentro.
+ *
+ * La regla del tiempo de más (B4-22) la copia la entrada; una estancia que entró antes de B4-22 no la tiene y se cobra
+ * con tope, como entró: por eso aquí falta quiere decir `CON_TOPE`, y en el tarifario, `POR_BLOQUES`.
  */
-export const ParkTermsSchema = ParkPolicySchema.omit({ capacityLimit: true });
+export const ParkTermsSchema = ParkPolicySchema.omit({ capacityLimit: true }).extend({
+  tiempoDeMas: ReglaDelTiempoDeMasSchema.default("CON_TOPE"),
+});
 export type ParkTermsDto = z.infer<typeof ParkTermsSchema>;
 
 /**

@@ -11,12 +11,12 @@ import { catalogoDelLocal } from "../../../src/features/inventario/productos.ser
  * con cada cambio. El cliente solo interpola entre lecturas; nunca decide cuánto tiempo queda. Para la entrada, los
  * cumpleaños de hoy (sus invitados entran sin paquete, B10-2) y el catálogo (las medias, B4-9). `?entrada=1` abre la
  * entrada y `?salida=<pulsera>` la salida de ese niño: son los enlaces de antes (`/entrada`, `/salida`). `?pulsera=` abre su
- * ficha: es adonde lleva un aviso de por vencer (B4-15).
+ * ficha: es adonde lleva un aviso de por vencer (B4-15); con `&mas=1`, en «Más tiempo» (B4-22).
  */
 export const dynamic = "force-dynamic";
 
-export default async function MonitorPage({ searchParams }: { searchParams: Promise<{ entrada?: string; salida?: string; pulsera?: string }> }) {
-  const { entrada, salida, pulsera } = await searchParams;
+export default async function MonitorPage({ searchParams }: { searchParams: Promise<{ entrada?: string; salida?: string; pulsera?: string; mas?: string }> }) {
+  const { entrada, salida, pulsera, mas } = await searchParams;
   const eventos = await eventosDeHoy();
   const catalogo = await catalogoDelLocal();
   return (
@@ -26,7 +26,7 @@ export default async function MonitorPage({ searchParams }: { searchParams: Prom
         catalogo={catalogo}
         // Los que reciben invitados y no han terminado: uno que ya acabó no se ofrece.
         cumpleanos={(eventos?.reservas ?? []).filter((r) => RECIBEN_INVITADOS.includes(r.estado) && r.fin > eventos!.ahora)}
-        abrir={{ entrada: entrada === "1", salida: salida ?? null, pulsera: pulsera ?? null }}
+        abrir={{ entrada: entrada === "1", salida: salida ?? null, pulsera: pulsera ?? null, masTiempo: mas === "1" }}
       />
     </>
   );

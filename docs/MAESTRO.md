@@ -34,7 +34,7 @@ git show e250c54:docs/cerrados/UX-MEJORAS.md     # o PROGRESO.md, BITACORA.md, e
 
 ## 1. Dónde estamos
 
-**Versión 0.155.0 en `main` y publicada (2026-10-20, 9:02 am) · 155 de 161 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
+**Versión 0.156.0 en `main` (publicada, la 0.155.0) · 156 de 161 pasos · M-27, M-28, M-29 y M-31 entregados enteros; B8-2 a medias: lo escrito, hecho, y la
 capacitación, en B8-3. M-32 entregado: B3-10, la caja más clara. M-33 entregado: B6-9, B3-11 y B11-4, saber a quién
 cobrarle y su reporte. M-34 entregado entero (la segunda visita al local: dos correcciones y 14 pasos, v0.90.1 a
 v0.104.0). M-35 entregado entero (2026-10-09, la tercera ronda: la caja cerrada, el salón, las medias, entradas,
@@ -2606,8 +2606,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   parque y cuadra sus pulseras y sus medias.
   *B4-21: `reportes.cierreDelParque` (`reportes/cierre-del-parque.ts`, con `parque.checkIn`: la monitora, la caja, supervisión y administración) lee las estancias del día de negocio de hoy: las cifras (sin las anuladas; el pico con `picoDeAforo`; el promedio sin las pausas por comida), cada familia en el orden en que llegó (`telefonoAMedias`), la mesa de cada niño (las cuentas de mesa de hoy, en cualquier estado), lo que pide atención (las de otro día sin salida, en un renglón con cuántas), los cumpleaños de hoy (`reservasDe`, sin los cancelados), las pulseras (la de una anulada también se gastó) y las medias (las líneas `med-` y lo que queda del producto de medias, si se cuenta). Contrato `CierreDelParqueSchema`, sin dinero. En la web, `/monitor/cierre` (`CierreDelParqueScreen`, en vivo con la sala) y `/informes/cierre-del-parque` (`CierreDelParqueImpreso`, con las piezas de los informes; con niños en la sala lo dice y no hay hoja), el botón en la sala, la sección del menú Parque y su entrada en la ayuda. `cierre-del-parque.test-db.ts` (3, con el criterio). Visto en el navegador en un teléfono de 390 px y a 1280 y 1366 px, en los dos temas: con niños en la sala (el PDF apagado y por qué) y con la sala en cero (el PDF, un renglón por niño).*
 
-- [~] **B4-22 · El tiempo de más, por bloques y sin tope** (M-41). Antes de la 1.0.0. *A cargo: LuAMi (Claude), en
-  `feat/b4-22`.*
+- [x] **B4-22 · El tiempo de más, por bloques y sin tope** (M-41). Antes de la 1.0.0. *Hecho el 2026-10-23 (v0.156.0).*
   → **La regla:** pasada la gracia, cada bloque iniciado del paquete más chico de la tarifa con que entró, a su precio y sin
   tope. Con 30 min $ 3, 1 h $ 5, 2 h $ 9 y 5 min de gracia: 30 min que sale a 1:00 paga $ 6 (hoy, $ 5); 1 h que sale a
   1:40, $ 11 (hoy, $ 9); 2 h que sale a 3:30, $ 18 (hoy, $ 12). La gracia cuenta al vencer y en cada bloque, como hoy (se
@@ -2625,6 +2624,7 @@ Fuera de la cuenta de 136: B5-3 (retirado, D-GAV) y B6-4 (recetas e insumos de c
   → Criterio: con la tarifa del local, 30 min que se pasa 30 min paga $ 6 en la sala, en la salida y en su cuenta; un niño
   que estaba en la sala al publicar paga como entró; «Más tiempo» se niega pasada la gracia y lo dice; el aviso de por
   vencer dice cuánto cuesta quedarse.
+  *B4-22: en `@l2/domain-park`, `tiempoDeMas` recibe las condiciones con su regla (`ReglaDelTiempoDeMas`): por bloques, cada bloque iniciado del paquete más chico a su precio; con tope, el de B4-17. Y `bloqueDelTiempoDeMas`, `primeraSubida` (lo más barato para quedarse) y `recargaProblem` (pasada la gracia, `PASO_LA_GRACIA`). En el contrato, `ParkPolicySchema.tiempoDeMas` (sin ella, `POR_BLOQUES`: la entrada la copia escrita) y `ParkTermsSchema` (sin ella, `CON_TOPE`: entró antes); sin migración, porque va en el JSON del tarifario y de las condiciones. `parque.recargar` niega «Más tiempo» pasada la gracia y la historia del tarifario dice el cambio de regla. En la web: Reglas con dos tarjetas y su ejemplo (el paquete más chico que se pasa otro tanto, calculado por el dominio con cada regla); la ficha dice lo que cuesta quedarse por vencer o en gracia y, pasada la gracia, apaga «Más tiempo» con su porqué; el aviso (`quedarse.ts`) lo dice y su «Más tiempo» lleva a `/monitor?pulsera=…&mas=1`; la ayuda (sala, salida, Tarifas y el mensaje nuevo) y CLAUDE.md. Pruebas: dominio (los dos casos del criterio, la gracia en cada bloque, «Más tiempo» a los 65 y 66 min), contrato (la regla que falta, en cada lado), `parque.test-db.ts` (quien entró con tope paga como entró aunque se publique por bloques; «Más tiempo» a los 64 min sí y a los 66 no, con su porqué), `pagar-ahora` ($ 3, no $ 2) y la ayuda. Visto en el navegador en los dos temas, a 1280 y 390 px: Tarifas, la ficha en gracia y pasada la gracia, el aviso con «Más tiempo» y la salida de 30 min que estuvo 62: $ 6, lo mismo que asentó el servidor.*
 
 ### Etapa 5 · Tiempo real e impresión (`apps/worker`, ADR-006)
 

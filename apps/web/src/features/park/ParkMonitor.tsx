@@ -22,6 +22,7 @@ import { AnularEntradaDialog } from "./AnularEntradaDialog.tsx";
 import { CortesiaDialog } from "../cash/CortesiaDialog.tsx";
 import type { MotivoCortesia, Rechazo } from "@l2/contracts";
 import { RecargarTiempo } from "./RecargarTiempo.tsx";
+import { fraseParaQuedarse, quedarseMas } from "./quedarse.ts";
 import { EstanciasARevisar } from "./EstanciasARevisar.tsx";
 import { useTarifario } from "./TarifarioProvider";
 import { useHora, useSucursal } from "../sucursal/SucursalProvider.tsx";
@@ -60,9 +61,9 @@ export function ParkMonitor({
   cumpleanos?: readonly ReservaEventoDto[];
   /**
    * Lo que pide la dirección (los enlaces de `/entrada` y `/salida`, B4-12): abrir la entrada, o la salida de una pulsera;
-   * o la ficha de una pulsera (un aviso de por vencer, B4-15).
+   * o la ficha de una pulsera (un aviso de por vencer, B4-15), y en ella «Más tiempo» si lo pide el aviso (B4-22).
    */
-  abrir?: Readonly<{ entrada?: boolean; salida?: string | null; pulsera?: string | null }>;
+  abrir?: Readonly<{ entrada?: boolean; salida?: string | null; pulsera?: string | null; masTiempo?: boolean }>;
 } = {}) {
   const op = useOperacion();
   const router = useRouter();
@@ -108,7 +109,9 @@ export function ParkMonitor({
     if (!card) return;
     fichaPedida.current = abrir.pulsera;
     setSelected(card.id);
-  }, [abrir.pulsera, model.cards]);
+    // B4-22: el aviso de por vencer ofrece quedarse; «Más tiempo» se abre si todavía se puede (hasta el fin de la gracia).
+    if (abrir.masTiempo && card.contractedMinutes !== null && card.status !== "VENCIDA") setRecargando(true);
+  }, [abrir.pulsera, abrir.masTiempo, model.cards]);
   const abrirEntrada = (p: Omit<PedidoDeEntrada, "n">) => {
     setSelected(null);
     setEntrada({ ...p, n: ++pedidos.current });
@@ -180,6 +183,13 @@ export function ParkMonitor({
   const cuentaFicha = ficha ? (cuentas.find((c) => c.id === ficha.accountId) ?? null) : null;
   const familiaRegistrada = ficha?.guardianName ?? null;
   const estanciaFicha = ficha ? (sala?.sessions.find((s) => s.id === ficha.id) ?? null) : null;
+  /**
+   * B4-22 (M-41): «Más tiempo» hasta que termina la gracia (después ya es tiempo de más, por bloques) y, por vencer o en
+   * gracia, lo que cuesta quedarse, para ofrecérselo a la familia antes de que se pase.
+   */
+  const pasoLaGracia = ficha?.status === "VENCIDA";
+  const quedarse = estanciaFicha ? quedarseMas(estanciaFicha, tarifario.packages) : null;
+  const paraQuedarse = quedarse && (ficha?.status === "POR_VENCER" || ficha?.status === "EN_GRACIA") ? fraseParaQuedarse(quedarse) : null;
 
   const mesaActual = ficha ? (cuentas.find((c) => c.kind === "MESA" && (c.status === "ABIERTA" || c.status === "POR_COBRAR") && c.sessionIds.includes(ficha.id)) ?? null) : null;
 
@@ -439,7 +449,7 @@ export function ParkMonitor({
               {/* Dos por fila: con cuatro en una, el texto se partía en tres líneas y los iconos no se veían. */}
               <div className="grid grid-cols-2 gap-2">
                 {ficha.contractedMinutes !== null && (
-                  <Button variant="neutral" className="w-full" onClick={() => setRecargando(true)}>
+                  <Button variant="neutral" className="w-full" disabled={pasoLaGracia} onClick={() => setRecargando(true)}>
                     <Plus size={17} aria-hidden="true" />
                     Más tiempo
                   </Button>
@@ -608,6 +618,17 @@ export function ParkMonitor({
                   {ficha.overdueCurrency} {ficha.overdueAmount}
                 </dd>
               </div>
+            )}
+            {paraQuedarse && (
+              <p className="flex items-start gap-1.5 rounded-[var(--radius-control)] bg-surface-2 px-3 py-2 text-detalle text-ink-2">
+                <TimerReset className="mt-0.5 size-(--icono-texto) shrink-0 text-ink-3" aria-hidden="true" />
+                <span className="tnum">{paraQuedarse}</span>
+              </p>
+            )}
+            {pasoLaGracia && ficha.contractedMinutes !== null && (
+              <p className="text-detalle text-ink-3">
+                Pasó su gracia: «Más tiempo» ya no se da. Lo de más va por bloques{quedarse?.pasarse ? ` (${quedarse.pasarse})` : ""} y se cobra al salir.
+              </p>
             )}
             {cuentaFicha ? (
               <>
