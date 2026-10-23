@@ -16,6 +16,22 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.156.0] — 2026-10-23 · Hacia la puesta en marcha
+
+M-41: el tiempo de más, por bloques y sin tope.
+
+### Cambiado
+- **El tiempo de más va por bloques, sin tope:** pasada la gracia, cada bloque iniciado del paquete más chico, a su precio.
+  30 minutos que se queda una hora paga $ 6 (antes, $ 5); 1 hora que sale a 1:40, $ 11 (antes, $ 9). La gracia sigue
+  contando en cada bloque. Quien ya estaba en la sala al publicar paga con la regla con que entró.
+- **«Más tiempo», hasta que termina la gracia:** después ya es tiempo de más; la ficha del niño lo dice y el botón se apaga.
+- **El aviso de por vencer ofrece quedarse:** dice lo que cuesta subir de paquete y lo que cuesta pasarse, con «Más tiempo»
+  (la ficha lo dice también, por vencer o en gracia).
+
+### Añadido
+- Ajustes → Tarifas → Reglas: «El tiempo de más», «Por bloques» (de fábrica) o «Con tope», cada una con su ejemplo; el
+  cambio queda en la historia del tarifario.
+
 ## [0.155.0] — 2026-10-20 · Hacia la puesta en marcha
 
 M-40: la ayuda al día.

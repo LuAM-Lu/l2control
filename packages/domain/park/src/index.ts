@@ -76,13 +76,23 @@ export type ParkPolicy = Readonly<{
   penaltyPricePerBlock: Money;
   /** Antelación con la que la tarjeta pasa a ámbar. */
   warnBeforeMinutes: Minutes;
+  /** Cómo se cobra el tiempo de más con la tarifa (B4-22, M-41): por bloques, o con tope en la combinación (B4-17). */
+  tiempoDeMas: ReglaDelTiempoDeMas;
 }>;
+
+/**
+ * La regla del tiempo de más (B4-22, M-41). **Por bloques:** cada bloque iniciado del paquete más chico, a su precio y
+ * sin tope (30 min que se pasa 30 min paga $ 6). **Con tope:** la de B4-17, nunca más que la combinación de paquetes que
+ * cubre lo que estuvo (paga $ 5). Es una condición de la estancia: la que tenía al entrar.
+ */
+export type ReglaDelTiempoDeMas = "POR_BLOQUES" | "CON_TOPE";
 
 export function parkPolicy(input: {
   graceMinutes: number;
   penaltyBlockMinutes: number;
   penaltyPricePerBlock: Money;
   warnBeforeMinutes: number;
+  tiempoDeMas: ReglaDelTiempoDeMas;
 }): ParkPolicy {
   const block = minutes(input.penaltyBlockMinutes);
   if (block === 0) {
@@ -95,6 +105,7 @@ export function parkPolicy(input: {
     penaltyBlockMinutes: block,
     penaltyPricePerBlock: input.penaltyPricePerBlock,
     warnBeforeMinutes: minutes(input.warnBeforeMinutes),
+    tiempoDeMas: input.tiempoDeMas,
   });
 }
 
@@ -363,11 +374,11 @@ export function settleAtExit(
   session: ParkSession,
   policy: ParkPolicy,
   now: EpochMs,
-  /** La tarifa con que entró y lo contratado (B4-17): con ella, el tiempo de más va en bloques del paquete más chico. */
+  /** La tarifa con que entró y lo contratado (B4-17): con ella, el tiempo de más va en bloques del paquete más chico (con la regla de `policy`, B4-22). */
   cobro?: Readonly<{ tarifa: readonly PaqueteDeUso[]; contratado: Money }>,
 ): ExitSettlement {
   const view = computeSessionView(session, policy, now);
-  const nuevo = cobro && session.duration.kind === "fixed" ? tiempoDeMas(view, cobro.contratado, cobro.tarifa, policy.graceMinutes) : null;
+  const nuevo = cobro && session.duration.kind === "fixed" ? tiempoDeMas(view, cobro.contratado, cobro.tarifa, policy) : null;
   const desglose = nuevo ?? computeOverdueBreakdown(view, policy);
   return Object.freeze({
     // Se redondea hacia arriba igual que el cobro: «59 min» cuando se cobró una hora sería explicar mal el recibo.
@@ -634,31 +645,79 @@ export type TiempoDeMas = Readonly<{
 }>;
 
 /**
- * El tiempo de más de un paquete fijo (B4-17, M-37): pasada la gracia, en bloques del paquete más chico de la tarifa
- * (30 min al precio de 30 min), y nunca más que lo que falta para la combinación más barata que cubre el tiempo real.
- * Con 30 min $3, 1 h $5, 2 h $9 y 5 min de gracia, 1 h que sale a 1:20 paga $3 y a 1:50 paga $4 ($9 en total, no $11).
- * `null` si la tarifa no tiene paquetes fijos: entonces vale el recargo de antes (`computeOverdueBreakdown`).
+ * El bloque del tiempo de más (B4-17): el paquete más chico de tiempo fijo de la tarifa, en esa moneda (a igual duración,
+ * el más barato). `null` si no hay ninguno.
  */
-export function tiempoDeMas(view: SessionView, contratado: Money, tarifa: readonly PaqueteDeUso[], graceMinutes: number): TiempoDeMas | null {
-  const fijos = tarifa.filter((p) => p.price.currency === contratado.currency && p.duration.kind === "fixed" && p.duration.minutes > 0);
-  if (fijos.length === 0) return null;
-  const chico = fijos.reduce((a, b) => {
-    const ma = a.duration.kind === "fixed" ? a.duration.minutes : 0;
-    const mb = b.duration.kind === "fixed" ? b.duration.minutes : 0;
-    return mb < ma || (mb === ma && b.price.amount < a.price.amount) ? b : a;
-  });
-  const blockMinutes = chico.duration.kind === "fixed" ? chico.duration.minutes : 0;
+export function bloqueDelTiempoDeMas(
+  tarifa: readonly PaqueteDeUso[],
+  currency: Money["currency"],
+): Readonly<{ minutos: number; precio: Money }> | null {
+  let chico: Readonly<{ minutos: number; precio: Money }> | null = null;
+  for (const p of tarifa) {
+    if (p.price.currency !== currency || p.duration.kind !== "fixed" || p.duration.minutes <= 0) continue;
+    const m = p.duration.minutes as number;
+    if (!chico || m < chico.minutos || (m === chico.minutos && p.price.amount < chico.precio.amount)) chico = { minutos: m, precio: p.price };
+  }
+  return chico;
+}
+
+/**
+ * El tiempo de más de un paquete fijo: pasada la gracia, en bloques iniciados del paquete más chico de la tarifa (30 min
+ * al precio de 30 min). La gracia corre al vencer y en cada bloque (`billableOverdueMs` ya la descuenta), así que el
+ * segundo bloque empieza pasados 35 min con 5 de gracia. Con 30 min $3, 1 h $5, 2 h $9 y 5 min de gracia:
+ *
+ *  · **Por bloques** (B4-22, M-41): cada bloque a su precio, sin tope. 30 min que sale a 1:00 paga $3 más ($6); 1 h que
+ *    sale a 1:40, $6 más ($11).
+ *  · **Con tope** (B4-17, la de quien entró antes de B4-22): nunca más que lo que falta para la combinación más barata que
+ *    cubre el tiempo real. 30 min que sale a 1:00 paga $2 ($5, la hora); 1 h que sale a 1:50, $4 ($9, no $11).
+ *
+ * La regla y la gracia son las condiciones con que entró (`reglas`). `null` si la tarifa no tiene paquetes fijos: entonces
+ * vale el recargo de antes (`computeOverdueBreakdown`).
+ */
+export function tiempoDeMas(
+  view: SessionView,
+  contratado: Money,
+  tarifa: readonly PaqueteDeUso[],
+  reglas: Pick<ParkPolicy, "graceMinutes" | "tiempoDeMas">,
+): TiempoDeMas | null {
+  const chico = bloqueDelTiempoDeMas(tarifa, contratado.currency);
+  if (!chico) return null;
+  const blockMinutes = chico.minutos;
   if (view.billableOverdueMs <= 0) return Object.freeze({ billableMinutes: 0, blocks: 0, blockMinutes, charge: zero(contratado.currency) });
   const blocks = Math.ceil(view.billableOverdueMs / (blockMinutes * MS_PER_MINUTE));
-  const porBloques = multiply(chico.price, BigInt(blocks));
-  const total = precioDelTiempo(tarifa, view.elapsedMs, graceMinutes, contratado.currency);
+  const porBloques = multiply(chico.precio, BigInt(blocks));
+  const base = { billableMinutes: Math.ceil(view.billableOverdueMs / MS_PER_MINUTE), blocks, blockMinutes };
+  if (reglas.tiempoDeMas === "POR_BLOQUES") return Object.freeze({ ...base, charge: porBloques });
+  const total = precioDelTiempo(tarifa, view.elapsedMs, reglas.graceMinutes, contratado.currency);
   const tope = total && total.precio.amount > contratado.amount ? total.precio.amount - contratado.amount : 0n;
-  return Object.freeze({
-    billableMinutes: Math.ceil(view.billableOverdueMs / MS_PER_MINUTE),
-    blocks,
-    blockMinutes,
-    charge: money(porBloques.amount < tope ? porBloques.amount : tope, contratado.currency),
-  });
+  return Object.freeze({ ...base, charge: money(porBloques.amount < tope ? porBloques.amount : tope, contratado.currency) });
+}
+
+/**
+ * Por qué no se puede dar «Más tiempo» (B4-22, M-41): pasada la gracia ya es tiempo de más, y subir de paquete pagando la
+ * diferencia lo dejaría en el tope de antes. Por vencer o en gracia, se puede. `null` si se puede.
+ */
+export type RecargaProblem = "PASO_LA_GRACIA";
+
+export function recargaProblem(view: Pick<SessionView, "status">): RecargaProblem | null {
+  return view.status === "VENCIDA" ? "PASO_LA_GRACIA" : null;
+}
+
+/**
+ * Lo más barato para quedarse más (B4-22, M-41): el paquete mayor más corto al que subir con «Más tiempo», con los minutos
+ * que suma y la diferencia. Lo ofrece el aviso de por vencer y la ficha del niño, junto al bloque de lo que cuesta pasarse.
+ * `null` si ya tiene el paquete más largo de tiempo fijo.
+ */
+export function primeraSubida(
+  actual: Readonly<{ minutos: number; contratado: Money }>,
+  aLaVenta: readonly PaqueteDeUso[],
+): Readonly<{ paquete: string; minutos: number; diferencia: Money }> | null {
+  let mejor: Readonly<{ paquete: string; minutos: number; diferencia: Money }> | null = null;
+  for (const p of aLaVenta) {
+    const sube = subirDePaquete(actual, p);
+    if (sube && (!mejor || sube.minutos < mejor.minutos)) mejor = { paquete: p.name, ...sube };
+  }
+  return mejor;
 }
 
 /**
@@ -699,8 +758,9 @@ export type Liquidacion = Readonly<{
  *
  *  · **Tiempo abierto:** lo que vale su tiempo con la tarifa (`precioDelTiempo`); sin tarifa, `porUso` es `null` y
  *    quien liquida tiene que negarse (fail-closed: el tiempo abierto no sale gratis).
- *  · **Paquete fijo:** lo contratado, más el tiempo de más en bloques con tope (`tiempoDeMas`; sin tarifa, el recargo de
- *    antes). En cuenta abierta, si salió antes y la combinación cuesta menos, se cobra la combinación.
+ *  · **Paquete fijo:** lo contratado, más el tiempo de más en bloques con la regla de sus condiciones (`tiempoDeMas`: por
+ *    bloques o con tope; sin tarifa, el recargo de antes). En cuenta abierta, si salió antes y la combinación cuesta menos,
+ *    se cobra la combinación.
  *  · **Pase libre** (sin límite y con su precio): lo contratado.
  */
 export function liquidarEstancia(

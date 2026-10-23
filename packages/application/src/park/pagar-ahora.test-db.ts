@@ -134,7 +134,7 @@ describe("pagar el parque antes de salir (B4-19, M-39)", () => {
     assert.equal(s.account.status, "POR_COBRAR");
     assert.deepEqual(
       s.account.lines.filter((x) => !x.paid).map((x) => [x.concept.split(" · ")[0], x.amount.minor]),
-      [["Tiempo de más", "200"]], // con tope en el paquete que lo cubre (B4-17): 1 hora menos lo pagado
+      [["Tiempo de más", "300"]], // un bloque de 30 min a su precio, sin tope (B4-22; con tope eran $ 2)
     );
 
     const antes = await entra();

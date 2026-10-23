@@ -41,6 +41,8 @@ parkPolicy({ graceMinutes: 0, ... })         // ✓ válido: «sin gracia», exp
 |---|---|
 | `computeSessionView` | Estado y tiempos de una estancia en un instante dado |
 | `computeOverdueCharge`, `computeSettlement` | Cargo por excedente y liquidación total |
+| `precioDelTiempo`, `tiempoDeMas`, `liquidarEstancia` | La regla de precio (B4-17): la combinación más barata de la tarifa, y el tiempo de más en bloques del paquete más chico con la regla de sus condiciones (B4-22: por bloques, sin tope; o con tope) |
+| `subirDePaquete`, `primeraSubida`, `recargaProblem` | «Más tiempo»: la diferencia para subir de paquete, lo más barato para quedarse y que solo se da hasta el fin de la gracia |
 | `computeCapacity` | Aforo configurable, con aviso al alcanzarlo |
 | `fixed`, `openEnded`, `parkPolicy`, `minutes`, `epochMs` | Constructores que validan |
 | `formatDuration` | Presentación `HH:MM:SS` |

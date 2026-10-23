@@ -119,9 +119,9 @@ export function toMonitorModel(snapshot: MonitorSnapshotDto, ahora?: number): Mo
     // Cada estancia se mide con las condiciones con que entró: así la sala dice lo mismo que cobrará la salida.
     const terms = toParkTerms(dto.terms);
     const view = computeSessionView(session, terms, now);
-    // B4-17: el tiempo de más con la regla de precio (bloques del paquete más chico, con tope); sin tarifa, el de antes.
+    // El tiempo de más con la regla de sus condiciones (B4-22: por bloques; quien entró antes, con tope); sin tarifa, el de antes.
     const tarifa = tarifaDeEstancia(dto);
-    const overdue = tiempoDeMas(view, contratadoDeEstancia(dto), tarifa, terms.graceMinutes)?.charge ?? computeOverdueCharge(view, terms);
+    const overdue = tiempoDeMas(view, contratadoDeEstancia(dto), tarifa, terms)?.charge ?? computeOverdueCharge(view, terms);
     const tiempoAbierto = dto.packageId === TIEMPO_ABIERTO_ID;
     const abierto = tiempoAbierto ? precioDelTiempo(tarifa, view.elapsedMs, terms.graceMinutes, "USD") : null;
 

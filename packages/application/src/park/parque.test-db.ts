@@ -107,7 +107,8 @@ describe("la entrada (B4-2)", () => {
       assert.equal(s.startedAt, new Date(AHORA).toISOString());
       assert.equal(s.accountId, r.account.id);
       assert.equal(s.guardianName, "María Pérez");
-      assert.deepEqual(s.terms, { graceMinutes: 5, penaltyBlockMinutes: 15, penaltyPricePerBlock: usd("150"), warnBeforeMinutes: 10 });
+      // La regla del tiempo de más va escrita en sus condiciones (B4-22): el tarifario no la trae y es la de fábrica.
+      assert.deepEqual(s.terms, { graceMinutes: 5, penaltyBlockMinutes: 15, penaltyPricePerBlock: usd("150"), warnBeforeMinutes: 10, tiempoDeMas: "POR_BLOQUES" });
     }
     assert.equal(r.account.kind, "FAMILIA");
     assert.equal(r.account.status, "POR_COBRAR"); // prepago: a la cola de la caja
@@ -387,24 +388,37 @@ describe("la salida (B4-3)", () => {
     assert.deepEqual(s.account.closedSessionIds, [r.sessions[0]!.id]);
   });
 
-  test("el tiempo de más lo mide el servidor con la tarifa de la entrada, aunque el tarifario cambie (B4-17)", async () => {
+  test("el tiempo de más lo mide el servidor con la tarifa de la entrada, aunque el tarifario cambie (B4-17, B4-22)", async () => {
     const r = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA" }));
-    // Después de la entrada, las 2 horas pasan a costar $ 15: a esta familia no le toca.
+    // Después de la entrada, la hora pasa a costar $ 7: a esta familia no le toca.
     valor(
       await local.app.tarifario.publicar(local.sistema, {
         ...TARIFARIO,
-        packages: TARIFARIO.packages.map((p) => (p.id === "pkg-120" ? { ...p, price: usd("1500") } : p)),
+        packages: TARIFARIO.packages.map((p) => (p.id === "pkg-60" ? { ...p, price: usd("700") } : p)),
       }),
     );
-    // 72 min con 1 hora ($ 5): un bloque, con tope en lo que falta para 2 horas a $ 8 de su tarifa: $ 3.
+    // 72 min con 1 hora ($ 5): un bloque del paquete más chico a la venta en su tarifa (la hora, $ 5), sin tope (B4-22).
     const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 72 * MIN));
     assert.equal(s.lines[0]!.billableOverdueMinutes, 7);
     assert.equal(s.lines[0]!.penaltyBlocks, 1);
+    assert.equal(s.lines[0]!.blockMinutes, 60);
+    assert.equal(s.lines[0]!.overdue.minor, "500");
+    assert.equal(s.lines[0]!.total.minor, "1000");
+    assert.equal(s.account.status, "POR_COBRAR"); // el último salió: a la caja
+    assert.deepEqual(s.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["EXCEDENTE", "500"]]);
+    valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
+  });
+
+  test("quien entró con la regla con tope paga como entró, aunque después se publique por bloques (B4-22)", async () => {
+    valor(await local.app.tarifario.publicar(local.sistema, { ...TARIFARIO, policy: { ...TARIFARIO.policy, tiempoDeMas: "CON_TOPE" } }));
+    const r = await entrar(entrada([{}], { paymentMode: "CUENTA_ABIERTA" }));
+    assert.equal(r.sessions[0]!.terms.tiempoDeMas, "CON_TOPE");
+    // Con la familia dentro, administración vuelve a la de fábrica (por bloques): a esta estancia no le toca.
+    valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
+    // 72 min con 1 hora ($ 5): un bloque, con tope en lo que falta para 2 horas a $ 8: $ 3.
+    const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 72 * MIN));
     assert.equal(s.lines[0]!.overdue.minor, "300");
     assert.equal(s.lines[0]!.total.minor, "800");
-    assert.equal(s.account.status, "POR_COBRAR"); // el último salió: a la caja
-    assert.deepEqual(s.account.lines.map((l) => [l.kind, l.amount.minor]), [["PAQUETE", "500"], ["EXCEDENTE", "300"]]);
-    valor(await local.app.tarifario.publicar(local.sistema, TARIFARIO));
   });
 
   test("cuenta abierta: se acumula mientras quede un hermano dentro", async () => {
@@ -444,7 +458,8 @@ describe("la salida (B4-3)", () => {
     const mesa = cuentas.cuentas.find((c) => c.kind === "MESA" && c.tableId === "mesa-10")!;
     assert.deepEqual(mesa.lines.map((l) => [l.kind, l.amount.minor, l.movedTo]), [
       ["PAQUETE", "500", undefined],
-      ["EXCEDENTE", "300", undefined],
+      // Un bloque del paquete más chico a la venta (la hora, $ 5), sin tope (B4-22).
+      ["EXCEDENTE", "500", undefined],
     ]);
     assert.deepEqual(mesa.sessionIds, [r.sessions[0]!.id]);
     assert.equal(mesa.status, "ABIERTA");
@@ -550,7 +565,7 @@ describe("salir antes de tiempo (B4-6, M-18)", () => {
     const r = await entrar(entrada([{ packageId: "pkg-60" }], { paymentMode: "CUENTA_ABIERTA" }));
     const s = valor(await local.app.parque.salir(ctxMonitora, salida([r.sessions[0]!.id]), AHORA + 72 * MIN));
     assert.equal(s.lines[0]!.porUso, null);
-    assert.equal(s.lines[0]!.total.minor, "800");
+    assert.equal(s.lines[0]!.total.minor, "800"); // con «30 minutos» a la venta, un bloque de 30 min a $ 3
     assert.ok(s.account.lines.every((l) => l.porUso === undefined));
     assert.deepEqual(seDebe(s.account), ["500", "300"]);
   });
@@ -615,7 +630,7 @@ describe("la pulsera vinculada sale a su mesa (B4-14)", () => {
     assert.equal(s.lines[0]!.penaltyBlocks, 1);
     assert.deepEqual(chargeableLines(s.account).map((l) => l.amount.minor), [], "la familia no debe nada: todo está en la mesa");
     const enMesa = valor(await local.app.cuentas.leer(ctxCajera, AHORA + 81 * MIN)).cuentas.find((c) => c.id === mesa.id)!;
-    assert.ok(enMesa.lines.some((l) => l.sessionId === id && l.amount.minor === "300"), "el tiempo de más está en la mesa");
+    assert.ok(enMesa.lines.some((l) => l.sessionId === id && l.kind === "EXCEDENTE" && l.amount.minor === "500"), "el tiempo de más está en la mesa");
   });
 
   test("vinculados con sueltos, o hacia otra mesa, no salen juntos: se dice por qué", async () => {
@@ -698,6 +713,24 @@ describe("la recarga de tiempo (B4-3, F5-11)", () => {
     const fuera = valor(await local.app.parque.salir(ctxMonitora, salida([s.id]), AHORA + 125 * MIN));
     assert.equal(fuera.lines[0]!.overdue.minor, "0");
     assert.equal(fuera.lines[0]!.packagePrice.minor, "800");
+  });
+
+  test("«Más tiempo» hasta que termina la gracia; después ya es tiempo de más (B4-22)", async () => {
+    const r = await entrar(entrada([{}, {}], { paymentMode: "PREPAGO" }));
+    const [enGracia, vencido] = r.sessions;
+    // A los 64 min (vencida hace 4, gracia 5): todavía sube pagando la diferencia.
+    const sube = valor(await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: enGracia!.id, packageId: "pkg-120" }, AHORA + 64 * MIN));
+    assert.deepEqual(sube.session.duration, { kind: "fixed", minutes: 120 });
+    // A los 66 min ya pasó la gracia: el servidor lo niega y dice por qué.
+    const tarde = await local.app.parque.recargar(ctxMonitora, { idempotencyKey: randomUUID(), sessionId: vencido!.id, packageId: "pkg-120" }, AHORA + 66 * MIN);
+    assert.ok(!tarde.ok);
+    assert.equal(tarde.motivo, "CONFLICTO");
+    assert.equal(tarde.problemas?.[0]?.message, "PASO_LA_GRACIA");
+    assert.match(tarde.mensaje, /pasó su tiempo y su gracia/);
+    // Sale con su tiempo de más por bloques: la hora y 6 min de más, un bloque de la hora.
+    const fuera = valor(await local.app.parque.salir(ctxMonitora, salida([vencido!.id]), AHORA + 66 * MIN));
+    assert.equal(fuera.lines[0]!.overdue.minor, "500");
+    valor(await local.app.parque.salir(ctxMonitora, salida([enGracia!.id]), AHORA + 66 * MIN));
   });
 
   test("el tiempo abierto no se recarga, ni con un paquete de tiempo abierto; lo que ya salió, tampoco", async () => {

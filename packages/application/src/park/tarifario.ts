@@ -171,6 +171,8 @@ function publicado(fila: ParkTariffVersion): TarifarioPublicadoDto {
 }
 
 const usd = (minor: string) => importeVE(BigInt(minor), "USD");
+/** La regla del tiempo de más (B4-22) como la lee administración en la historia del tarifario. */
+const REGLA = { POR_BLOQUES: "por bloques, sin tope", CON_TOPE: "con tope en el paquete que lo cubre" } as const;
 const duracion = (d: PricePackageDto["duration"]) => (d.kind === "openEnded" ? "tiempo libre" : d.minutes % 60 === 0 ? `${d.minutes / 60} h` : `${d.minutes} min`);
 
 /** Lo que cambió de un tarifario a otro, en palabras de quien lo revisa: paquetes y reglas. */
@@ -197,6 +199,7 @@ export function cambiosDeTarifario(antes: TarifarioDto, despues: TarifarioDto): 
   if (r0.penaltyPricePerBlock.minor !== r1.penaltyPricePerBlock.minor) {
     cambios.push(`Precio por bloque: ${usd(r0.penaltyPricePerBlock.minor)} → ${usd(r1.penaltyPricePerBlock.minor)}`);
   }
+  if (r0.tiempoDeMas !== r1.tiempoDeMas) cambios.push(`Tiempo de más: ${REGLA[r0.tiempoDeMas]} → ${REGLA[r1.tiempoDeMas]}`);
   if (r0.warnBeforeMinutes !== r1.warnBeforeMinutes) cambios.push(`Aviso de «por vencer»: ${r0.warnBeforeMinutes} → ${r1.warnBeforeMinutes} min`);
   if (r0.capacityLimit !== r1.capacityLimit) cambios.push(`Aforo: ${r0.capacityLimit} → ${r1.capacityLimit} niños`);
   return cambios.length > 0 ? cambios : ["Sin cambios de precios ni reglas"];

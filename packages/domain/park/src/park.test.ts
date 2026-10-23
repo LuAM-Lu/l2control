@@ -39,6 +39,9 @@ import {
   precioDelTiempo,
   tiempoDeMas,
   subirDePaquete,
+  recargaProblem,
+  primeraSubida,
+  bloqueDelTiempoDeMas,
   liquidarEstancia,
   pauseProblem,
   isWristbandless,
@@ -59,6 +62,7 @@ const POLICY = parkPolicy({
   penaltyBlockMinutes: 15,
   penaltyPricePerBlock: fromMajor("1.50", "USD"),
   warnBeforeMinutes: 10,
+  tiempoDeMas: "POR_BLOQUES",
 });
 
 function sesion(over: Partial<ParkSession> = {}): ParkSession {
@@ -92,6 +96,7 @@ describe("constructores que validan (ADR-011)", () => {
       penaltyBlockMinutes: 15,
       penaltyPricePerBlock: fromMajor("1.50", "USD"),
       warnBeforeMinutes: 10,
+      tiempoDeMas: "POR_BLOQUES",
     });
     assert.equal(p.graceMinutes, 0);
   });
@@ -104,6 +109,7 @@ describe("constructores que validan (ADR-011)", () => {
           penaltyBlockMinutes: 0,
           penaltyPricePerBlock: fromMajor("1.50", "USD"),
           warnBeforeMinutes: 10,
+          tiempoDeMas: "POR_BLOQUES",
         }),
       /división por cero/,
     );
@@ -131,6 +137,7 @@ describe("estados de la estancia (§6.5)", () => {
       penaltyBlockMinutes: 15,
       penaltyPricePerBlock: fromMajor("1.50", "USD"),
       warnBeforeMinutes: 10,
+      tiempoDeMas: "POR_BLOQUES",
     });
     const v = computeSessionView(sesion(), sinGracia, epochMs(T0 + 61 * MIN));
     assert.equal(v.status, "VENCIDA");
@@ -544,14 +551,51 @@ describe("una regla de precio para el parque (B4-17, M-37)", () => {
     assert.equal(precioDelTiempo(TARIFA, 10 * MIN, 5, "VES"), null);
   });
 
-  test("el tiempo de más de un paquete fijo: bloques de 30 min, nunca más que la combinación", () => {
+  // Las condiciones de las pruebas (5 min de gracia) con cada regla.
+  const POR_BLOQUES = parkPolicy({ ...POLICY, tiempoDeMas: "POR_BLOQUES" });
+  const CON_TOPE = parkPolicy({ ...POLICY, tiempoDeMas: "CON_TOPE" });
+
+  test("el tiempo de más por bloques (B4-22): cada bloque de 30 min a su precio, sin tope", () => {
+    // El caso del usuario: pagó 30 min ($ 3) y se pasó 30 min: $ 3 más, $ 6 en total (con tope eran $ 5).
+    const media = sesion({ duration: fixed(30) });
+    const de30 = (min: number) => tiempoDeMas(alos(min, media), usd("3.00"), TARIFA, POR_BLOQUES)!;
+    assert.deepEqual([de30(60).blocks, de30(60).blockMinutes, toMajor(de30(60).charge)], [1, 30, "3.00"]);
+    assert.deepEqual([de30(90).blocks, toMajor(de30(90).charge)], [2, "6.00"]); // y así sucesivamente: $ 9
     const una = sesion({ duration: fixed(60) });
-    const de = (min: number) => tiempoDeMas(alos(min, una), usd("5.00"), TARIFA, 5)!;
+    const de = (min: number) => tiempoDeMas(alos(min, una), usd("5.00"), TARIFA, POR_BLOQUES)!;
     assert.equal(toMajor(de(64).charge), "0.00"); // en gracia
+    assert.deepEqual([de(100).blocks, toMajor(de(100).charge)], [2, "6.00"]); // 1:40: $ 11 (con tope eran $ 9)
+    // Sin tope tampoco en el pase libre: 2 h que sale a 3:30 paga tres bloques, $ 18 en total.
+    const dos = sesion({ duration: fixed(120) });
+    assert.equal(toMajor(tiempoDeMas(alos(210, dos), usd("9.00"), TARIFA, POR_BLOQUES)!.charge), "9.00");
+    // La gracia corre al vencer y en cada bloque: se pasa 35 min, un bloque; 36, dos.
+    assert.equal(de(95).blocks, 1);
+    assert.equal(de(96).blocks, 2);
+    // Sin paquetes fijos en la tarifa, la regla de antes.
+    assert.equal(tiempoDeMas(alos(80, una), usd("5.00"), [], POR_BLOQUES), null);
+  });
+
+  test("el tiempo de más con tope (B4-17, quien entró antes): nunca más que la combinación", () => {
+    const media = sesion({ duration: fixed(30) });
+    assert.equal(toMajor(tiempoDeMas(alos(60, media), usd("3.00"), TARIFA, CON_TOPE)!.charge), "2.00"); // la hora, $ 5
+    const una = sesion({ duration: fixed(60) });
+    const de = (min: number) => tiempoDeMas(alos(min, una), usd("5.00"), TARIFA, CON_TOPE)!;
     assert.deepEqual([de(80).blocks, de(80).blockMinutes, toMajor(de(80).charge)], [1, 30, "3.00"]); // $8 en total
     assert.deepEqual([de(110).blocks, toMajor(de(110).charge)], [2, "4.00"]); // dos bloques serían $6: tope en 2 h, $9
-    // Sin paquetes fijos en la tarifa, la regla de antes.
-    assert.equal(tiempoDeMas(alos(80, una), usd("5.00"), [], 5), null);
+  });
+
+  test("«Más tiempo» hasta que termina la gracia (B4-22)", () => {
+    assert.equal(recargaProblem(alos(55)), null); // por vencer
+    assert.equal(recargaProblem(alos(65)), null); // en el último minuto de la gracia
+    assert.equal(recargaProblem(alos(66)), "PASO_LA_GRACIA"); // ya es tiempo de más
+  });
+
+  test("lo más barato para quedarse: el paquete mayor más corto, y el bloque de lo que cuesta pasarse", () => {
+    assert.deepEqual(primeraSubida({ minutos: 30, contratado: usd("3.00") }, TARIFA), { paquete: "1 hora", minutos: 30, diferencia: usd("2.00") });
+    assert.deepEqual(primeraSubida({ minutos: 60, contratado: usd("5.00") }, TARIFA), { paquete: "2 horas", minutos: 60, diferencia: usd("4.00") });
+    assert.equal(primeraSubida({ minutos: 120, contratado: usd("9.00") }, TARIFA), null); // ya tiene el más largo
+    assert.deepEqual(bloqueDelTiempoDeMas(TARIFA, "USD"), { minutos: 30, precio: usd("3.00") });
+    assert.equal(bloqueDelTiempoDeMas(TARIFA, "VES"), null);
   });
 
   test("la salida con la tarifa cobra así; sin ella, el recargo de antes", () => {
@@ -593,10 +637,16 @@ describe("la liquidación de una estancia, una para la salida y el servidor (B4-
     assert.equal(sin.porUso, null);
   });
 
-  test("un paquete fijo: lo contratado y el tiempo de más con tope; en cuenta abierta, si salió antes, la combinación", () => {
+  test("un paquete fijo: lo contratado y el tiempo de más por bloques; en cuenta abierta, si salió antes, la combinación", () => {
     const una = sesion({ duration: fixed(60) });
     assert.deepEqual([toMajor(liquidar(una, "5.00", 80).total), toMajor(liquidar(una, "5.00", 80).overdue)], ["8.00", "3.00"]);
-    assert.equal(toMajor(liquidar(una, "5.00", 110).total), "9.00");
+    assert.equal(toMajor(liquidar(una, "5.00", 110).total), "11.00"); // B4-22: dos bloques, sin tope (con tope eran $ 9)
+    const conTope = parkPolicy({ ...POLICY, tiempoDeMas: "CON_TOPE" });
+    const antes = liquidarEstancia(
+      { session: una, policy: conTope, tarifa: TARIFA, contratado: usd("5.00"), cuentaAbierta: false, tiempoAbierto: false },
+      epochMs(T0 + 110 * MIN),
+    );
+    assert.equal(toMajor(antes.total), "9.00", "quien entró con la regla de antes paga como entró");
     // Prepago que sale a los 5 min: lo pagado no se devuelve aquí (lo devuelve administración, B3-18).
     assert.deepEqual([toMajor(liquidar(una, "5.00", 5).total), liquidar(una, "5.00", 5).porUso], ["5.00", null]);
     // Cuenta abierta que sale a los 5 min: 30 minutos.

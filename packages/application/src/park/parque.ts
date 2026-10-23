@@ -76,6 +76,8 @@ import {
   parkPolicy,
   liquidarEstancia,
   subirDePaquete,
+  computeSessionView,
+  recargaProblem,
   type Liquidacion,
   pauseProblem,
   pausedMs,
@@ -872,6 +874,17 @@ export function casosParque(base: Base): CasosParque {
           // Un invitado de un cumpleaños está en el horario del evento (B10-2): no se le recarga tiempo.
           if (actual.cuenta.kind === "EVENTO") {
             return { ok: false, motivo: "CONFLICTO", mensaje: "Es un invitado de un cumpleaños: su tiempo es el del evento y no se recarga." };
+          }
+          // B4-22 (M-41): «Más tiempo» hasta que termina la gracia. Después ya es tiempo de más, y subir pagando la diferencia
+          // lo dejaría en el tope de antes: se cobra por bloques al salir.
+          const medida = paraMedir(f);
+          if (recargaProblem(computeSessionView(medida.sesion, medida.politica, epochMs(ahora)))) {
+            return {
+              ok: false,
+              motivo: "CONFLICTO",
+              mensaje: `${nombreDeFila(f)} ya pasó su tiempo y su gracia: lo de más va por bloques y se cobra al salir. «Más tiempo» se da hasta que termina la gracia.`,
+              problemas: [{ path: ["sessionId"], message: "PASO_LA_GRACIA" }],
+            };
           }
           // Subir de paquete (B4-17): lo que falta para el paquete mayor; el total queda en su precio.
           const minutosAhora = f.durationMinutes + f.extensions.reduce((acc, e) => acc + e.minutes, 0);
@@ -1690,6 +1703,8 @@ function paraMedir(f: FilaDeEstancia): { sesion: SesionDelDominio; politica: Par
       penaltyBlockMinutes: t.penaltyBlockMinutes,
       penaltyPricePerBlock: money(BigInt(t.penaltyPricePerBlock.minor), "USD"),
       warnBeforeMinutes: t.warnBeforeMinutes,
+      // B4-22: la regla con que entró (sin ella, de antes de B4-22: con tope).
+      tiempoDeMas: t.tiempoDeMas,
     }),
   };
 }

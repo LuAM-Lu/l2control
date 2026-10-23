@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { AlarmClock, BellOff, TimerReset, X } from "lucide-react";
+import { AlarmClock, BellOff, Plus, TimerReset, X } from "lucide-react";
 import type { AvisosDeSalaDto } from "@l2/contracts";
 import { instantesDeAviso } from "@l2/domain-park";
 import { Button, TAMANO_ICONO, cn } from "@l2/ui";
@@ -10,6 +10,8 @@ import { useOperador } from "../identity/operador.ts";
 import { useAhoraDeLaSala, useSala } from "./SalaProvider.tsx";
 import { toParkSession, toParkTerms } from "./mappers.ts";
 import { avisosDeSalaDelEquipo } from "./parque.acciones";
+import { fraseParaQuedarse, quedarseMas } from "./quedarse.ts";
+import { useTarifario } from "./TarifarioProvider";
 import { SILENCIO_MS, prepararSonido, sonar, useSilencioHasta, useSonidoDeAvisos } from "./sonidoDeAvisos.ts";
 
 /**
@@ -27,8 +29,9 @@ import { SILENCIO_MS, prepararSonido, sonar, useSilencioHasta, useSonidoDeAvisos
  * llega mientras está abierta, sí.
  */
 
-type Item = Readonly<{ codigo: string; nombre: string | null; porVencer: number; vence: number }>;
-type Aviso = Readonly<{ id: number; codigo: string; nombre: string | null; nivel: 1 | 2; minutos: number }>;
+/** `quedarse`: lo que cuesta quedarse más (B4-22), con sesión; sin ella, el aviso no dice nombres ni precios. */
+type Item = Readonly<{ codigo: string; nombre: string | null; porVencer: number; vence: number; quedarse: string | null }>;
+type Aviso = Readonly<{ id: number; codigo: string; nombre: string | null; nivel: 1 | 2; minutos: number; quedarse: string | null }>;
 
 /** Dónde avisa: el parque (y sus enlaces de antes), la caja y la pantalla del PIN. */
 const RUTAS = ["/monitor", "/entrada", "/salida", "/caja"];
@@ -41,6 +44,7 @@ export function AvisoDePulseras() {
   const router = useRouter();
   const operador = useOperador();
   const { sala } = useSala();
+  const { tarifario } = useTarifario();
   const ahoraSala = useAhoraDeLaSala(1000);
   const [sonido] = useSonidoDeAvisos();
   const [silencioHasta, silenciar] = useSilencioHasta();
@@ -85,15 +89,17 @@ export function AvisoDePulseras() {
 
   const items = useMemo((): Item[] => {
     if (sinSesion) {
-      return (delEquipo?.dto.pulseras ?? []).map((p) => ({ codigo: p.codigo, nombre: null, porVencer: Date.parse(p.porVencer), vence: Date.parse(p.vence) }));
+      return (delEquipo?.dto.pulseras ?? []).map((p) => ({ codigo: p.codigo, nombre: null, porVencer: Date.parse(p.porVencer), vence: Date.parse(p.vence), quedarse: null }));
     }
     if (!sala) return [];
     return sala.sessions.flatMap((dto) => {
       const s = toParkSession(dto);
       const a = instantesDeAviso(s, toParkTerms(dto.terms));
-      return a ? [{ codigo: s.wristbandCode, nombre: s.childNickname ?? s.childName ?? null, porVencer: a.porVencer, vence: a.vence }] : [];
+      if (!a) return [];
+      const q = quedarseMas(dto, tarifario.packages);
+      return [{ codigo: s.wristbandCode, nombre: s.childNickname ?? s.childName ?? null, porVencer: a.porVencer, vence: a.vence, quedarse: q ? fraseParaQuedarse(q) : null }];
     });
-  }, [sinSesion, delEquipo, sala]);
+  }, [sinSesion, delEquipo, sala, tarifario.packages]);
 
   // Lo ya avisado de cada pulsera: no se repite al bloquearse ni al cambiar de pantalla.
   const avisado = useRef(new Map<string, 0 | 1 | 2>());
@@ -114,7 +120,7 @@ export function AvisoDePulseras() {
       const nivel = nivelEn(i, ahora);
       if (nivel > (avisado.current.get(i.codigo) ?? 0)) {
         avisado.current.set(i.codigo, nivel);
-        nuevos.push({ id: ++siguiente.current, codigo: i.codigo, nombre: i.nombre, nivel: nivel as 1 | 2, minutos: Math.max(0, Math.ceil((i.vence - ahora) / 60_000)) });
+        nuevos.push({ id: ++siguiente.current, codigo: i.codigo, nombre: i.nombre, nivel: nivel as 1 | 2, minutos: Math.max(0, Math.ceil((i.vence - ahora) / 60_000)), quedarse: i.quedarse });
       }
     }
     if (nuevos.length === 0) return;
@@ -137,6 +143,11 @@ export function AvisoDePulseras() {
     if (sinSesion) window.location.assign(`/acceso?pulsera=${encodeURIComponent(a.codigo)}`);
     else router.push(`/monitor?pulsera=${encodeURIComponent(a.codigo)}`);
   };
+  /** B4-22: «Más tiempo» desde el aviso: la ficha del niño, en ese paso (si su gracia no terminó). */
+  const darMasTiempo = (a: Aviso) => {
+    setAvisos((l) => l.filter((x) => x.id !== a.id));
+    router.push(`/monitor?pulsera=${encodeURIComponent(a.codigo)}&mas=1`);
+  };
 
   return (
     <section
@@ -155,7 +166,7 @@ export function AvisoDePulseras() {
             key={a.id}
             role="alert"
             className={cn(
-              "l2-entra pointer-events-auto flex w-full items-center gap-2 rounded-[var(--radius-card)] border px-3 py-2 shadow-lift",
+              "l2-entra pointer-events-auto flex w-full flex-wrap items-center gap-2 rounded-[var(--radius-card)] border px-3 py-2 shadow-lift",
               urgente ? "border-state-crit/60 bg-state-crit-bg" : "border-state-warn/60 bg-state-warn-bg",
             )}
           >
@@ -180,6 +191,16 @@ export function AvisoDePulseras() {
             <Button variant="ghost" surface="tablet" aria-label="Cerrar el aviso" onClick={() => setAvisos((l) => l.filter((x) => x.id !== a.id))}>
               <X size={TAMANO_ICONO.texto} aria-hidden="true" />
             </Button>
+            {/* B4-22 (M-41): lo que cuesta quedarse, para ofrecérselo a la familia antes de que se pase. */}
+            {!sinSesion && a.quedarse && (
+              <div className="flex basis-full items-center gap-2 border-t border-ink/10 pt-2">
+                <span className="tnum min-w-0 flex-1 text-detalle text-ink-2">{a.quedarse}</span>
+                <Button variant="neutral" surface="tablet" className="shrink-0 gap-1.5" onClick={() => darMasTiempo(a)}>
+                  <Plus size={TAMANO_ICONO.texto} aria-hidden="true" />
+                  Más tiempo
+                </Button>
+              </div>
+            )}
           </div>
         );
       })}
