@@ -16,6 +16,11 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+### Seguridad
+- **Node 24.11.0 → 24.22.1 en el servidor** (la web, el worker y la migración): el lanzamiento de seguridad de Node
+  del 2026-10-20 corrige diez fallos, entre ellos una ejecución remota en el descompresor Brotli (CVE-2026-111497) y
+  uno de DNS (CVE-2026-105482); la 24.11.0 arrastraba además los de los lanzamientos de seguridad intermedios.
+
 ## [0.156.0] — 2026-10-23 · Hacia la puesta en marcha
 
 M-41: el tiempo de más, por bloques y sin tope.

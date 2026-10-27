@@ -15,7 +15,7 @@
 # Ninguna lleva secretos: llegan del entorno del servidor. Todas corren como el usuario `node`.
 # La versión es la del package.json raíz: la publica la etiqueta vX.Y.Z que la iguala.
 
-ARG NODE=node:24.11.0-bookworm-slim
+ARG NODE=node:24.22.1-bookworm-slim
 
 # ── Base: Node y pnpm, fijados ─────────────────────────────────────────────────
 FROM ${NODE} AS base
