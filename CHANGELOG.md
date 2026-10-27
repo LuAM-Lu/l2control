@@ -16,6 +16,8 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.156.1] — 2026-10-26 · Hacia la puesta en marcha
+
 ### Seguridad
 - **Node 24.11.0 → 24.22.1 en el servidor** (la web, el worker y la migración): el lanzamiento de seguridad de Node
   del 2026-10-20 corrige diez fallos, entre ellos una ejecución remota en el descompresor Brotli (CVE-2026-111497) y
