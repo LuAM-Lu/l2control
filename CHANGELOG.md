@@ -22,6 +22,8 @@ al commit que entregó cada paso.
 - **Node 24.11.0 → 24.22.1 en el servidor** (la web, el worker y la migración): el lanzamiento de seguridad de Node
   del 2026-10-20 corrige diez fallos, entre ellos una ejecución remota en el descompresor Brotli (CVE-2026-111497) y
   uno de DNS (CVE-2026-105482); la 24.11.0 arrastraba además los de los lanzamientos de seguridad intermedios.
+- **Zod 4.5.4 → 4.6.7**: una validación con una lista enorme podía agotar la memoria del servidor (GHSA-mrhx-c7xc-m3w5,
+  alta), que la auditoría de dependencias del CI marcó.
 
 ## [0.156.0] — 2026-10-23 · Hacia la puesta en marcha
 

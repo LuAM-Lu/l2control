@@ -13,7 +13,7 @@
   },
   "comment": "Es la HOJA del grafo de dependencias: no importa de nadie salvo zod. Si algún día necesita el dominio, la frontera de §9.2 se rompió.",
   "dependencies": {
-    "zod": "4.5.4"
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@l2/config": "workspace:*",
