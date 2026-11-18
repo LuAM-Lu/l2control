@@ -147,7 +147,10 @@ barata de los paquetes de la tarifa con que entró (`porUso`) que cubre el tiemp
 pase libre; el tiempo de más va en bloques del paquete más chico (`tiempoDeMas`) con la regla de las condiciones de la
 estancia (B4-22, M-41): `POR_BLOQUES`, cada bloque a su precio y sin tope, o `CON_TOPE`, con tope en esa combinación. El
 tarifario la guarda (sin ella, por bloques) y la entrada la copia en `terms` (sin ella, con tope: entró antes). «Más
-tiempo» sube de paquete pagando la diferencia (`subirDePaquete`), solo hasta que termina la gracia (`recargaProblem`). La salida del servidor y la vista previa usan
+tiempo» (`recargaDePaquete`) sigue la misma regla (B4-23, M-42): en `POR_BLOQUES` suma un paquete fijo entero a su precio
+(30 min + 30 min = $ 6; en cuenta abierta, si ya consumió el paquete inicial, `porUso` no lo rebaja a $ 5), y en
+`CON_TOPE` sube de paquete pagando la diferencia (`subirDePaquete`); en ambos casos solo hasta que termina la gracia
+(`recargaProblem`). La salida del servidor y la vista previa usan
 `liquidarEstancia`: no se calcula un precio del parque en otro sitio. El tiempo abierto es el paquete `tiempo-abierto`
 (solo en cuenta abierta, precio 0): no deja línea al entrar, y la salida le pone la suya (`abierto-<estancia>`) antes de
 cerrar, así viaja con la estancia a una mesa. El bloque y el precio de excedente de la política ya no se editan.

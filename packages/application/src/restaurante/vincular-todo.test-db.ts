@@ -126,10 +126,10 @@ describe("lo de cada niño va a su mesa (v0.131.1)", () => {
     valor(await vincular([r.sessions[0]!.id], "mesa-2", AHORA - 5 * MIN));
     const recarga = valor(await l.app.parque.recargar(monitora, { idempotencyKey: randomUUID(), sessionId: r.sessions[0]!.id, packageId: "pkg-60" }, AHORA - 4 * MIN));
     assert.equal(recarga.account.id, mesa.id);
-    assert.match(recarga.account.lines.at(-1)!.concept, /^Sube a 1 hora/);
+    assert.match(recarga.account.lines.at(-1)!.concept, /^Más tiempo 1 hora/);
     assert.equal(recarga.account.status, "ABIERTA", "la mesa sigue abierta: se cobra con ella");
     const familia = await cuenta(r.account.id);
-    assert.equal(familia.lines.some((x) => x.concept.startsWith("Sube a")), false);
+    assert.equal(familia.lines.some((x) => x.concept.startsWith("Más tiempo")), false);
   });
 
   test("anular la entrada de un niño vinculado lo anula en su mesa, y sus medias vuelven al estante", async () => {

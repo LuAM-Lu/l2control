@@ -456,8 +456,8 @@ function ejemploExcedente(p: ParkPolicyDto, paquetes: readonly PricePackageDto[]
 
 /** Las dos reglas del tiempo de más (B4-22, M-41), como las elige administración. */
 const REGLAS_DEL_TIEMPO_DE_MAS = [
-  { valor: "POR_BLOQUES", titulo: "Por bloques", icono: Layers, que: "Cada bloque iniciado, a su precio y sin tope." },
-  { valor: "CON_TOPE", titulo: "Con tope", icono: Gauge, que: "Nunca más que los paquetes que cubren lo que estuvo." },
+  { valor: "POR_BLOQUES", titulo: "Por bloques", icono: Layers, que: "Cada bloque de más y cada «Más tiempo», a precio entero y sin tope." },
+  { valor: "CON_TOPE", titulo: "Con tope", icono: Gauge, que: "Nunca más que los paquetes que cubren lo que estuvo; «Más tiempo» paga la diferencia." },
 ] as const;
 
 /**

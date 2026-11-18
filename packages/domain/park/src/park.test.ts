@@ -39,6 +39,7 @@ import {
   precioDelTiempo,
   tiempoDeMas,
   subirDePaquete,
+  recargaDePaquete,
   recargaProblem,
   primeraSubida,
   bloqueDelTiempoDeMas,
@@ -614,6 +615,21 @@ describe("una regla de precio para el parque (B4-17, M-37)", () => {
     assert.equal(subirDePaquete(de30, TARIFA[0]!), null);
     assert.equal(subirDePaquete(de30, TARIFA[3]!), null);
   });
+
+  test("«Más tiempo» por bloques (B4-23): suma el paquete entero a su precio; con tope, sube por la diferencia", () => {
+    const de30 = { minutos: 30, contratado: usd("3.00") };
+    // Por bloques: 30 min + 30 min = +30 min y $ 3 ($ 6 en total); +1 hora = +60 min y $ 5 ($ 8 en total).
+    assert.deepEqual(recargaDePaquete(de30, TARIFA[0]!, "POR_BLOQUES"), { minutos: 30, precio: usd("3.00"), sumaCompleta: true });
+    assert.deepEqual(recargaDePaquete(de30, TARIFA[1]!, "POR_BLOQUES"), { minutos: 60, precio: usd("5.00"), sumaCompleta: true });
+    // Incluso quien ya lleva 2 horas puede sumar +30 min por $ 3.
+    const de120 = { minutos: 120, contratado: usd("9.00") };
+    assert.deepEqual(recargaDePaquete(de120, TARIFA[0]!, "POR_BLOQUES"), { minutos: 30, precio: usd("3.00"), sumaCompleta: true });
+    // El pase libre no se suma.
+    assert.equal(recargaDePaquete(de30, TARIFA[3]!, "POR_BLOQUES"), null);
+    // Con tope: sube de paquete pagando solo la diferencia (30 min → 1 h: $ 2 más, total $ 5).
+    assert.deepEqual(recargaDePaquete(de30, TARIFA[1]!, "CON_TOPE"), { minutos: 30, precio: usd("2.00"), sumaCompleta: false });
+    assert.equal(recargaDePaquete(de30, TARIFA[0]!, "CON_TOPE"), null);
+  });
 });
 
 describe("la liquidación de una estancia, una para la salida y el servidor (B4-17)", () => {
@@ -651,5 +667,28 @@ describe("la liquidación de una estancia, una para la salida y el servidor (B4-
     assert.deepEqual([toMajor(liquidar(una, "5.00", 5).total), liquidar(una, "5.00", 5).porUso], ["5.00", null]);
     // Cuenta abierta que sale a los 5 min: 30 minutos.
     assert.equal(toMajor(liquidar(una, "5.00", 5, { cuentaAbierta: true }).total), "3.00");
+  });
+
+  test("cuenta abierta con «Más tiempo» por bloques (B4-23): 30 min + 30 min = $ 6 no baja a $ 5 al salir a los 55 min", () => {
+    // Entró con 30 min ($ 3) y recargó +30 min ($ 3 → $ 6 para 60 min).
+    const recargada = sesion({ duration: fixed(60) });
+    const sale55 = liquidarEstancia(
+      { session: recargada, policy: POLICY, tarifa: TARIFA, contratado: usd("6.00"), cuentaAbierta: true, tiempoAbierto: false, minutosIniciales: 30 },
+      epochMs(T0 + 55 * MIN),
+    );
+    assert.deepEqual([toMajor(sale55.total), sale55.porUso], ["6.00", null]);
+    // Si sale antes de consumir su paquete inicial (25 min ≤ 30 + 5 de gracia), sí cobra por uso ($ 3).
+    const sale25 = liquidarEstancia(
+      { session: recargada, policy: POLICY, tarifa: TARIFA, contratado: usd("6.00"), cuentaAbierta: true, tiempoAbierto: false, minutosIniciales: 30 },
+      epochMs(T0 + 25 * MIN),
+    );
+    assert.equal(toMajor(sale25.total), "3.00");
+    // Bajo CON_TOPE, sí aplica por uso como antes.
+    const conTope = parkPolicy({ ...POLICY, tiempoDeMas: "CON_TOPE" });
+    const saleTope = liquidarEstancia(
+      { session: recargada, policy: conTope, tarifa: TARIFA, contratado: usd("6.00"), cuentaAbierta: true, tiempoAbierto: false, minutosIniciales: 30 },
+      epochMs(T0 + 55 * MIN),
+    );
+    assert.equal(toMajor(saleTope.total), "5.00");
   });
 });

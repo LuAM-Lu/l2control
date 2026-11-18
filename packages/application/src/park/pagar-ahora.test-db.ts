@@ -172,6 +172,6 @@ describe("pagar el parque antes de salir (B4-19, M-39)", () => {
     assert.equal(!nada.ok && nada.problemas?.[0]?.message, "NADA_QUE_PAGAR");
 
     const mas = valor(await l.app.parque.recargar(monitora, { idempotencyKey: randomUUID(), sessionId: e.sessions[0]!.id, packageId: "pkg-60" }, AHORA + 25 * MIN));
-    assert.deepEqual(mas.session.duration, { kind: "fixed", minutes: 60 });
+    assert.deepEqual(mas.session.duration, { kind: "fixed", minutes: 90 });
   });
 });

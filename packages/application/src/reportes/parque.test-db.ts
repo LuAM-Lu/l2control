@@ -100,8 +100,8 @@ describe("el informe del parque (B11-6)", () => {
     assert.deepEqual(i.porHora, [{ hora: 14, ninos: 3 }]);
     assert.deepEqual(i.dinero.paquetes, { cantidad: 3, monto: usd("1500") });
     assert.equal(i.dinero.recargas.cantidad, 1);
-    assert.equal(i.dinero.recargas.minutos, 60);
-    assert.deepEqual(i.dinero.recargas.monto, usd("300"));
+    assert.equal(i.dinero.recargas.minutos, 120);
+    assert.deepEqual(i.dinero.recargas.monto, usd("800"));
     assert.deepEqual(i.dinero.tiempoDeMas, { cantidad: 1, monto: usd("500") });
     assert.equal(i.resumen.dinero.minor, String(1500 + Number(i.dinero.recargas.monto.minor) + 500));
     assert.deepEqual(i.dinero.porPaquete.map((p) => [p.paquete, p.ninos]), [["1 hora", 3]]);

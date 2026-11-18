@@ -135,7 +135,12 @@ export function casosInformeDelParque(base: Base): CasosInformeDelParque {
               sumar("regalado", monto);
               continue;
             }
-            const clase = l.kind === "EXCEDENTE" ? "tiempoDeMas" : l.concept.startsWith("Sube a ") ? "recargas" : "paquetes";
+            const clase =
+              l.kind === "EXCEDENTE"
+                ? "tiempoDeMas"
+                : l.id.startsWith("rec-") || l.concept.startsWith("Más tiempo ") || l.concept.startsWith("Sube a ")
+                  ? "recargas"
+                  : "paquetes";
             sumar(clase, monto);
             if (c.kind === "MESA") sumar("enMesas", monto);
             const d = porEstancia.get(l.sessionId) ?? { paquetes: 0n, recargas: 0n, tiempoDeMas: 0n };
