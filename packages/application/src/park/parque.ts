@@ -75,7 +75,7 @@ import {
   openEnded,
   parkPolicy,
   liquidarEstancia,
-  subirDePaquete,
+  recargaDePaquete,
   computeSessionView,
   recargaProblem,
   type Liquidacion,
@@ -886,13 +886,15 @@ export function casosParque(base: Base): CasosParque {
               problemas: [{ path: ["sessionId"], message: "PASO_LA_GRACIA" }],
             };
           }
-          // Subir de paquete (B4-17): lo que falta para el paquete mayor; el total queda en su precio.
+          // B4-23 (M-42): en «Por bloques» suma el paquete entero a su precio (30 min + 30 min = $ 6); en «Con tope»,
+          // sube a un paquete mayor pagando la diferencia (B4-17).
           const minutosAhora = f.durationMinutes + f.extensions.reduce((acc, e) => acc + e.minutes, 0);
-          const sube = subirDePaquete(
+          const rec = recargaDePaquete(
             { minutos: minutosAhora, contratado: contratadoDe(f) },
             { name: p.name, duration: fixed(p.duration.minutes), price: money(BigInt(p.price.minor), "USD") },
+            medida.politica.tiempoDeMas,
           );
-          if (!sube) {
+          if (!rec) {
             return invalido(`Ya tiene ${minutosAhora} min: elige un paquete mayor.`, ["packageId"], "PAQUETE_NO_ES_MAYOR");
           }
           const quien = await nombreDe(tx, ctx);
@@ -900,10 +902,10 @@ export function casosParque(base: Base): CasosParque {
             data: {
               tenantId: ctx.tenantId,
               sessionId: f.id,
-              minutes: sube.minutos,
+              minutes: rec.minutos,
               packageId: p.id,
               packageName: p.name,
-              priceMinor: sube.diferencia.amount,
+              priceMinor: rec.precio.amount,
               currency: "USD",
               operationKey: cmd.idempotencyKey,
               createdAt: new Date(ahora),
@@ -913,9 +915,9 @@ export function casosParque(base: Base): CasosParque {
           });
           const despues = registerRecharge(actual.cuenta, {
             id: `rec-${extension.id}`,
-            concept: `Sube a ${p.name} · ${f.wristbandCode}`,
+            concept: `${rec.sumaCompleta ? `Más tiempo ${p.name}` : `Sube a ${p.name}`} · ${f.wristbandCode}`,
             sessionId: f.id,
-            amountMinor: sube.diferencia.amount,
+            amountMinor: rec.precio.amount,
           });
           const instante = new Date(ahora).toISOString();
           const { pendingSince: _, ...sinEspera } = despues;
@@ -932,9 +934,9 @@ export function casosParque(base: Base): CasosParque {
             entityType: "park_session",
             entityId: f.id,
             after: {
-              minutos: sube.minutos,
+              minutos: rec.minutos,
               paquete: p.name,
-              precio: { minor: String(sube.diferencia.amount), currency: "USD" },
+              precio: { minor: String(rec.precio.amount), currency: "USD" },
               cuenta: nueva.orderNumber ?? null,
               ...(suMesa ? { mesa: suMesa.label } : {}),
             },
@@ -1738,8 +1740,9 @@ function tarifaDe(f: FilaDeEstancia): PaqueteDeUso[] {
 /** La liquidación de una estancia en `hasta` con la regla de precio (B4-17): la misma que anticipa la salida. */
 function liquidarDe(f: FilaDeEstancia, hasta: number, cuentaAbierta: boolean): Liquidacion {
   const { sesion, politica } = paraMedir(f);
+  const minutosIniciales = f.extensions.length > 0 && f.durationMinutes !== null ? f.durationMinutes : undefined;
   return liquidarEstancia(
-    { session: sesion, policy: politica, tarifa: tarifaDe(f), contratado: contratadoDe(f), cuentaAbierta, tiempoAbierto: esTiempoAbierto(f) },
+    { session: sesion, policy: politica, tarifa: tarifaDe(f), contratado: contratadoDe(f), cuentaAbierta, tiempoAbierto: esTiempoAbierto(f), ...(minutosIniciales !== undefined ? { minutosIniciales } : {}) },
     epochMs(hasta),
   );
 }

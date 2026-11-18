@@ -16,6 +16,15 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.157.0] — 2026-11-18 · Hacia la puesta en marcha
+
+M-42: «Más tiempo» suma paquetes enteros bajo «Por bloques».
+
+### Cambiado
+- **«Más tiempo» suma paquetes enteros en «Por bloques»:** pedir más tiempo antes de vencer la gracia suma cualquier paquete fijo a la venta a su precio completo (30 minutos + 30 minutos = $ 6; 1 hora + 30 minutos = $ 8), manteniendo el incentivo de pedir el paquete mayor desde la entrada. Bajo «Con tope» sigue subiendo de paquete pagando la diferencia.
+- **Cuenta abierta protegida tras recargar:** si un niño en cuenta abierta suma «Más tiempo» bajo «Por bloques» y supera su paquete inicial (más la gracia), el cobro por uso no rebaja la cuenta por debajo de lo contratado (30 min + 30 min al salir a los 55 min cobra $ 6, no $ 5).
+- **Avisos, ficha, Tarifas y Ayuda:** muestran el precio real de sumar un paquete entero (+30 min, $ 3,00) en lugar de subir por diferencia.
+
 ## [0.156.2] — 2026-11-18 · Hacia la puesta en marcha
 
 ### Seguridad
