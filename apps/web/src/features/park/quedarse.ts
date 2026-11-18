@@ -28,17 +28,24 @@ export function quedarseMas(estancia: MonitorSnapshotDto["sessions"][number], aL
   const paquetes: PaqueteDeUso[] = aLaVenta
     .filter((p) => p.active)
     .map((p) => ({ name: p.name, duration: p.duration.kind === "fixed" ? fixed(p.duration.minutes) : openEnded, price: money(BigInt(p.price.minor), p.price.currency) }));
+  if (estancia.terms.tiempoDeMas === "POR_BLOQUES") {
+    const recarga = bloqueDelTiempoDeMas(paquetes, "USD");
+    const bloque = bloqueDelTiempoDeMas(tarifaDeEstancia(estancia), "USD");
+    return {
+      subir: recarga ? `+${junto(`${recarga.minutos} min`)}, ${usd(recarga.precio)}` : null,
+      pasarse: bloque ? `${usd(bloque.precio)} cada ${junto(`${bloque.minutos} min`)}` : null,
+    };
+  }
   const sube = primeraSubida({ minutos: estancia.duration.minutes, contratado: contratadoDeEstancia(estancia) }, paquetes);
-  const bloque = estancia.terms.tiempoDeMas === "POR_BLOQUES" ? bloqueDelTiempoDeMas(tarifaDeEstancia(estancia), "USD") : null;
   return {
     subir: sube ? `a ${sube.paquete}, ${usd(sube.diferencia)} más` : null,
-    pasarse: bloque ? `${usd(bloque.precio)} cada ${junto(`${bloque.minutos} min`)}` : null,
+    pasarse: null,
   };
 }
 
-/** La frase entera: «Si se queda: a 1 hora, $ 2,00 más. Si se pasa sin subir: $ 3,00 cada 30 min.» */
+/** La frase entera: «Si se queda: +30 min, $ 3,00. Si se pasa: $ 3,00 cada 30 min.» */
 export function fraseParaQuedarse(q: Quedarse): string | null {
-  const partes = [q.subir ? `Si se queda: ${q.subir}.` : null, q.pasarse ? `Si se pasa${q.subir ? " sin subir" : ""}: ${q.pasarse}.` : null];
+  const partes = [q.subir ? `Si se queda: ${q.subir}.` : null, q.pasarse ? `Si se pasa: ${q.pasarse}.` : null];
   const frase = partes.filter(Boolean).join(" ");
   return frase || null;
 }

@@ -7,21 +7,15 @@ trabajó. Cada persona toca solo la suya (por su `git config user.name`); el est
 
 ## LuAMi
 
-*2026-10-20 · v0.155.0 en `main` y publicada (el VPS en 0.155.0) · M-40 entregado entero; nada reclamado salvo B8-4*
+*2026-11-18 · v0.157.0 en `main` y publicada (el VPS en 0.157.0) · Next 16.4.5 + M-42 (B4-23) entregados; nada reclamado salvo B8-4*
 
 ```text
-M-40 entero en main, sin parar entre pasos: v0.143.1 y T-24 a T-26 (v0.144.0 a v0.155.0), tres migraciones de expandir.
-Publicada a las 9:02 am con la etiqueta v0.155.0: el VPS la puso en 45 s, con respaldo antes; salud en verde, sin errores.
-Lo nuevo, para mirarlo en el local el fin de semana: «Cédula o RIF» en un solo campo; sentar «Más rápido» o «Más seguro»
-  (Ajustes → Sucursal); la caja ve las cuentas del salón y ofrece «Traer a la caja y cobrar»; «Cobrar lo que va»; «Pedir
-  anulación» sin administración en el local; la fila de la mesa y «Lo más pedido hoy»; el aviso de la caja abierta a la
-  hora de cierre (10:00 pm de fábrica); Clientes (en lugar de Representantes); el cierre del parque; Reportes → Parque.
-La PC de los respaldos («PC Lenovo Laptop») no baja desde el 17 de octubre: correr su tarea en esa PC.
-Siguiente: B8-4, la 1.0.0 (MAESTRO §3): un lunes con el local cerrado tras probar el bloque un fin de semana (el primero
-  posible, el 26). Antes, del usuario: B8-1 (el 4G y la UPS), decidir «Linux Home andruwXOX» y «T an lwt», y «Actualizar
-  ahora» del agente de impresión si no se puso al día solo.
-Cuidado: el día de negocio termina a las 4:00 am; una pantalla nueva de la ayuda va en manual.ts con su ruta (y su
-  ?pestana= si la pide), y un paso nuevo de un recorrido lleva `desde` con su versión subida.
+v0.156.2 (seguridad): Next.js 16.3.8 → 16.4.5 y retiradas las 3 excepciones de auditConfig en pnpm-workspace.yaml.
+v0.157.0 (M-42 / B4-23): «Más tiempo» en «Por bloques» suma paquetes fijos enteros a su precio (30 min + 30 min = $ 6)
+  hasta el fin de la gracia; en cuenta abierta, si ya superó su paquete inicial (+ gracia), porUso no rebaja a $ 5;
+  en «Con tope» sigue subiendo por diferencia. Avisos, ficha, RecargarTiempo, Tarifas y Ayuda actualizados. Sin migración.
+Publicado en tanda con la etiqueta v0.157.0 en el VPS (salud en verde).
+Siguiente: B8-4, la 1.0.0 (MAESTRO §3).
 ```
 
 ## aemorandin-coder

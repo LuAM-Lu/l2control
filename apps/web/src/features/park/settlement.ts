@@ -30,9 +30,15 @@ export function tarifaDeEstancia(dto: MonitorSnapshotDto["sessions"][number]): P
   }));
 }
 
-/** Lo contratado de una estancia: el paquete y lo que subió (F5-11, B4-17). */
+/** Lo contratado de una estancia: el paquete y lo que sumó (F5-11, B4-17, B4-23). */
 export function contratadoDeEstancia(dto: MonitorSnapshotDto["sessions"][number]): Money {
   return dto.recargas.reduce((acc, r) => add(acc, toMoney(r.price)), toMoney(dto.packagePrice));
+}
+
+/** Los minutos del paquete inicial antes de recargas, si tuvo recargas (B4-23). */
+function minutosInicialesDe(dto: MonitorSnapshotDto["sessions"][number]): number | undefined {
+  if (dto.recargas.length === 0 || dto.duration.kind !== "fixed") return undefined;
+  return dto.duration.minutes - dto.recargas.reduce((acc, r) => acc + r.minutes, 0);
 }
 
 /**
@@ -63,6 +69,7 @@ export function buildCheckoutPreview(
     .filter((s): s is NonNullable<typeof s> => s !== undefined)
     .map((dto) => {
       const tiempoAbierto = dto.packageId === TIEMPO_ABIERTO_ID;
+      const minutosIniciales = minutosInicialesDe(dto);
       // Las condiciones y la tarifa con que entró (B4-2): las mismas con que liquida el servidor.
       const l = liquidarEstancia(
         {
@@ -72,6 +79,7 @@ export function buildCheckoutPreview(
           contratado: contratadoDeEstancia(dto),
           cuentaAbierta: !dto.pagadaAntes && cuentaAbierta(dto.accountId, dto.id),
           tiempoAbierto,
+          ...(minutosIniciales !== undefined ? { minutosIniciales } : {}),
         },
         now,
       );
@@ -120,8 +128,17 @@ export function moneyDtoToMajor(dto: { minor: string; currency: string }): strin
 export function noUsadoDe(dto: MonitorSnapshotDto["sessions"][number], ahora: number): Money | null {
   if (dto.packageId === TIEMPO_ABIERTO_ID) return null;
   const contratado = contratadoDeEstancia(dto);
+  const minutosIniciales = minutosInicialesDe(dto);
   const l = liquidarEstancia(
-    { session: toParkSession(dto), policy: toParkTerms(dto.terms), tarifa: tarifaDeEstancia(dto), contratado, cuentaAbierta: true, tiempoAbierto: false },
+    {
+      session: toParkSession(dto),
+      policy: toParkTerms(dto.terms),
+      tarifa: tarifaDeEstancia(dto),
+      contratado,
+      cuentaAbierta: true,
+      tiempoAbierto: false,
+      ...(minutosIniciales !== undefined ? { minutosIniciales } : {}),
+    },
     epochMs(ahora),
   );
   if (!l.porUso) return null;

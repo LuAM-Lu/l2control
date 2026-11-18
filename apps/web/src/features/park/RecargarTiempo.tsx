@@ -5,17 +5,17 @@ import { TimerReset } from "lucide-react";
 import type { FamilyAccountDto, MonitorSnapshotDto, PricePackageDto } from "@l2/contracts";
 import { Button, avisar, cn, formatMoneyVE } from "@l2/ui";
 import { money, toMajor } from "@l2/domain-money";
-import { fixed, subirDePaquete } from "@l2/domain-park";
+import { fixed, recargaDePaquete } from "@l2/domain-park";
 import { recargarEstancia } from "./parque.acciones";
 import { contratadoDeEstancia } from "./settlement.ts";
 
 /**
- * Más tiempo para un niño en sala — F5-11; B4-17 (M-37): subir de paquete.
+ * Más tiempo para un niño en sala — F5-11; B4-17 (M-37); B4-23 (M-42).
  *
- * El representante pide más tiempo: se ofrecen los paquetes mayores que el que tiene, cada uno con lo que falta pagar
- * (de 30 min a 1 hora, $ 2 más), y el total queda en el precio del paquete final. Ya no se apila otro paquete: 30 min
- * más otros 30 costaban $ 6 cuando la hora vale $ 5. El tiempo cuenta desde que entró, y la gracia corre desde el fin
- * del paquete nuevo.
+ * Según la regla con que entró la estancia (`estancia.terms.tiempoDeMas`):
+ *  · **Por bloques (`POR_BLOQUES`):** suma un paquete fijo entero a su precio completo (30 min + 30 min = $ 6).
+ *  · **Con tope (`CON_TOPE`):** sube a un paquete mayor pagando solo la diferencia (de 30 min a 1 hora, $ 2 más).
+ * El tiempo cuenta desde que entró, y la gracia corre desde el fin del tiempo nuevo.
  */
 export function RecargarTiempo({
   estancia,
@@ -25,31 +25,33 @@ export function RecargarTiempo({
 }: {
   /** La estancia como la ve la sala: lo que ya tiene (sus minutos y lo contratado). */
   estancia: MonitorSnapshotDto["sessions"][number];
-  /** Los paquetes a la venta: se ofrecen los de tiempo fijo mayores que lo que tiene. */
+  /** Los paquetes a la venta: se ofrecen los de tiempo fijo admitidos por la regla de la estancia. */
   paquetes: readonly PricePackageDto[];
   onHecha: (cuenta: FamilyAccountDto) => void;
   onCancelar: () => void;
 }) {
   const minutosAhora = estancia.duration.kind === "fixed" ? estancia.duration.minutes : 0;
   const contratado = contratadoDeEstancia(estancia);
+  const porBloques = estancia.terms.tiempoDeMas === "POR_BLOQUES";
   const opciones = useMemo(
     () =>
       paquetes
         .filter((p) => p.active && p.duration.kind === "fixed")
         .flatMap((p) => {
-          const sube = subirDePaquete(
+          const rec = recargaDePaquete(
             { minutos: minutosAhora, contratado },
             { name: p.name, duration: fixed(p.duration.kind === "fixed" ? p.duration.minutes : 0), price: money(BigInt(p.price.minor), "USD") },
+            estancia.terms.tiempoDeMas,
           );
-          return sube ? [{ paquete: p, ...sube }] : [];
+          return rec ? [{ paquete: p, ...rec }] : [];
         })
         .sort((a, b) => a.minutos - b.minutos),
-    [paquetes, minutosAhora, contratado.amount],
+    [paquetes, minutosAhora, contratado.amount, estancia.terms.tiempoDeMas],
   );
   const [elegido, setElegido] = useState(opciones[0]?.paquete.id ?? "");
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  /** La clave de este intento: un reintento tras un corte no sube dos veces. */
+  /** La clave de este intento: un reintento tras un corte no suma dos veces. */
   const clave = useRef<string | null>(null);
   const opcion = opciones.find((o) => o.paquete.id === elegido) ?? null;
 
@@ -68,9 +70,9 @@ export function RecargarTiempo({
       setError(r.mensaje);
       return;
     }
-    const falta = formatMoneyVE(toMajor(opcion.diferencia), "USD");
-    avisar.ok(`Sube a ${opcion.paquete.name}`, {
-      detalle: r.valor.account.mode === "PREPAGO" ? `${falta} más a la caja: se cobra ya.` : `${falta} más a su cuenta: se cobra al salir.`,
+    const monto = formatMoneyVE(toMajor(opcion.precio), "USD");
+    avisar.ok(opcion.sumaCompleta ? `Más tiempo: +${opcion.paquete.name}` : `Sube a ${opcion.paquete.name}`, {
+      detalle: r.valor.account.mode === "PREPAGO" ? `${monto} más a la caja: se cobra ya.` : `${monto} más a su cuenta: se cobra al salir.`,
     });
     onHecha(r.valor.account);
   }
@@ -78,7 +80,9 @@ export function RecargarTiempo({
   if (opciones.length === 0) {
     return (
       <div className="flex flex-col gap-3 py-2">
-        <p className="text-[14px] text-ink-2">Ya tiene el paquete más largo de tiempo fijo: no hay uno mayor al que subir.</p>
+        <p className="text-[14px] text-ink-2">
+          {porBloques ? "No hay paquetes de tiempo fijo a la venta para sumar." : "Ya tiene el paquete más largo de tiempo fijo: no hay uno mayor al que subir."}
+        </p>
         <Button variant="neutral" onClick={onCancelar}>
           Volver
         </Button>
@@ -90,9 +94,9 @@ export function RecargarTiempo({
     <div className="flex flex-col gap-4 py-2">
       <p className="flex items-center gap-2 text-[14px] text-ink-2">
         <TimerReset size={16} aria-hidden="true" />
-        Sube a un paquete mayor: paga solo la diferencia.
+        {porBloques ? "Suma un paquete entero al tiempo actual." : "Sube a un paquete mayor: paga solo la diferencia."}
       </p>
-      <div role="radiogroup" aria-label="Paquete al que sube" className="flex flex-col gap-2">
+      <div role="radiogroup" aria-label={porBloques ? "Paquete a sumar" : "Paquete al que sube"} className="flex flex-col gap-2">
         {opciones.map((o) => (
           <button
             key={o.paquete.id}
@@ -107,10 +111,10 @@ export function RecargarTiempo({
             )}
           >
             <span className="flex flex-col">
-              <span className="text-[14px] font-semibold">{o.paquete.name}</span>
+              <span className="text-[14px] font-semibold">{o.sumaCompleta ? `+${o.paquete.name}` : o.paquete.name}</span>
               <span className="text-[12px] text-ink-3">{o.minutos} min más</span>
             </span>
-            <span className="tnum text-[14px] font-bold">+{formatMoneyVE(toMajor(o.diferencia), "USD")}</span>
+            <span className="tnum text-[14px] font-bold">+{formatMoneyVE(toMajor(o.precio), "USD")}</span>
           </button>
         ))}
       </div>
@@ -124,7 +128,7 @@ export function RecargarTiempo({
           Cancelar
         </Button>
         <Button variant="primary" className="flex-1" onClick={() => void subir()} disabled={!opcion || enviando}>
-          {enviando ? "Sumando…" : opcion ? `Subir a ${opcion.paquete.name}` : "Subir"}
+          {enviando ? "Sumando…" : opcion ? (opcion.sumaCompleta ? `Sumar ${opcion.paquete.name}` : `Subir a ${opcion.paquete.name}`) : "Sumar"}
         </Button>
       </div>
     </div>

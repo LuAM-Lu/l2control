@@ -721,6 +721,28 @@ export function primeraSubida(
 }
 
 /**
+ * «Más tiempo» para una estancia de tiempo fijo (B4-23, M-42): según la regla de sus condiciones (`regla`):
+ *
+ *  · **Por bloques (`POR_BLOQUES`):** suma el paquete entero a su precio completo (30 min + 30 min = $ 6; 1 h + 30 min =
+ *    $ 8), como incentivo para pedir el paquete grande desde la entrada. Sirve cualquier paquete fijo a la venta.
+ *  · **Con tope (`CON_TOPE`):** sube a un paquete mayor pagando solo la diferencia (`subirDePaquete`).
+ *
+ * `null` si el paquete no es de tiempo fijo, es de otra moneda o (con tope) no es mayor que lo que ya tiene.
+ */
+export function recargaDePaquete(
+  actual: Readonly<{ minutos: number; contratado: Money }>,
+  destino: PaqueteDeUso,
+  regla: ReglaDelTiempoDeMas,
+): Readonly<{ minutos: number; precio: Money; sumaCompleta: boolean }> | null {
+  if (destino.duration.kind !== "fixed" || destino.price.currency !== actual.contratado.currency) return null;
+  if (regla === "POR_BLOQUES") {
+    return { minutos: destino.duration.minutes, precio: destino.price, sumaCompleta: true };
+  }
+  const sube = subirDePaquete(actual, destino);
+  return sube ? { minutos: sube.minutos, precio: sube.diferencia, sumaCompleta: false } : null;
+}
+
+/**
  * Subir de paquete (B4-17, M-37): lo que falta pagar para pasar de lo contratado (el paquete y lo que ya subió) a un
  * paquete mayor, y los minutos que suma. El total queda en el precio del paquete final. `null` si ese paquete no es
  * mayor que lo que ya tiene, o no es de tiempo fijo.
@@ -771,6 +793,12 @@ export function liquidarEstancia(
     contratado: Money;
     cuentaAbierta: boolean;
     tiempoAbierto: boolean;
+    /**
+     * Minutos del paquete inicial antes de las recargas de «Más tiempo» (B4-23). Bajo `POR_BLOQUES`, si el niño ya
+     * superó su paquete inicial (más la gracia), usó la recarga sumada y `porUso` no rebaja la cuenta al precio del
+     * paquete grande (ej. 30 min + 30 min = $ 6 al salir a los 55 min no baja a $ 5).
+     */
+    minutosIniciales?: number;
   }>,
   now: EpochMs,
 ): Liquidacion {
@@ -792,7 +820,11 @@ export function liquidarEstancia(
   }
   const s = settleAtExit(session, policy, now, { tarifa, contratado });
   let porUso: Combinacion | null = null;
-  if (input.cuentaAbierta && s.overdue.amount === 0n) {
+  const usoRecargaSumada =
+    policy.tiempoDeMas === "POR_BLOQUES" &&
+    input.minutosIniciales !== undefined &&
+    view.elapsedMs > (input.minutosIniciales + policy.graceMinutes) * MS_PER_MINUTE;
+  if (input.cuentaAbierta && s.overdue.amount === 0n && !usoRecargaSumada) {
     const c = precioDelTiempo(tarifa, view.elapsedMs, policy.graceMinutes, contratado.currency);
     if (c && c.precio.amount < contratado.amount) porUso = c;
   }
