@@ -16,6 +16,11 @@ al commit que entregó cada paso.
 
 ## [Sin publicar]
 
+## [0.156.2] — 2026-11-18 · Hacia la puesta en marcha
+
+### Seguridad
+- **Next.js 16.3.8 → 16.4.5:** cierra los tres avisos de seguridad anotados en `pnpm-workspace.yaml` hasta el 28 de octubre (`GHSA-2464-fhr4-w9xw`, `GHSA-673q-mjm6-r5xr` y `GHSA-p3m5-59mp-jv5r`) y retira esas excepciones de `auditConfig`.
+
 ## [0.156.1] — 2026-10-26 · Hacia la puesta en marcha
 
 ### Seguridad
